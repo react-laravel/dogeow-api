@@ -42,8 +42,8 @@ return [
     ],
 
     'allowed_origins_patterns' => [
-        // 所有 dogeow.com 子域名（测试、正式环境）
-        '#^https://[a-zA-Z0-9-]+\.dogeow\.com$#',
+        // 所有 dogeow.com 子域名（支持多级子域名，如 next.test.dogeow.com）
+        '#^https://[a-zA-Z0-9-.]+\.dogeow\.com$#',
         // localhost 开发环境
         '#^http://(localhost|127\.0\.0\.1):\d+$#',
         // Tailscale 地址段

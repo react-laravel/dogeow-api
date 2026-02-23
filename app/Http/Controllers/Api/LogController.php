@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\LogUpdated;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -67,5 +68,32 @@ class LogController extends Controller
             'content' => implode("\n", $lines),
             'total_lines' => count(explode("\n", $content)),
         ]);
+    }
+
+    /**
+     * 手动触发日志更新广播
+     */
+    public function notify(): JsonResponse
+    {
+        $files = File::files($this->logPath);
+        $latestFile = collect($files)
+            ->filter(fn ($file) => preg_match('/laravel-\d{4}-\d{2}-\d{2}\.log/', $file->getFilename()))
+            ->sortByDesc(fn ($file) => $file->getMTime())
+            ->first();
+
+        if ($latestFile) {
+            $date = preg_replace('/laravel-(\d{4}-\d{2}-\d{2})\.log/', '$1', $latestFile->getFilename());
+            $size = $latestFile->getSize();
+
+            event(new LogUpdated($date, $size));
+
+            return response()->json([
+                'message' => '日志更新通知已发送',
+                'date' => $date,
+                'size' => $size,
+            ]);
+        }
+
+        return response()->json(['message' => '未找到日志文件'], 404);
     }
 }
