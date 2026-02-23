@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UploadController;
+use App\Http\Controllers\Api\WebPushController;
 use Illuminate\Support\Facades\Route;
 
 // 广播认证路由 - 必须在认证中间件外部，但内部会检查 Sanctum 认证
@@ -14,6 +15,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::put('/user', [AuthController::class, 'update']);
+
+    // Web Push：保存/删除当前用户的推送订阅
+    Route::post('/user/push-subscription', [WebPushController::class, 'updateSubscription']);
+    Route::delete('/user/push-subscription', [WebPushController::class, 'deleteSubscription']);
 
     // WebSocket authentication test route
     Route::middleware('websocket.auth')->get('/websocket-test', function () {

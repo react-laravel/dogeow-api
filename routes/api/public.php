@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Route;
 Route::post('/login', [App\Http\Controllers\Api\AuthController::class, 'login']);
 Route::post('/register', [App\Http\Controllers\Api\AuthController::class, 'register']);
 
+// Web Push：VAPID 公钥（公开，供前端订阅使用）
+Route::get('/webpush/vapid', [App\Http\Controllers\Api\WebPushController::class, 'vapidKey']);
+
 // Client info
 Route::get('/client-basic-info', [App\Http\Controllers\Api\ClientInfoController::class, 'getBasicInfo']);
 Route::get('/client-info', [App\Http\Controllers\Api\ClientInfoController::class, 'getClientInfo']);
