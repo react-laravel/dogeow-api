@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Channels\DatabaseChannel;
+use Illuminate\Support\Str;
 use NotificationChannels\WebPush\WebPushChannel;
 use NotificationChannels\WebPush\WebPushMessage;
 
@@ -17,13 +18,17 @@ class WebPushNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    public string $notificationId;
+
     public function __construct(
         public string $title,
         public string $body = '',
         public string $url = '/',
         public ?string $icon = null,
         public ?string $tag = null
-    ) {}
+    ) {
+        $this->notificationId = Str::uuid()->toString();
+    }
 
     /**
      * @return array<int, string>
@@ -45,19 +50,24 @@ class WebPushNotification extends Notification implements ShouldQueue
             'body' => $this->body,
             'url' => $this->url,
             'icon' => $this->icon ?? '/480.png',
+            'notification_id' => $this->notificationId,
         ];
     }
 
     public function toWebPush(object $notifiable, Notification $notification): WebPushMessage
     {
         $icon = $this->icon ?? '/480.png';
+        // 把通知 ID 放进 data，点击通知时前端可用来标记已读
         $message = (new WebPushMessage)
             ->title($this->title)
             ->body($this->body)
             ->icon($icon)
             ->badge('/80.png')
-            ->data(['url' => $this->url])
-            ->options(['TTL' => 86400]); // 24 小时
+            ->data([
+                'url' => $this->url,
+                'notification_id' => $this->notificationId,
+            ])
+            ->options(['TTL' => 86400]);
 
         if ($this->tag !== null) {
             $message->tag($this->tag);
