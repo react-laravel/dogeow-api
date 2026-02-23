@@ -13,7 +13,6 @@ use App\Models\Chat\ChatRoomUser;
 use App\Services\Chat\ChatCacheService;
 use App\Services\Chat\ChatService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -92,21 +91,23 @@ class ChatController extends Controller
     /**
      * Join room
      */
-    public function joinRoom(Request $request, $roomId): JsonResponse
+    public function joinRoom($roomId): JsonResponse
     {
+        $userId = null;
+        $resolvedRoomId = null;
+
         try {
-            $userId = $this->getCurrentUserId();
-            $roomId = $this->normalizeRoomId($roomId);
-            $result = $this->chatService->joinRoom($roomId, $userId);
+            [$userId, $resolvedRoomId] = $this->resolveUserAndRoomId($roomId);
+            $result = $this->chatService->joinRoom($resolvedRoomId, $userId);
 
             if (empty($result['success'])) {
                 return $this->error('Failed to join room', $result['errors'] ?? []);
             }
 
-            $this->clearCacheAndLogActivity($roomId, 'user_joined', $userId);
+            $this->clearCacheAndLogActivity($resolvedRoomId, 'user_joined', $userId);
 
             Log::info('User joined room', [
-                'room_id' => $roomId,
+                'room_id' => $resolvedRoomId,
                 'user_id' => $userId,
             ]);
 
@@ -118,10 +119,7 @@ class ChatController extends Controller
             return $this->logAndError(
                 'Failed to join room',
                 $e,
-                [
-                    'room_id' => $roomId,
-                    'user_id' => $this->getCurrentUserId(),
-                ],
+                $this->buildRoomErrorContext($resolvedRoomId, $userId),
                 'Failed to join room'
             );
         }
@@ -130,21 +128,23 @@ class ChatController extends Controller
     /**
      * Leave room
      */
-    public function leaveRoom(Request $request, $roomId): JsonResponse
+    public function leaveRoom($roomId): JsonResponse
     {
+        $userId = null;
+        $resolvedRoomId = null;
+
         try {
-            $userId = $this->getCurrentUserId();
-            $roomId = $this->normalizeRoomId($roomId);
-            $result = $this->chatService->leaveRoom($roomId, $userId);
+            [$userId, $resolvedRoomId] = $this->resolveUserAndRoomId($roomId);
+            $result = $this->chatService->leaveRoom($resolvedRoomId, $userId);
 
             if (empty($result['success'])) {
                 return $this->error('Failed to leave room', $result['errors'] ?? []);
             }
 
-            $this->clearCacheAndLogActivity($roomId, 'user_left', $userId);
+            $this->clearCacheAndLogActivity($resolvedRoomId, 'user_left', $userId);
 
             Log::info('User left room', [
-                'room_id' => $roomId,
+                'room_id' => $resolvedRoomId,
                 'user_id' => $userId,
             ]);
 
@@ -153,10 +153,7 @@ class ChatController extends Controller
             return $this->logAndError(
                 'Failed to leave room',
                 $e,
-                [
-                    'room_id' => $roomId,
-                    'user_id' => $this->getCurrentUserId(),
-                ],
+                $this->buildRoomErrorContext($resolvedRoomId, $userId),
                 'Failed to leave room'
             );
         }
@@ -165,12 +162,14 @@ class ChatController extends Controller
     /**
      * Delete room (creator only)
      */
-    public function deleteRoom(Request $request, $roomId): JsonResponse
+    public function deleteRoom($roomId): JsonResponse
     {
+        $userId = null;
+        $resolvedRoomId = null;
+
         try {
-            $userId = $this->getCurrentUserId();
-            $roomId = $this->normalizeRoomId($roomId);
-            $result = $this->chatService->deleteRoom($roomId, $userId);
+            [$userId, $resolvedRoomId] = $this->resolveUserAndRoomId($roomId);
+            $result = $this->chatService->deleteRoom($resolvedRoomId, $userId);
 
             if (empty($result['success'])) {
                 $statusCode = (isset($result['errors']) && in_array('You do not have permission to delete this room', $result['errors'])) ? 403 : 422;
@@ -179,7 +178,7 @@ class ChatController extends Controller
             }
 
             Log::info('Room deleted', [
-                'room_id' => $roomId,
+                'room_id' => $resolvedRoomId,
                 'deleted_by' => $userId,
             ]);
 
@@ -188,10 +187,7 @@ class ChatController extends Controller
             return $this->logAndError(
                 'Failed to delete room',
                 $e,
-                [
-                    'room_id' => $roomId,
-                    'user_id' => $this->getCurrentUserId(),
-                ],
+                $this->buildRoomErrorContext($resolvedRoomId, $userId),
                 'Failed to delete room'
             );
         }
@@ -200,29 +196,28 @@ class ChatController extends Controller
     /**
      * Get room messages (paginated)
      */
-    public function getMessages(Request $request, $roomId): JsonResponse
+    public function getMessages($roomId): JsonResponse
     {
-        try {
-            $userId = $this->getCurrentUserId();
-            $roomId = $this->normalizeRoomId($roomId);
-            $room = $this->findActiveRoom($roomId);
+        $userId = null;
+        $resolvedRoomId = null;
 
-            $guard = $this->ensureUserInRoom($roomId, $userId, 'You must join the room to view messages');
+        try {
+            [$userId, $resolvedRoomId] = $this->resolveUserAndRoomId($roomId);
+            $room = $this->findActiveRoom($resolvedRoomId);
+
+            $guard = $this->ensureUserInRoom($resolvedRoomId, $userId, 'You must join the room to view messages');
             if ($guard) {
                 return $guard;
             }
 
-            $paginated = $this->chatService->getMessageHistoryPaginated($roomId);
+            $paginated = $this->chatService->getMessageHistoryPaginated($resolvedRoomId);
 
             return response()->json($paginated);
         } catch (\Throwable $e) {
             return $this->logAndError(
                 'Failed to retrieve messages',
                 $e,
-                [
-                    'room_id' => $roomId,
-                    'user_id' => $this->getCurrentUserId(),
-                ],
+                $this->buildRoomErrorContext($resolvedRoomId, $userId),
                 'Failed to retrieve messages'
             );
         }
@@ -233,12 +228,14 @@ class ChatController extends Controller
      */
     public function sendMessage(SendMessageRequest $request, $roomId): JsonResponse
     {
-        try {
-            $userId = $this->getCurrentUserId();
-            $roomId = $this->normalizeRoomId($roomId);
-            $room = $this->findActiveRoom($roomId);
+        $userId = null;
+        $resolvedRoomId = null;
 
-            $roomUser = $this->fetchRoomUser($roomId, $userId);
+        try {
+            [$userId, $resolvedRoomId] = $this->resolveUserAndRoomId($roomId);
+            $this->findActiveRoom($resolvedRoomId);
+
+            $roomUser = $this->fetchRoomUser($resolvedRoomId, $userId);
             if (! $roomUser || ! $roomUser->is_online) {
                 return $this->error('You must be online in the room to send messages', [], 403);
             }
@@ -248,13 +245,13 @@ class ChatController extends Controller
                 return $this->error($perm['message'], [], 403);
             }
 
-            $rate = $this->checkRate($userId, $roomId);
+            $rate = $this->checkRate($userId, $resolvedRoomId);
             if (! $rate['allowed']) {
                 return $this->error($rate['message'], $rate['data'] ?? [], 429);
             }
 
             $result = $this->chatService->processMessage(
-                $roomId,
+                $resolvedRoomId,
                 $userId,
                 $request->message,
                 $request->message_type ?? ChatMessage::TYPE_TEXT
@@ -269,15 +266,15 @@ class ChatController extends Controller
 
             $roomUser->updateLastSeen();
 
-            $this->clearRoomCache($roomId);
-            $this->cacheService->invalidateMessageHistory($roomId);
-            $this->logRoomActivity($roomId, 'message_sent', $userId);
+            $this->clearRoomCache($resolvedRoomId);
+            $this->cacheService->invalidateMessageHistory($resolvedRoomId);
+            $this->logRoomActivity($resolvedRoomId, 'message_sent', $userId);
 
             broadcast(new MessageSent($result['message']));
 
             Log::info('Message sent', [
                 'message_id' => $result['message']->id,
-                'room_id' => $roomId,
+                'room_id' => $resolvedRoomId,
                 'user_id' => $userId,
                 'message_type' => $result['message']->message_type,
             ]);
@@ -290,10 +287,7 @@ class ChatController extends Controller
             return $this->logAndError(
                 'Failed to send message',
                 $e,
-                [
-                    'room_id' => $roomId,
-                    'user_id' => $this->getCurrentUserId(),
-                ],
+                $this->buildRoomErrorContext($resolvedRoomId, $userId),
                 'Failed to send message'
             );
         }
@@ -364,15 +358,17 @@ class ChatController extends Controller
     /**
      * Delete message (admin)
      */
-    public function deleteMessage(Request $request, $roomId, $messageId): JsonResponse
+    public function deleteMessage($roomId, $messageId): JsonResponse
     {
+        $userId = null;
+        $resolvedRoomId = null;
+
         try {
-            $userId = $this->getCurrentUserId();
-            $roomId = $this->normalizeRoomId($roomId);
+            [$userId, $resolvedRoomId] = $this->resolveUserAndRoomId($roomId);
             $messageId = (int) $messageId;
 
-            $room = $this->findActiveRoom($roomId);
-            $message = ChatMessage::where('room_id', $roomId)->findOrFail($messageId);
+            $room = $this->findActiveRoom($resolvedRoomId);
+            $message = ChatMessage::where('room_id', $resolvedRoomId)->findOrFail($messageId);
 
             $canDelete = $message->user_id === $userId || $room->created_by === $userId;
             if (! $canDelete) {
@@ -402,8 +398,7 @@ class ChatController extends Controller
                 $e,
                 [
                     'message_id' => $messageId,
-                    'room_id' => $roomId,
-                    'user_id' => $this->getCurrentUserId(),
+                    ...$this->buildRoomErrorContext($resolvedRoomId, $userId),
                 ],
                 'Failed to delete message'
             );
@@ -413,19 +408,21 @@ class ChatController extends Controller
     /**
      * Get room online users
      */
-    public function getOnlineUsers(Request $request, $roomId): JsonResponse
+    public function getOnlineUsers($roomId): JsonResponse
     {
-        try {
-            $userId = $this->getCurrentUserId();
-            $roomId = $this->normalizeRoomId($roomId);
-            $room = $this->findActiveRoom($roomId);
+        $userId = null;
+        $resolvedRoomId = null;
 
-            $guard = $this->ensureUserInRoom($roomId, $userId, 'You must join the room to view online users');
+        try {
+            [$userId, $resolvedRoomId] = $this->resolveUserAndRoomId($roomId);
+            $this->findActiveRoom($resolvedRoomId);
+
+            $guard = $this->ensureUserInRoom($resolvedRoomId, $userId, 'You must join the room to view online users');
             if ($guard) {
                 return $guard;
             }
 
-            $onlineUsers = $this->chatService->getOnlineUsers($roomId);
+            $onlineUsers = $this->chatService->getOnlineUsers($resolvedRoomId);
 
             return $this->success([
                 'online_users' => $onlineUsers,
@@ -435,10 +432,7 @@ class ChatController extends Controller
             return $this->logAndError(
                 'Failed to retrieve online users',
                 $e,
-                [
-                    'room_id' => $roomId,
-                    'user_id' => $this->getCurrentUserId(),
-                ],
+                $this->buildRoomErrorContext($resolvedRoomId, $userId),
                 'Failed to retrieve online users'
             );
         }
@@ -447,14 +441,16 @@ class ChatController extends Controller
     /**
      * Update user status (heartbeat)
      */
-    public function updateUserStatus(Request $request, $roomId): JsonResponse
+    public function updateUserStatus($roomId): JsonResponse
     {
-        try {
-            $userId = $this->getCurrentUserId();
-            $roomId = $this->normalizeRoomId($roomId);
-            $room = $this->findActiveRoom($roomId);
+        $userId = null;
+        $resolvedRoomId = null;
 
-            $result = $this->chatService->processHeartbeat($roomId, $userId);
+        try {
+            [$userId, $resolvedRoomId] = $this->resolveUserAndRoomId($roomId);
+            $this->findActiveRoom($resolvedRoomId);
+
+            $result = $this->chatService->processHeartbeat($resolvedRoomId, $userId);
 
             if (empty($result['success'])) {
                 return $this->error('Failed to update status', $result['errors'] ?? [], 404);
@@ -467,10 +463,7 @@ class ChatController extends Controller
             return $this->logAndError(
                 'Failed to update user status',
                 $e,
-                [
-                    'room_id' => $roomId,
-                    'user_id' => $this->getCurrentUserId(),
-                ],
+                $this->buildRoomErrorContext($resolvedRoomId, $userId),
                 'Failed to update status'
             );
         }
@@ -479,7 +472,7 @@ class ChatController extends Controller
     /**
      * Clean up offline users
      */
-    public function cleanupDisconnectedUsers(Request $request): JsonResponse
+    public function cleanupDisconnectedUsers(): JsonResponse
     {
         try {
             $result = $this->chatService->cleanupInactiveUsers();
@@ -509,14 +502,16 @@ class ChatController extends Controller
     /**
      * Get user presence status in room
      */
-    public function getUserPresenceStatus(Request $request, $roomId): JsonResponse
+    public function getUserPresenceStatus($roomId): JsonResponse
     {
-        try {
-            $userId = $this->getCurrentUserId();
-            $roomId = $this->normalizeRoomId($roomId);
-            $room = $this->findActiveRoom($roomId);
+        $userId = null;
+        $resolvedRoomId = null;
 
-            $roomUser = $this->fetchRoomUser($roomId, $userId);
+        try {
+            [$userId, $resolvedRoomId] = $this->resolveUserAndRoomId($roomId);
+            $this->findActiveRoom($resolvedRoomId);
+
+            $roomUser = $this->fetchRoomUser($resolvedRoomId, $userId);
 
             if (! $roomUser) {
                 return $this->success([
@@ -536,12 +531,31 @@ class ChatController extends Controller
             return $this->logAndError(
                 'Failed to get user presence status',
                 $e,
-                [
-                    'room_id' => $roomId,
-                    'user_id' => $this->getCurrentUserId(),
-                ],
+                $this->buildRoomErrorContext($resolvedRoomId, $userId),
                 'Failed to get user presence status'
             );
         }
+    }
+
+    /**
+     * @param  mixed  $roomId
+     * @return array{0: int, 1: int}
+     */
+    private function resolveUserAndRoomId($roomId): array
+    {
+        $userId = $this->getCurrentUserId();
+
+        return [$userId, $this->normalizeRoomId($roomId)];
+    }
+
+    /**
+     * @return array{room_id: int|null, user_id: int|null}
+     */
+    private function buildRoomErrorContext(?int $roomId, ?int $userId = null): array
+    {
+        return [
+            'room_id' => $roomId,
+            'user_id' => $userId,
+        ];
     }
 }
