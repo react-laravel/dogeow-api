@@ -1,7 +1,25 @@
+
 <?php
 
-return [
+use Pdp\Domain;
+use Pdp\Rules;
 
+$appUrl = env('APP_URL');
+$host = parse_url($appUrl, PHP_URL_HOST);
+
+try {
+    $pslPath = base_path('database/data/public_suffix_list.dat');
+    if (file_exists($pslPath)) {
+        $rules = Rules::fromPath($pslPath);
+        $domain = Domain::fromIDNA2008($host);
+        $result = $rules->resolve($domain);
+        $mainDomain = $result->registrableDomain() ?: $host;
+    }
+} catch (Throwable $e) {
+    $mainDomain = $host;
+}
+
+return [
     /*
     |--------------------------------------------------------------------------
     | Cross-Origin Resource Sharing (CORS) Configuration
@@ -20,13 +38,13 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-        env('FRONTEND_URL', 'http://localhost:3000'),
+        env('FRONTEND_URL'),
     ],
 
     'allowed_origins_patterns' => [
-        '#^https://(.+\.)?dogeow\.com$#',
+        "#^https://(.+\\.)?$mainDomain$#",
         '#^http://(localhost|127\.0\.0\.1):\d+$#',
-        '#^http://100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+:3000$#',
+        '#^http://100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+:3000$#', // Tailscale 地址段
     ],
 
     'allowed_headers' => ['*'],
