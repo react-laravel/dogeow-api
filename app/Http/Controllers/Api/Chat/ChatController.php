@@ -233,7 +233,7 @@ class ChatController extends Controller
 
         try {
             [$userId, $resolvedRoomId] = $this->resolveUserAndRoomId($roomId);
-            $this->findActiveRoom($resolvedRoomId);
+            $room = $this->findActiveRoom($resolvedRoomId);
 
             $roomUser = $this->fetchRoomUser($resolvedRoomId, $userId);
             if (! $roomUser || ! $roomUser->is_online) {
@@ -415,7 +415,7 @@ class ChatController extends Controller
 
         try {
             [$userId, $resolvedRoomId] = $this->resolveUserAndRoomId($roomId);
-            $this->findActiveRoom($resolvedRoomId);
+            $room = $this->findActiveRoom($resolvedRoomId);
 
             $guard = $this->ensureUserInRoom($resolvedRoomId, $userId, 'You must join the room to view online users');
             if ($guard) {
@@ -448,7 +448,7 @@ class ChatController extends Controller
 
         try {
             [$userId, $resolvedRoomId] = $this->resolveUserAndRoomId($roomId);
-            $this->findActiveRoom($resolvedRoomId);
+            $room = $this->findActiveRoom($resolvedRoomId);
 
             $result = $this->chatService->processHeartbeat($resolvedRoomId, $userId);
 
@@ -509,7 +509,7 @@ class ChatController extends Controller
 
         try {
             [$userId, $resolvedRoomId] = $this->resolveUserAndRoomId($roomId);
-            $this->findActiveRoom($resolvedRoomId);
+            $room = $this->findActiveRoom($resolvedRoomId);
 
             $roomUser = $this->fetchRoomUser($resolvedRoomId, $userId);
 

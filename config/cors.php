@@ -42,9 +42,12 @@ return [
     ],
 
     'allowed_origins_patterns' => [
-        "#^https://(.+\\.)?$mainDomain$#",
+        // 所有 dogeow.com 子域名（测试、正式环境）
+        '#^https://[a-zA-Z0-9-]+\.dogeow\.com$#',
+        // localhost 开发环境
         '#^http://(localhost|127\.0\.0\.1):\d+$#',
-        '#^http://100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+:3000$#', // Tailscale 地址段
+        // Tailscale 地址段
+        '#^http://100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+:3000$#',
     ],
 
     'allowed_headers' => ['*'],
