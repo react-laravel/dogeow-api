@@ -17,7 +17,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Laravel Boost 仅作为 dev 依赖，生产部署用 --no-dev 不会安装；避免生产从旧缓存加载导致 Class not found
+        if (class_exists(\Laravel\Boost\BoostServiceProvider::class)) {
+            $this->app->register(\Laravel\Boost\BoostServiceProvider::class);
+        }
     }
 
     /**
