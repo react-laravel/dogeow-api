@@ -1,5 +1,5 @@
 # 在国内服务器上的自托管 Runner 执行，推送 main 后自动部署（本机 git pull + 零停机脚本）
-# 前提：Runner 装在与应用同一台机；在仓库 Settings -> Secrets and variables -> Actions 里添加 secret：APP_ROOT = 服务器上的应用目录（如 /var/www/dogeow-next）
+# 前提：在仓库 Settings -> Secrets and variables -> Actions 添加 APP_ROOT、SUPERVISOR_GROUP
 name: Deploy (Self-hosted)
 
 on:
@@ -19,3 +19,4 @@ jobs:
           ./scripts/deploy-zero-downtime.sh
         env:
           APP_ROOT: ${{ secrets.APP_ROOT }}
+          SUPERVISOR_GROUP: ${{ secrets.SUPERVISOR_GROUP }}
