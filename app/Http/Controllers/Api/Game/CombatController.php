@@ -93,23 +93,6 @@ class CombatController extends Controller
     }
 
     /**
-     * 游戏页心跳：前端在游戏界面时定期调用，用于检测用户是否仍在游戏页。
-     * 若长时间未收到心跳，AutoCombatRoundJob 会停止自动战斗。
-     */
-    public function heartbeat(Request $request): JsonResponse
-    {
-        try {
-            $character = $this->getCharacter($request);
-            $key = 'rpg:game:heartbeat:' . $character->id;
-            Redis::setex($key, 45, (string) time());
-
-            return $this->success(['ok' => true]);
-        } catch (Throwable $e) {
-            return $this->error('心跳失败', ['error' => $e->getMessage()]);
-        }
-    }
-
-    /**
      * 停止自动战斗
      */
     public function stop(Request $request): JsonResponse

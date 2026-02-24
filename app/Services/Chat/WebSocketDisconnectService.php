@@ -2,12 +2,10 @@
 
 namespace App\Services\Chat;
 
-use App\Jobs\Game\AutoCombatRoundJob;
 use App\Models\Chat\ChatRoomUser;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
 
 class WebSocketDisconnectService
 {
@@ -25,9 +23,6 @@ class WebSocketDisconnectService
     {
         try {
             Log::info("WebSocket disconnect detected for user: {$userId}, connection: {$connectionId}");
-
-            // 先停止用户的自动战斗
-            $this->stopUserAutoCombat($userId);
 
             // 获取用户当前在线的所有房间
             $onlineRooms = ChatRoomUser::where('user_id', $userId)
@@ -131,38 +126,5 @@ class WebSocketDisconnectService
             ->where('room_id', $roomId)
             ->where('is_online', true)
             ->exists();
-    }
-
-    /**
-     * 停止用户的自动战斗
-     */
-    protected function stopUserAutoCombat(int $userId): void
-    {
-        try {
-            // 查找用户的游戏角色
-            $characterModel = app(\App\Models\Game\GameCharacter::class);
-            $character = $characterModel::where('user_id', $userId)->first();
-
-            if (! $character) {
-                return;
-            }
-
-            // 检查是否有自动战斗在进行
-            $key = AutoCombatRoundJob::redisKey($character->id);
-            if (Redis::get($key) !== null) {
-                // 删除 Redis key 停止自动战斗
-                Redis::del($key);
-
-                // 更新角色战斗状态
-                $character->update(['is_fighting' => false]);
-
-                Log::info("Stopped auto combat for user {$userId}, character {$character->id}");
-            }
-        } catch (\Exception $e) {
-            Log::error('Failed to stop auto combat on disconnect: ' . $e->getMessage(), [
-                'user_id' => $userId,
-                'error' => $e->getTraceAsString(),
-            ]);
-        }
     }
 }

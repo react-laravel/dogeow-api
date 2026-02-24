@@ -110,19 +110,10 @@ class AutoCombatRoundJob implements ShouldQueue
                 return;
             }
 
-            // 检查用户是否仍在游戏页（心跳超时则视为已离开，停止自动战斗）
-            $heartbeatKey = 'rpg:game:heartbeat:' . $this->characterId;
-            if (Redis::get($heartbeatKey) === null) {
-                Redis::del($key);
-                $character->update(['is_fighting' => false]);
-                Log::info("Auto combat stopped: no heartbeat for character {$this->characterId}");
-
-                return;
-            }
-
             // 检查 Redis key 是否仍然存在
             if (Redis::get($key) !== null) {
                 // 等待 3 秒后再调度下一个 job
+                // 这是一个简单但可靠的方法
                 sleep(3);
                 self::dispatch($this->characterId, []);
             }
