@@ -1,6 +1,6 @@
 <?php
 
-namespace Database\Factories;
+namespace Database\Factories\Chat;
 
 use App\Models\Chat\ChatMessage;
 use App\Models\Chat\ChatModerationAction;

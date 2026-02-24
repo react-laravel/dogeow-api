@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use GuzzleHttp\Psr7\LazyOpenStream;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -42,11 +43,12 @@ class UpyunService
     /**
      * 上传本地文件到又拍云
      *
-     * @param  string  $localPath  本地文件路径（如 Ollama 生成图片的路径）
+     * @param  string  $localPath  本地文件路径（如 Ollama 生成图片的路径，或 Laravel 上传的临时路径）
      * @param  string  $remotePath  又拍云上的路径，如 /images/ollama/xxx.png（以 / 开头，不要带 bucket）
+     * @param  string|null  $contentType  可选。未传时按路径扩展名猜测（临时文件无扩展名时会得到 application/octet-stream，易导致访问乱码）
      * @return array{success: bool, url?: string, message?: string}
      */
-    public function upload(string $localPath, string $remotePath): array
+    public function upload(string $localPath, string $remotePath, ?string $contentType = null): array
     {
         if (! $this->isConfigured()) {
             return ['success' => false, 'message' => '又拍云未配置，请设置 UPYUN_BUCKET、UPYUN_OPERATOR、UPYUN_PASSWORD'];
@@ -61,10 +63,9 @@ class UpyunService
             return ['success' => false, 'message' => "本地文件不存在或不可读: {$localPath}"];
         }
 
-        $body = file_get_contents($localPath);
-        $contentLength = strlen($body);
-        $contentMd5 = md5($body);
-        $contentType = $this->guessMimeType($localPath);
+        $contentLength = filesize($localPath);
+        $contentMd5 = md5_file($localPath);
+        $contentType = $contentType ?? $this->guessMimeType($localPath);
 
         $uri = '/' . $this->bucket . '/' . $remotePath;
         $date = gmdate('D, d M Y H:i:s \G\M\T');
@@ -72,13 +73,16 @@ class UpyunService
 
         $url = 'https://' . $this->apiHost . $uri;
 
+        $stream = new LazyOpenStream($localPath, 'rb');
+
+        // 必须显式传 Content-Type；Laravel withBody() 默认第二参数为 application/json，否则又拍云会存成 JSON 导致访问乱码
         $response = Http::withHeaders([
             'Authorization' => $signature,
             'Date' => $date,
             'Content-Length' => (string) $contentLength,
             'Content-MD5' => $contentMd5,
             'Content-Type' => $contentType,
-        ])->withBody($body)->put($url);
+        ])->withBody($stream, $contentType)->put($url);
 
         if (! $response->successful()) {
             return [

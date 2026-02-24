@@ -18,10 +18,12 @@ class ChatRoom extends Model
         'description',
         'created_by',
         'is_active',
+        'is_private',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_private' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

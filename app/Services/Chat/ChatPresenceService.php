@@ -92,12 +92,19 @@ class ChatPresenceService
             ];
         }
 
-        try {
-            // Check if user is already a member
-            $existingRoomUser = ChatRoomUser::where('room_id', $roomId)
-                ->where('user_id', $userId)
-                ->first();
+        // Check if user is already a member (needed for private room check and re-join)
+        $existingRoomUser = ChatRoomUser::where('room_id', $roomId)
+            ->where('user_id', $userId)
+            ->first();
 
+        if ($room->is_private && ! $existingRoomUser) {
+            return [
+                'success' => false,
+                'errors' => ['Private rooms are only joinable by existing members.'],
+            ];
+        }
+
+        try {
             if ($existingRoomUser) {
                 // User is already a member, just update online status
                 $result = $this->updateUserStatus($roomId, $userId, true);

@@ -42,11 +42,13 @@ class ChatCacheService
     private const PREFIX_CACHE_KEYS = 'chat:cache:keys';
 
     /**
-     * Get room list directly from database (no cache for real-time online count)
+     * Get room list directly from database (no cache for real-time online count).
+     * When $userId is set: only public rooms or rooms the user is a member of.
+     * When $userId is null: all active rooms (backward compatibility).
      */
-    public function getRoomList(): Collection
+    public function getRoomList(?int $userId = null): Collection
     {
-        return ChatRoom::where('is_active', true)
+        $query = ChatRoom::where('is_active', true)
             ->with('creator:id,name,email')
             ->withCount([
                 'users as online_count' => function ($query) {
@@ -54,8 +56,16 @@ class ChatCacheService
                 },
                 'messages as message_count',
             ])
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->orderBy('created_at', 'desc');
+
+        if ($userId !== null) {
+            $query->where(function ($q) use ($userId) {
+                $q->where('is_private', false)
+                    ->orWhereHas('roomUsers', fn ($q2) => $q2->where('user_id', $userId));
+            });
+        }
+
+        return $query->get();
     }
 
     /**

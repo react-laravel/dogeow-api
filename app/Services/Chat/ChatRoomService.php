@@ -33,11 +33,21 @@ class ChatRoomService
     const MAX_ROOM_DESCRIPTION_LENGTH = 500;
 
     /**
-     * Validate room creation data
+     * Validate room creation/update data
+     *
+     * @param  array<string, mixed>  $data
+     * @param  int|null  $excludeRoomId  When updating, exclude this room id from unique name check
      */
-    public function validateRoomData(array $data): array
+    public function validateRoomData(array $data, ?int $excludeRoomId = null): array
     {
         $errors = [];
+        $name = null;
+        $description = $data['description'] ?? null;
+        if ($description !== null && $description !== '') {
+            $description = trim($description);
+        } else {
+            $description = null;
+        }
 
         // Validate room name
         if (empty($data['name'])) {
@@ -54,18 +64,21 @@ class ChatRoomService
             }
 
             // Check for duplicate room names
-            if (ChatRoom::where('name', $name)->where('is_active', true)->exists()) {
+            $nameQuery = ChatRoom::where('name', $name)->where('is_active', true);
+            if ($excludeRoomId !== null) {
+                $nameQuery->where('id', '!=', $excludeRoomId);
+            }
+            if ($nameQuery->exists()) {
                 $errors[] = '该房间名称已存在';
             }
         }
 
         // Validate description if provided
-        if (! empty($data['description'])) {
-            $description = trim($data['description']);
-            if (mb_strlen($description, 'UTF-8') > self::MAX_ROOM_DESCRIPTION_LENGTH) {
-                $errors[] = '房间描述不能超过' . self::MAX_ROOM_DESCRIPTION_LENGTH . '个字符';
-            }
+        if ($description !== null && mb_strlen($description, 'UTF-8') > self::MAX_ROOM_DESCRIPTION_LENGTH) {
+            $errors[] = '房间描述不能超过' . self::MAX_ROOM_DESCRIPTION_LENGTH . '个字符';
         }
+
+        $isPrivate = isset($data['is_private']) ? (bool) $data['is_private'] : false;
 
         return [
             'valid' => empty($errors),
@@ -73,6 +86,7 @@ class ChatRoomService
             'sanitized_data' => [
                 'name' => isset($name) ? $this->messageService->sanitizeMessage($name) : '',
                 'description' => isset($description) ? $this->messageService->sanitizeMessage($description) : null,
+                'is_private' => $isPrivate,
             ],
         ];
     }
@@ -98,6 +112,7 @@ class ChatRoomService
                     'description' => $validation['sanitized_data']['description'],
                     'created_by' => $createdBy,
                     'is_active' => true,
+                    'is_private' => $validation['sanitized_data']['is_private'] ?? false,
                 ]);
 
                 // Auto-add creator to room
@@ -228,8 +243,8 @@ class ChatRoomService
 
         $room = ChatRoom::find($roomId);
 
-        // Validate new data
-        $validation = $this->validateRoomData($data);
+        // Validate new data (exclude current room from unique name check)
+        $validation = $this->validateRoomData($data, $roomId);
 
         if (! $validation['valid']) {
             return [
@@ -241,10 +256,14 @@ class ChatRoomService
         try {
             $oldName = $room->name;
 
-            $room->update([
+            $update = [
                 'name' => $validation['sanitized_data']['name'],
                 'description' => $validation['sanitized_data']['description'],
-            ]);
+            ];
+            if (array_key_exists('is_private', $data)) {
+                $update['is_private'] = $validation['sanitized_data']['is_private'];
+            }
+            $room->update($update);
 
             // Create system message if name changed
             if ($oldName !== $room->name) {
@@ -303,10 +322,11 @@ class ChatRoomService
     }
 
     /**
-     * Get active rooms list with basic stats (cached)
+     * Get active rooms list with basic stats.
+     * When $userId is set, only returns public rooms or rooms the user is a member of.
      */
-    public function getActiveRooms(): \Illuminate\Support\Collection
+    public function getActiveRooms(?int $userId = null): \Illuminate\Support\Collection
     {
-        return $this->cacheService->getRoomList();
+        return $this->cacheService->getRoomList($userId);
     }
 }

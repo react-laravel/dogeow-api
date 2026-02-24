@@ -68,7 +68,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve --host=0.0.0.0\" \"php artisan queue:listen --tries=1\" \"php artisan reverb:start --debug\" --names=server,queue,reverb"
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan reverb:start --debug\" --names=server,queue,reverb"
         ],
         "dev:logs": [
             "Composer\\Config::disableProcessTimeout",
@@ -76,7 +76,7 @@
         ],
         "dev:all": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve --host=0.0.0.0\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"php artisan reverb:start --debug\" --names=server,queue,logs,reverb"
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"php artisan reverb:start --debug\" --names=server,queue,logs,reverb"
         ],
         "test": "phpunit",
         "test:coverage": "phpunit --coverage-html coverage/html --coverage-clover coverage/clover.xml --coverage-text=coverage/coverage.txt",

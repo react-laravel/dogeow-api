@@ -4,14 +4,14 @@ namespace App\Http\Requests\Chat;
 
 use App\Utils\CharLengthHelper;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
-class CreateRoomRequest extends FormRequest
+class UpdateRoomRequest extends FormRequest
 {
-    // 房间名称长度限制（按字符数计算：中文/emoji算2，数字/字母算1）
-    private const MIN_ROOM_NAME_LENGTH = 2; // 最少2个字符
+    private const MIN_ROOM_NAME_LENGTH = 2;
 
-    private const MAX_ROOM_NAME_LENGTH = 20; // 最多20个字符
+    private const MAX_ROOM_NAME_LENGTH = 20;
 
     /**
      * Determine if the user is authorized to make this request.
@@ -28,11 +28,13 @@ class CreateRoomRequest extends FormRequest
      */
     public function rules(): array
     {
+        $roomId = $this->route('roomId');
+
         return [
             'name' => [
                 'required',
                 'string',
-                'unique:chat_rooms,name',
+                Rule::unique('chat_rooms', 'name')->ignore($roomId)->where('is_active', true),
             ],
             'description' => 'nullable|string|max:1000',
             'is_private' => 'sometimes|boolean',
@@ -51,9 +53,6 @@ class CreateRoomRequest extends FormRequest
                 return;
             }
 
-            $charLength = CharLengthHelper::calculateCharLength($name);
-
-            // 检查最小长度
             if (CharLengthHelper::belowMinLength($name, self::MIN_ROOM_NAME_LENGTH)) {
                 $validator->errors()->add(
                     'name',
@@ -61,7 +60,6 @@ class CreateRoomRequest extends FormRequest
                 );
             }
 
-            // 检查最大长度
             if (CharLengthHelper::exceedsMaxLength($name, self::MAX_ROOM_NAME_LENGTH)) {
                 $validator->errors()->add(
                     'name',

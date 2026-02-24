@@ -27,6 +27,9 @@ Route::prefix('musics')->group(function () {
 Route::get('notes/article/{slug}', [\App\Http\Controllers\Api\Note\NoteController::class, 'getArticleBySlug']);
 Route::get('notes/wiki/articles', [\App\Http\Controllers\Api\Note\NoteController::class, 'getAllWikiArticles']);
 
+// Vision AI 图片上传
+Route::post('/vision/upload', [\App\Http\Controllers\Api\VisionUploadController::class, 'upload']);
+
 // Public nav/tools
 require base_path('routes/api/nav.php');
 require base_path('routes/api/tools.php');

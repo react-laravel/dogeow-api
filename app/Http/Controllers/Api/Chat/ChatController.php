@@ -7,6 +7,7 @@ use App\Events\Chat\MessageSent;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Chat\CreateRoomRequest;
 use App\Http\Requests\Chat\SendMessageRequest;
+use App\Http\Requests\Chat\UpdateRoomRequest;
 use App\Http\Resources\Chat\ChatMessageResource;
 use App\Models\Chat\ChatMessage;
 use App\Models\Chat\ChatRoomUser;
@@ -40,7 +41,7 @@ class ChatController extends Controller
     public function getRooms(): JsonResponse
     {
         try {
-            $rooms = $this->chatService->getActiveRooms();
+            $rooms = $this->chatService->getActiveRooms($this->getCurrentUserId());
 
             return $this->success(['rooms' => $rooms], 'Rooms retrieved successfully');
         } catch (\Throwable $e) {
@@ -62,6 +63,7 @@ class ChatController extends Controller
             $result = $this->chatService->createRoom([
                 'name' => $request->name,
                 'description' => $request->description,
+                'is_private' => $request->boolean('is_private'),
             ], $this->getCurrentUserId());
 
             if (empty($result['success'])) {
@@ -84,6 +86,31 @@ class ChatController extends Controller
                     'room_name' => $request->name ?? 'unknown',
                 ],
                 'Failed to create room'
+            );
+        }
+    }
+
+    /**
+     * Update room
+     */
+    public function updateRoom(UpdateRoomRequest $request, $roomId): JsonResponse
+    {
+        $resolvedRoomId = $this->normalizeRoomId($roomId);
+
+        try {
+            $result = $this->chatService->updateRoom($resolvedRoomId, $request->validated(), $this->getCurrentUserId());
+
+            if (empty($result['success'])) {
+                return $this->error('Failed to update room', $result['errors'] ?? []);
+            }
+
+            return $this->success(['room' => $result['room']->load('creator:id,name,email')], 'Room updated successfully');
+        } catch (\Throwable $e) {
+            return $this->logAndError(
+                'Failed to update room',
+                $e,
+                $this->buildRoomErrorContext($resolvedRoomId, $this->getCurrentUserId()),
+                'Failed to update room'
             );
         }
     }

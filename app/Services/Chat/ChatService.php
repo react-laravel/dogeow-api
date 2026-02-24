@@ -177,11 +177,11 @@ class ChatService
     }
 
     /**
-     * Get active rooms
+     * Get active rooms. When $userId is set, only public rooms or rooms the user is a member of.
      */
-    public function getActiveRooms(): Collection
+    public function getActiveRooms(?int $userId = null): Collection
     {
-        return $this->roomService->getActiveRooms();
+        return $this->roomService->getActiveRooms($userId);
     }
 
     // ========================================

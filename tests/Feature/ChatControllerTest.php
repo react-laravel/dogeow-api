@@ -167,11 +167,11 @@ class ChatControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
-            'messages',
-            'pagination' => [
-                'current_page',
-                'has_more_pages',
-            ],
+            'data',
+            'current_page',
+            'last_page',
+            'per_page',
+            'total',
         ]);
     }
 
@@ -278,14 +278,20 @@ class ChatControllerTest extends TestCase
 
     public function test_send_message_blocked_when_muted()
     {
-        // Join the room and set online but muted
+        // Create a different user who is not the room creator
+        $otherUser = User::factory()->create();
+        
+        // Join the room with the other user and set online but muted
         ChatRoomUser::create([
             'room_id' => $this->room->id,
-            'user_id' => $this->user->id,
+            'user_id' => $otherUser->id,
             'is_online' => true,
             'is_muted' => true,
         ]);
 
+        // Authenticate as the muted user
+        Sanctum::actingAs($otherUser);
+        
         $response = $this->postJson("/api/chat/rooms/{$this->room->id}/messages", [
             'message' => 'Hello, world!',
         ]);
@@ -296,14 +302,20 @@ class ChatControllerTest extends TestCase
 
     public function test_send_message_blocked_when_banned()
     {
-        // Join the room and set online but banned
+        // Create a different user who is not the room creator
+        $otherUser = User::factory()->create();
+        
+        // Join the room with the other user and set online but banned
         ChatRoomUser::create([
             'room_id' => $this->room->id,
-            'user_id' => $this->user->id,
+            'user_id' => $otherUser->id,
             'is_online' => true,
             'is_banned' => true,
         ]);
 
+        // Authenticate as the banned user
+        Sanctum::actingAs($otherUser);
+        
         $response = $this->postJson("/api/chat/rooms/{$this->room->id}/messages", [
             'message' => 'Hello, world!',
         ]);
@@ -469,5 +481,129 @@ class ChatControllerTest extends TestCase
     {
         // Skip this test for now as it's complex to test without breaking other tests
         $this->markTestSkipped('Authentication test requires separate test setup');
+    }
+
+    public function test_create_room_with_is_private_true()
+    {
+        $roomData = [
+            'name' => 'Private Test Room',
+            'description' => 'A private room',
+            'is_private' => true,
+        ];
+
+        $response = $this->postJson('/api/chat/rooms', $roomData);
+
+        $response->assertStatus(201);
+        $response->assertJsonFragment([
+            'name' => 'Private Test Room',
+            'is_private' => true,
+        ]);
+        $this->assertDatabaseHas('chat_rooms', [
+            'name' => 'Private Test Room',
+            'is_private' => true,
+        ]);
+    }
+
+    public function test_get_rooms_excludes_private_room_when_user_not_member()
+    {
+        $otherUser = User::factory()->create();
+        $privateRoom = ChatRoom::factory()->private()->create([
+            'name' => 'Private Room',
+            'created_by' => $otherUser->id,
+        ]);
+        ChatRoomUser::create([
+            'room_id' => $privateRoom->id,
+            'user_id' => $otherUser->id,
+            'is_online' => false,
+        ]);
+
+        $response = $this->getJson('/api/chat/rooms');
+
+        $response->assertStatus(200);
+        $roomIds = array_column($response->json('rooms'), 'id');
+        $this->assertNotContains($privateRoom->id, $roomIds);
+    }
+
+    public function test_get_rooms_includes_private_room_when_user_is_member()
+    {
+        $privateRoom = ChatRoom::factory()->private()->create([
+            'name' => 'My Private Room',
+            'created_by' => $this->user->id,
+        ]);
+        ChatRoomUser::create([
+            'room_id' => $privateRoom->id,
+            'user_id' => $this->user->id,
+            'is_online' => false,
+        ]);
+
+        $response = $this->getJson('/api/chat/rooms');
+
+        $response->assertStatus(200);
+        $response->assertJsonFragment(['id' => $privateRoom->id, 'name' => 'My Private Room']);
+    }
+
+    public function test_join_private_room_as_non_member_fails()
+    {
+        $otherUser = User::factory()->create();
+        $privateRoom = ChatRoom::factory()->private()->create([
+            'name' => 'Private Room',
+            'created_by' => $otherUser->id,
+        ]);
+        ChatRoomUser::create([
+            'room_id' => $privateRoom->id,
+            'user_id' => $otherUser->id,
+            'is_online' => false,
+        ]);
+
+        $response = $this->postJson("/api/chat/rooms/{$privateRoom->id}/join");
+
+        $response->assertStatus(422);
+        $this->assertDatabaseMissing('chat_room_users', [
+            'room_id' => $privateRoom->id,
+            'user_id' => $this->user->id,
+        ]);
+    }
+
+    public function test_join_private_room_as_creator_succeeds()
+    {
+        $privateRoom = ChatRoom::factory()->private()->create([
+            'name' => 'My Private Room',
+            'created_by' => $this->user->id,
+        ]);
+        ChatRoomUser::create([
+            'room_id' => $privateRoom->id,
+            'user_id' => $this->user->id,
+            'is_online' => false,
+        ]);
+
+        $response = $this->postJson("/api/chat/rooms/{$privateRoom->id}/join");
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('chat_room_users', [
+            'room_id' => $privateRoom->id,
+            'user_id' => $this->user->id,
+            'is_online' => true,
+        ]);
+    }
+
+    public function test_update_room_successfully()
+    {
+        $response = $this->putJson("/api/chat/rooms/{$this->room->id}", [
+            'name' => 'Updated Room Name',
+            'description' => 'Updated description',
+            'is_private' => true,
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonFragment([
+            'name' => 'Updated Room Name',
+            'description' => 'Updated description',
+            'is_private' => true,
+        ]);
+        $this->assertDatabaseHas('chat_rooms', [
+            'id' => $this->room->id,
+            'name' => 'Updated Room Name',
+            'is_private' => true,
+        ]);
     }
 }

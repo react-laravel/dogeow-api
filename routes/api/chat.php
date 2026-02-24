@@ -8,6 +8,7 @@ Route::prefix('chat')->group(function () {
     // Room management endpoints
     Route::get('/rooms', [ChatController::class, 'getRooms']);
     Route::post('/rooms', [ChatController::class, 'createRoom']);
+    Route::put('/rooms/{roomId}', [ChatController::class, 'updateRoom']);
     Route::post('/rooms/{roomId}/join', [ChatController::class, 'joinRoom']);
     Route::post('/rooms/{roomId}/leave', [ChatController::class, 'leaveRoom']);
     Route::delete('/rooms/{roomId}', [ChatController::class, 'deleteRoom']);
