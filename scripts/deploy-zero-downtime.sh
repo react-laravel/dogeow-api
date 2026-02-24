@@ -71,7 +71,7 @@ if [ -L "$CURRENT_LINK" ] || [ -d "$CURRENT_LINK" ]; then
 
   echo "[deploy] 重启 Supervisor 组: $SUPERVISOR_GROUP"
   sudo supervisorctl restart "$SUPERVISOR_GROUP"
-  sudo supervisorctl status "$SUPERVISOR_GROUP"
+  sudo supervisorctl status "${SUPERVISOR_GROUP}:*"
   echo "[deploy] 完成（零停机）"
   exit 0
 fi
@@ -93,9 +93,9 @@ _install_release "$NEW_RELEASE"
 
 ln -sfn "$NEW_RELEASE" "$CURRENT_LINK"
 echo "[deploy] 已设置 current -> $NEW_RELEASE"
-if sudo supervisorctl status "$SUPERVISOR_GROUP" >/dev/null 2>&1; then
+if sudo supervisorctl status "${SUPERVISOR_GROUP}:*" >/dev/null 2>&1; then
   sudo supervisorctl restart "$SUPERVISOR_GROUP"
-  sudo supervisorctl status "$SUPERVISOR_GROUP"
+  sudo supervisorctl status "${SUPERVISOR_GROUP}:*"
 else
   echo "[deploy] 请配置 Supervisor（directory=$CURRENT_LINK）后执行: sudo supervisorctl start $SUPERVISOR_GROUP"
 fi
