@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a9dff5969971015363fe5dc9f4de0047",
+    "content-hash": "4f3dc8bbd06c313c1cb8ff4212e1dbc1",
     "packages": [
         {
             "name": "brick/math",
@@ -11545,9 +11545,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "laravel/reverb": 10
-    },
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
