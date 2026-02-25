@@ -35,10 +35,31 @@ Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
         return response()->json(['error' => 'Unauthorized'], 401);
     }
 
+    $user = auth('sanctum')->user();
+
+    // 用户私有通知频道权限检查: user.{userId}.notifications / user.{userId}
+    if (preg_match('/^private-user\.(\d+)(?:\.notifications)?$/', $channelName, $matches)) {
+        $targetUserId = (int) $matches[1];
+
+        if ((int) $user->id !== $targetUserId) {
+            Log::warning('Broadcast auth failed: user channel forbidden', [
+                'channel' => $channelName,
+                'user_id' => $user->id,
+                'target_user_id' => $targetUserId,
+            ]);
+
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
+        Log::info('Broadcast auth success', [
+            'channel' => $channelName,
+            'user_id' => $user->id,
+        ]);
+    }
+
     // 游戏频道权限检查: game.{characterId}
     if (preg_match('/^private-game\.(\d+)$/', $channelName, $matches)) {
         $characterId = (int) $matches[1];
-        $user = auth('sanctum')->user();
 
         // 检查角色是否属于当前用户
         $character = GameCharacter::where('id', $characterId)
