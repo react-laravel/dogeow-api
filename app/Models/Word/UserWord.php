@@ -7,6 +7,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property \App\Models\User $user
+ * @property \App\Models\Word\Word $word
+ * @property \App\Models\Word\Book $book
+ */
 class UserWord extends Model
 {
     use HasFactory;

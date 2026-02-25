@@ -5,6 +5,20 @@ namespace App\Models\Game;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property mixed $id
+ * @property mixed $character_id
+ * @property mixed $map_id
+ * @property mixed $monster_id
+ * @property mixed $damage_dealt
+ * @property mixed $damage_taken
+ * @property mixed $victory
+ * @property mixed $loot_dropped
+ * @property mixed $experience_gained
+ * @property mixed $copper_gained
+ * @property mixed $duration_seconds
+ * @property mixed $skills_used
+ */
 class GameCombatLog extends Model
 {
     protected $fillable = [

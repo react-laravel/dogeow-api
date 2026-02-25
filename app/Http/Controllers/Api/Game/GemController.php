@@ -23,10 +23,12 @@ class GemController extends Controller
         $character = $this->getCharacter($request);
 
         // 获取装备和宝石
+        /** @var GameItem $equipment */
         $equipment = GameItem::where('id', $request->input('item_id'))
             ->where('character_id', $character->id)
             ->firstOrFail();
 
+        /** @var GameItem $gemItem */
         $gemItem = GameItem::where('id', $request->input('gem_item_id'))
             ->where('character_id', $character->id)
             ->where('is_in_storage', false)
@@ -89,6 +91,7 @@ class GemController extends Controller
         $character = $this->getCharacter($request);
 
         // 获取装备
+        /** @var GameItem $equipment */
         $equipment = GameItem::where('id', $request->input('item_id'))
             ->where('character_id', $character->id)
             ->firstOrFail();
@@ -152,6 +155,7 @@ class GemController extends Controller
 
         $character = $this->getCharacter($request);
 
+        /** @var GameItem $item */
         $item = GameItem::where('id', $validated['item_id'])
             ->where('character_id', $character->id)
             ->with('gems.gemDefinition')

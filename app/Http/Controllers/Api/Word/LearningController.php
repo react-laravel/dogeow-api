@@ -52,7 +52,9 @@ class LearningController extends Controller
             ->limit($reviewCount)
             ->get();
 
-        $reviewWords = $reviewUserWords->map(fn ($userWord) => $userWord->word)->filter();
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Word> $reviewWords */
+        // property 'word' on UserWord is non-nullable, so return type can be Word
+        $reviewWords = $reviewUserWords->map(fn (UserWord $userWord): Word => $userWord->word)->filter();
 
         // 2. 获取用户已学习的单词ID（该单词书下的）
         $learnedWordIds = UserWord::where('user_id', $user->id)
@@ -61,6 +63,7 @@ class LearningController extends Controller
             ->unique();
 
         // 3. 获取未学习的新单词（排除已学习的，包括复习词）
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Word> $newWords */
         $newWords = $book->words()
             ->with('educationLevels')
             ->whereNotIn('words.id', $learnedWordIds)

@@ -143,6 +143,7 @@ class ChatCacheService
 
             $list = new Collection;
             foreach ($roomUsers as $roomUser) {
+                /** @var \App\Models\User|null $user */
                 $user = $roomUser->user;
                 if ($user === null) {
                     continue;

@@ -4,8 +4,8 @@ namespace App\Providers;
 
 use App\Events\Chat\WebSocketDisconnected;
 use App\Listeners\Notifications\BroadcastDatabaseNotification;
-use App\Listeners\WebSocketDisconnectListener;
 use App\Listeners\WebPush\LogWebPushResult;
+use App\Listeners\WebSocketDisconnectListener;
 use Illuminate\Notifications\Events\NotificationSent as LaravelNotificationSent;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;

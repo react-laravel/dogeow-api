@@ -7,6 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property mixed $id
+ * @property mixed $content
+ * @property mixed $explanation
+ * @property mixed $example_sentences
+ * @property mixed $user_id
+ * @property \Illuminate\Database\Eloquent\Collection<int, \App\Models\Word\EducationLevel> $educationLevels
+ */
 class Word extends Model
 {
     use HasFactory;

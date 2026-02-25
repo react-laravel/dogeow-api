@@ -10,6 +10,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property mixed $id
+ * @property mixed $user_id
+ * @property mixed $title
+ * @property mixed $content
+ * @property mixed $is_public
+ */
 class Note extends Model
 {
     use HasFactory, SoftDeletes;

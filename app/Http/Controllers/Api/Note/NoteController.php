@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Note\NoteRequest;
 use App\Http\Requests\Note\UpdateNoteRequest;
 use App\Jobs\TriggerKnowledgeIndexBuildJob;
-use App\Models\Note\Note;
 use App\Models\Note\NoteLink;
 use App\Services\Note\NoteContentService;
 use Illuminate\Http\JsonResponse;
@@ -30,7 +29,7 @@ class NoteController extends Controller
             return $this->getGraph();
         }
 
-        $notes = Note::with(['category', 'tags'])
+        $notes = \App\Models\Note\Note::with(['category', 'tags'])
             ->where('user_id', $this->getCurrentUserId())
             ->orderBy('updated_at', 'desc')
             ->get();
@@ -57,7 +56,7 @@ class NoteController extends Controller
      */
     public function getArticleBySlug(string $slug): JsonResponse
     {
-        $note = Note::where('slug', $slug)->first();
+        $note = \App\Models\Note\Note::where('slug', $slug)->first();
 
         if (! $note) {
             return $this->error('Article not found', [], 404);
@@ -79,9 +78,9 @@ class NoteController extends Controller
     public function getAllWikiArticles(): JsonResponse
     {
         try {
-            $notes = Note::where('is_wiki', true)
+            $notes = \App\Models\Note\Note::where('is_wiki', true)
                 ->get()
-                ->map(function (Note $note) {
+                ->map(function (\App\Models\Note\Note $note) {
                     return $this->mapWikiArticle($note);
                 });
 
@@ -105,7 +104,7 @@ class NoteController extends Controller
         $data = $this->prepareNoteData($request->validated());
         $data['user_id'] = $this->getCurrentUserId();
 
-        $note = Note::create($data);
+        $note = \App\Models\Note\Note::create($data);
 
         // 处理标签
         if ($request->has('tags')) {
@@ -168,10 +167,10 @@ class NoteController extends Controller
     /**
      * 查找用户的笔记或 wiki 节点
      */
-    private function findUserNote(string $id): Note
+    private function findUserNote(string $id): \App\Models\Note\Note
     {
         // 先查找笔记（不限制条件）
-        $note = Note::find($id);
+        $note = \App\Models\Note\Note::find($id);
 
         if (! $note) {
             throw new \Illuminate\Database\Eloquent\ModelNotFoundException(
@@ -202,13 +201,13 @@ class NoteController extends Controller
     private function buildGraphNodes()
     {
         // 获取所有 wiki 节点（is_wiki = true）和用户自己的笔记
-        return Note::with('tags')
+        return \App\Models\Note\Note::with('tags')
             ->where(function ($query) {
                 $query->where('is_wiki', true)
                     ->orWhere('user_id', $this->getCurrentUserId());
             })
             ->get()
-            ->map(function (Note $node) {
+            ->map(function (\App\Models\Note\Note $node) {
                 return $this->mapGraphNode($node);
             });
     }
@@ -230,7 +229,7 @@ class NoteController extends Controller
     /**
      * 映射节点模型为图谱节点结构
      */
-    private function mapGraphNode(Note $node): array
+    private function mapGraphNode(\App\Models\Note\Note $node): array
     {
         return [
             'id' => $node->id,
@@ -262,7 +261,7 @@ class NoteController extends Controller
     /**
      * 映射 wiki 文章模型为输出结构
      */
-    private function mapWikiArticle(Note $note): array
+    private function mapWikiArticle(\App\Models\Note\Note $note): array
     {
         return [
             'title' => $note->title,
@@ -302,8 +301,8 @@ class NoteController extends Controller
 
         // 如果没有提供 slug 且是 wiki 节点，从 title 生成
         if (($data['is_wiki'] ?? false) && empty($data['slug'])) {
-            $data['slug'] = Note::normalizeSlug($data['title']);
-            $data['slug'] = Note::ensureUniqueSlug($data['slug']);
+            $data['slug'] = \App\Models\Note\Note::normalizeSlug($data['title']);
+            $data['slug'] = \App\Models\Note\Note::ensureUniqueSlug($data['slug']);
         }
 
         return $data;
@@ -312,7 +311,7 @@ class NoteController extends Controller
     /**
      * 对更新后的数据进行后处理（空内容、派生 markdown、wiki slug）
      */
-    private function prepareUpdateData(array $validatedData, UpdateNoteRequest $request, Note $note): array
+    private function prepareUpdateData(array $validatedData, UpdateNoteRequest $request, \App\Models\Note\Note $note): array
     {
         // 处理内容为空的情况（处理 Middleware 转换空字符串为 null 的情况）
         if ($request->has('content') && is_null($validatedData['content'] ?? null)) {
@@ -327,8 +326,8 @@ class NoteController extends Controller
         // 如果更新了 title 但没有提供 slug，且是 wiki 节点，重新生成 slug
         $isWiki = $validatedData['is_wiki'] ?? $note->is_wiki;
         if (isset($validatedData['title']) && ! isset($validatedData['slug']) && $isWiki) {
-            $validatedData['slug'] = Note::normalizeSlug($validatedData['title']);
-            $validatedData['slug'] = Note::ensureUniqueSlug($validatedData['slug'], $note->id);
+            $validatedData['slug'] = \App\Models\Note\Note::normalizeSlug($validatedData['title']);
+            $validatedData['slug'] = \App\Models\Note\Note::ensureUniqueSlug($validatedData['slug'], $note->id);
         }
 
         return $validatedData;

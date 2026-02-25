@@ -5,6 +5,11 @@ namespace App\Models\Game;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int|null $slot_index
+ * @property int|null $level
+ * @property \App\Models\Game\GameSkillDefinition|null $skill
+ */
 class GameCharacterSkill extends Model
 {
     protected $fillable = [

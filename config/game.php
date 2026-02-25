@@ -267,6 +267,10 @@ return [
         'crit_damage' => [
             'base' => 1.5,
         ],
+        // 战斗计算补充配置
+        'defense_reduction' => 0.5,
+        'aoe_damage_multiplier' => 0.7,
+        'monster_defense_reduction' => 0.3,
     ],
 
     /*
@@ -304,12 +308,7 @@ return [
     | 战斗计算配置
     |--------------------------------------------------------------------------
     */
-    // 战斗计算补充配置（合并到上方的 'combat' 配置中以避免重复键）
-    'combat_calculation' => [
-        'defense_reduction' => 0.5,
-        'aoe_damage_multiplier' => 0.7,
-        'monster_defense_reduction' => 0.3,
-    ],
+    // (已合并到 'combat')
 
     /*
     |--------------------------------------------------------------------------

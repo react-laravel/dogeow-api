@@ -311,7 +311,7 @@ class GameCharacterService
 
         // 检查是否升级
         $currentExp = $character->experience;
-        $expNeeded = $character->getExperienceForNextLevel();
+        $expNeeded = $character->getExperienceToNextLevel();
         $newExp = $currentExp + $experience;
         $levelUp = $newExp >= $expNeeded;
 

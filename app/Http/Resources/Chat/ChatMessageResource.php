@@ -6,6 +6,9 @@ use App\Models\Chat\ChatMessage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @mixin \App\Models\Chat\ChatMessage
+ */
 class ChatMessageResource extends JsonResource
 {
     /**

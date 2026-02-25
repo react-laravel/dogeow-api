@@ -298,6 +298,10 @@ class ChatReportController extends Controller
 
             // Mute user if requested
             if ($request->mute_user && $report->message) {
+                /** @var \App\Models\Chat\ChatMessage $reportMessage */
+                $reportMessage = $report->message;
+                /** @var \App\Models\Chat\ChatMessage $reportMessage */
+                $reportMessage = $report->message;
                 $roomUser = \App\Models\Chat\ChatRoomUser::where('room_id', $report->room_id)
                     ->where('user_id', $report->message->user_id)
                     ->first();

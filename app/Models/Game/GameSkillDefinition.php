@@ -4,6 +4,16 @@ namespace App\Models\Game;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property mixed $id
+ * @property mixed $damage
+ * @property mixed $mana_cost
+ * @property mixed $cooldown
+ * @property mixed $type
+ * @property mixed $target_type
+ * @property mixed $base_damage
+ * @property mixed $damage_per_level
+ */
 class GameSkillDefinition extends Model
 {
     protected $fillable = [

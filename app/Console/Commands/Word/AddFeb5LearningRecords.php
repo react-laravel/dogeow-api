@@ -112,6 +112,7 @@ class AddFeb5LearningRecords extends Command
 
             DB::beginTransaction();
             try {
+                /** @var \App\Models\Word\UserWord $userWord */
                 foreach ($existingWords as $userWord) {
                     $userWord->update([
                         'status' => 1, // 学习中
@@ -145,6 +146,7 @@ class AddFeb5LearningRecords extends Command
 
         DB::beginTransaction();
         try {
+            /** @var \App\Models\Word\Word $word */
             foreach ($availableWords as $word) {
                 UserWord::create([
                     'user_id' => $user->id,

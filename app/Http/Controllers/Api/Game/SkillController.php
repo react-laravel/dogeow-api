@@ -32,6 +32,7 @@ class SkillController extends Controller
 
         $skills = $definitions->map(function (GameSkillDefinition $def) use ($learnedBySkillId) {
             $row = $def->toArray();
+            /** @var \App\Models\Game\GameCharacterSkill|null $characterSkill */
             $characterSkill = $learnedBySkillId->get($def->id);
             $row['is_learned'] = $characterSkill !== null;
             if ($characterSkill !== null) {

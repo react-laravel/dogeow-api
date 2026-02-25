@@ -90,7 +90,11 @@ class WebSocketDisconnectService
 
             $cleanedCount = 0;
             foreach ($inactiveUsers as $roomUser) {
-                Log::info("Cleaning up inactive user {$roomUser->user->name} in room {$roomUser->room->name}");
+                /** @var \App\Models\User|null $theUser */
+                $theUser = $roomUser->user;
+                /** @var \App\Models\Chat\ChatRoom|null $theRoom */
+                $theRoom = $roomUser->room;
+                Log::info("Cleaning up inactive user {$theUser?->name} in room {$theRoom?->name}");
 
                 $this->handleDisconnect($roomUser->user_id);
                 $cleanedCount++;

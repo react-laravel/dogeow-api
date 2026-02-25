@@ -5,6 +5,10 @@ namespace App\Models\Game;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property \App\Models\Game\GameItem|null $item
+ * @property string $slot
+ */
 class GameEquipment extends Model
 {
     protected $fillable = [

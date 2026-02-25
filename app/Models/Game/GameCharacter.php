@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $combat_monster_max_hp
  * @property array<int, int>|null $discovered_items
  * @property array<int, int>|null $discovered_monsters
+ * @property \App\Models\Game\GameMapDefinition|null $currentMap
  */
 class GameCharacter extends Model
 {
@@ -334,6 +335,7 @@ class GameCharacter extends Model
 
         $equipmentSlots = $this->equipment()->with('item.definition', 'item')->get();
 
+        /** @var \App\Models\Game\GameEquipment $slot */
         foreach ($equipmentSlots as $slot) {
             if ($slot->item) {
                 $itemStats = $slot->item->stats ?? [];
@@ -551,6 +553,7 @@ class GameCharacter extends Model
         $equipped = [];
         $equipmentSlots = $this->equipment()->with('item.definition', 'item.gems')->get();
 
+        /** @var \App\Models\Game\GameEquipment $slot */
         foreach ($equipmentSlots as $slot) {
             if ($slot->item) {
                 $item = $slot->item;

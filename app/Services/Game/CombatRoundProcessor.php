@@ -208,6 +208,7 @@ class CombatRoundProcessor
         // 过滤出可用的技能（魔法值足够且不在冷却中）
         $availableSkills = [];
         foreach ($activeSkills as $charSkill) {
+            /** @var \App\Models\Game\GameCharacterSkill $charSkill */
             $skill = $charSkill->skill;
             $cooldownEnd = $newCooldowns[$skill->id] ?? 0;
 

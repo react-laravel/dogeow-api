@@ -73,6 +73,7 @@ class OpenClawStatusChecker
         $percentKey = $key . '_percent';
         if (isset($body[$percentKey]) && is_numeric($body[$percentKey])) {
             $v = (float) $body[$percentKey];
+
             return max(0, min(100, $v));
         }
         $obj = $body[$key] ?? null;
@@ -83,6 +84,7 @@ class OpenClawStatusChecker
                 return max(0, min(100, round(($used / $total) * 100, 1)));
             }
         }
+
         return null;
     }
 
@@ -102,6 +104,7 @@ class OpenClawStatusChecker
                 return 'warning';
             }
         }
+
         return 'online';
     }
 
@@ -121,6 +124,7 @@ class OpenClawStatusChecker
         if ($message !== null && $message !== '') {
             $line = $line ? $line . ' | ' . $message : $message;
         }
+
         return $line ?: '无指标';
     }
 
@@ -145,6 +149,7 @@ class OpenClawStatusChecker
     private function sanitize(string $s, int $maxLen): string
     {
         $s = trim(preg_replace('/\s+/', ' ', $s));
+
         return strlen($s) > $maxLen ? substr($s, 0, $maxLen) . '…' : $s;
     }
 }

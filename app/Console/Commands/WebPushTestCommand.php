@@ -19,12 +19,14 @@ class WebPushTestCommand extends Command
 
         if (! $user) {
             $this->error("用户 {$userId} 不存在");
+
             return 1;
         }
 
         $count = $user->pushSubscriptions()->count();
         if ($count === 0) {
             $this->error("用户 {$userId} 没有任何推送订阅，请先在前端登录并允许通知后刷新页面");
+
             return 1;
         }
 
@@ -36,6 +38,7 @@ class WebPushTestCommand extends Command
         ));
 
         $this->info('已发送。请查看 storage/logs/laravel.log 中 "Web Push 发送成功" 或 "Web Push 发送失败" 的日志，确认 status_code 和 response_body。');
+
         return 0;
     }
 }

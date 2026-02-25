@@ -9,6 +9,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property mixed $id
+ * @property mixed $name
+ * @property mixed $path
+ * @property mixed $extension
+ * @property mixed $size
+ * @property mixed $is_folder
+ * @property mixed $total_size
+ * @property mixed $file_count
+ * @property mixed $folder_count
+ */
 class File extends Model
 {
     use HasFactory;

@@ -58,6 +58,7 @@ class SupervisorStatusChecker
                     'output' => $output,
                     'error' => $errorOutput,
                 ]);
+
                 return [
                     'status' => 'error',
                     'raw_state' => 'UNKNOWN',
@@ -86,6 +87,7 @@ class SupervisorStatusChecker
                 'program' => $programName,
                 'error' => $e->getMessage(),
             ]);
+
             return [
                 'status' => 'error',
                 'raw_state' => 'UNKNOWN',
@@ -97,6 +99,7 @@ class SupervisorStatusChecker
     private function sanitize(string $s, int $maxLen): string
     {
         $s = trim(preg_replace('/\s+/', ' ', $s));
+
         return strlen($s) > $maxLen ? substr($s, 0, $maxLen) . '…' : $s;
     }
 }

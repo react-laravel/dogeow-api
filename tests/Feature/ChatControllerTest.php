@@ -280,7 +280,7 @@ class ChatControllerTest extends TestCase
     {
         // Create a different user who is not the room creator
         $otherUser = User::factory()->create();
-        
+
         // Join the room with the other user and set online but muted
         ChatRoomUser::create([
             'room_id' => $this->room->id,
@@ -291,7 +291,7 @@ class ChatControllerTest extends TestCase
 
         // Authenticate as the muted user
         Sanctum::actingAs($otherUser);
-        
+
         $response = $this->postJson("/api/chat/rooms/{$this->room->id}/messages", [
             'message' => 'Hello, world!',
         ]);
@@ -304,7 +304,7 @@ class ChatControllerTest extends TestCase
     {
         // Create a different user who is not the room creator
         $otherUser = User::factory()->create();
-        
+
         // Join the room with the other user and set online but banned
         ChatRoomUser::create([
             'room_id' => $this->room->id,
@@ -315,7 +315,7 @@ class ChatControllerTest extends TestCase
 
         // Authenticate as the banned user
         Sanctum::actingAs($otherUser);
-        
+
         $response = $this->postJson("/api/chat/rooms/{$this->room->id}/messages", [
             'message' => 'Hello, world!',
         ]);

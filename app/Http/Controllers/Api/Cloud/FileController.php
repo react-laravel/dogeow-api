@@ -313,6 +313,7 @@ class FileController extends Controller
         $userId = $this->getCurrentUserId();
 
         // 基础统计 - 单次查询获取所有数据
+        /** @var \stdClass|null $baseStats */
         $baseStats = File::where('user_id', $userId)
             ->selectRaw('
                 COUNT(CASE WHEN is_folder = false THEN 1 END) as file_count,

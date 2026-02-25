@@ -55,7 +55,6 @@ Route::prefix('rpg')->group(function () {
     Route::get('/maps/current', [MapController::class, 'current']);
     Route::post('/maps/{map}/enter', [MapController::class, 'enter']);
     Route::post('/maps/{map}/teleport', [MapController::class, 'teleport']);
-    Route::post('/maps/{map}/unlock', [MapController::class, 'unlock']);
 
     // 战斗相关
     Route::get('/combat/status', [CombatController::class, 'status']);

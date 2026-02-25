@@ -1,0 +1,1 @@
+cd "$(dirname "$0")/.." && vendor/bin/pint --test && vendor/bin/phpstan analyse --memory-limit=1G

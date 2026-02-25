@@ -10,12 +10,16 @@ parameters:
     level: 5
     checkModelProperties: false
     reportUnmatchedIgnoredErrors: false
+    treatPhpDocTypesAsCertain: false
     ignoreErrors:
-        - '#Access to an undefined property .*Illuminate\\\\Database\\\\Eloquent\\\\Model::#'
-        - '#Call to an undefined method .*Illuminate\\\\Database\\\\Eloquent\\\\Model::#'
+        - '#Access to an undefined property .*Illuminate\\Database\\Eloquent\\Model::#'
+        - '#Call to an undefined method .*Illuminate\\Database\\Eloquent\\Model::#'
         - '#PHPDoc type array of property .*\$fillable is not covariant#'
         - '#PHPDoc type array of property .*\$casts is not covariant#'
         - '#Call to method PHPUnit\\\\Framework\\\\Assert::assert.*\(\) with .* will always evaluate to true#'
-        - '#Access to an undefined property .*#'
-        - '#Call to an undefined method .*#'
+        # ignore warnings produced by our local Eloquent stub
+        - '#Class Illuminate\\Database\\Eloquent\\Model declared multiple times#'
+        - '#Method Illuminate\\Database\\Eloquent\\Model::__call\(\) has parameter \\\$arguments with no value type specified#'
+        - '#Method Illuminate\\Database\\Eloquent\\Model::__set\(\) has parameter \\\$value with no type specified#'
+        # removed overly-broad ignores to surface real issues
         - '#Call to static method .* on an unknown class Pdp\\#'

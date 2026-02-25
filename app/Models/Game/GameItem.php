@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property array<int,array<string,mixed>>|null $affixes
  * @property int|null $sockets
  * @property GameItemDefinition|null $definition
+ * @property \Illuminate\Database\Eloquent\Collection|GameItemGem[] $gems
  */
 class GameItem extends GameItemDefinition
 {

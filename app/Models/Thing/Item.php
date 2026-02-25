@@ -11,6 +11,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Laravel\Scout\Searchable;
 
+/**
+ * @property mixed $id
+ * @property mixed $name
+ * @property mixed $thumbnail_url
+ * @property mixed $user_id
+ * @property mixed $category_id
+ */
 class Item extends Model
 {
     use HasFactory, Searchable;

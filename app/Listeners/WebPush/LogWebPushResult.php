@@ -3,7 +3,6 @@
 namespace App\Listeners\WebPush;
 
 use Illuminate\Support\Facades\Log;
-use Minishlink\WebPush\MessageSentReport;
 use NotificationChannels\WebPush\Events\NotificationFailed;
 use NotificationChannels\WebPush\Events\NotificationSent;
 

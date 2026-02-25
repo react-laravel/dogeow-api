@@ -7,6 +7,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property mixed $id
+ * @property mixed $room_id
+ * @property mixed $user_id
+ * @property mixed $message
+ * @property mixed $message_type
+ * @property \App\Models\User $user
+ */
 class ChatMessage extends Model
 {
     use HasFactory;

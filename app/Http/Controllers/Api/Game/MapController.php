@@ -84,16 +84,6 @@ class MapController extends Controller
     }
 
     /**
-     * 解锁地图（已废弃）
-     */
-    public function unlock(Request $request, int $mapId): JsonResponse
-    {
-        $map = GameMapDefinition::findOrFail($mapId);
-
-        return $this->success([], "地图 {$map->name} 无需解锁");
-    }
-
-    /**
      * 获取当前地图信息
      */
     public function current(Request $request): JsonResponse

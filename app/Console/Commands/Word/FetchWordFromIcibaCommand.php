@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands\Word;
 
+use App\Models\Word\Book;
 use App\Models\Word\EducationLevel;
 use App\Models\Word\Word;
 use Illuminate\Console\Command;
@@ -569,7 +570,9 @@ class FetchWordFromIcibaCommand extends Command
         try {
             // 加载所有级别 id
             $word->load('books.educationLevels');
-            $levelIds = $word->books->flatMap(function ($book) {
+            /** @var \Illuminate\Database\Eloquent\Collection<int, Book> $books */
+            $books = $word->books;
+            $levelIds = $books->flatMap(function (Book $book) {
                 return $book->educationLevels->pluck('id');
             })->unique()->values()->all();
 
