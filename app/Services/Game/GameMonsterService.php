@@ -5,13 +5,15 @@ namespace App\Services\Game;
 use App\Models\Game\GameCharacter;
 use App\Models\Game\GameMapDefinition;
 use App\Models\Game\GameMonsterDefinition;
+use Illuminate\Support\Carbon;
 
 class GameMonsterService
 {
     // 怪物刷新间隔（秒），从配置中读取，默认60秒
     protected function getRefreshInterval(): int
     {
-        return config('game.combat.monster_refresh_interval', 60);
+        $val = config('game.combat.monster_refresh_interval', 60);
+        return is_numeric($val) ? (int) $val : 60;
     }
 
     /**
@@ -20,7 +22,7 @@ class GameMonsterService
     public function shouldRefreshMonsters(GameCharacter $character): bool
     {
         $refreshedAt = $character->combat_monsters_refreshed_at;
-        if ($refreshedAt === null) {
+        if (! $refreshedAt instanceof Carbon) {
             return true;
         }
 
@@ -29,9 +31,13 @@ class GameMonsterService
         return $refreshedAt->addSeconds($interval)->isPast();
     }
 
-    /**
-     * 从角色获取现有怪物或生成新怪物
-     */
+     /**
+      * 从角色获取现有怪物或生成新怪物
+      *
+    * @param GameCharacter $character
+    * @param GameMapDefinition $map
+    * @return array{0: ?\App\Models\Game\GameMonsterDefinition,1: ?int,2: ?array<string,int>,3: int,4: int}
+      */
     public function prepareMonsterInfo(GameCharacter $character, GameMapDefinition $map): array
     {
         $existingMonsters = $character->combat_monsters ?? [];
@@ -58,6 +64,10 @@ class GameMonsterService
 
     /**
      * 从角色状态加载现有怪物
+     *
+     * @param GameCharacter $character
+     * @param array<int, array<string,mixed>|null> $existingMonsters
+    * @return array{0: ?\App\Models\Game\GameMonsterDefinition,1: ?int,2: ?array<string,int>,3: int,4: int}
      */
     public function loadExistingMonsters(GameCharacter $character, array $existingMonsters): array
     {
@@ -72,39 +82,58 @@ class GameMonsterService
                 continue;
             }
             if ($firstMonster === null && ($m['hp'] ?? 0) > 0) {
-                $monster = GameMonsterDefinition::query()->find($m['id']);
-                if ($monster) {
+                $monster = null;
+                if (isset($m['id']) && (is_int($m['id']) || is_string($m['id']) || is_numeric($m['id']))) {
+                    $monster = GameMonsterDefinition::query()->find($m['id']);
+                }
+                if ($monster instanceof GameMonsterDefinition) {
                     $firstMonster = $monster;
-                    $monsterLevel = $m['level'];
+                    $monsterLevel = isset($m['level']) && is_numeric($m['level']) ? (int) $m['level'] : null;
+                    /** @var \App\Models\Game\GameMonsterDefinition $monster */
                     $monsterStats = $monster->getCombatStats();
                 }
             }
-            $totalHp += $m['hp'] ?? 0;
-            $totalMaxHp += $m['max_hp'] ?? 0;
+            $totalHp += isset($m['hp']) && is_numeric($m['hp']) ? (int) $m['hp'] : 0;
+            $totalMaxHp += isset($m['max_hp']) && is_numeric($m['max_hp']) ? (int) $m['max_hp'] : 0;
         }
 
         if (! $firstMonster) {
             $character->clearCombatState();
 
-            return [null, null, null, null, null];
+            return [null, null, null, 0, 0];
         }
 
-        return [$firstMonster, $monsterLevel, $monsterStats, $totalHp, $totalMaxHp];
+        return [$firstMonster, $monsterLevel, $monsterStats, (int) $totalHp, (int) $totalMaxHp];
     }
 
-    /**
-     * 生成新怪物 (1-5个)
-     *
-     * @param  bool  $isRefresh  是否是刷新（保留现有HP）
-     */
-    public function generateNewMonsters(GameCharacter $character, GameMapDefinition $map, array $existingMonsters, bool $isRefresh = false): array
+     /**
+      * 生成新怪物 (1-5个)
+      *
+      * @param GameCharacter $character
+      * @param GameMapDefinition $map
+      * @param array<int, array<string,mixed>|null> $existingMonsters
+      * @param bool $isRefresh
+    * @return array{0: ?\App\Models\Game\GameMonsterDefinition,1: ?int,2: ?array<string,int>,3: int,4: int}
+      */
+     public function generateNewMonsters(GameCharacter $character, GameMapDefinition $map, array $existingMonsters, bool $isRefresh = false): array
     {
         $monsters = $map->getMonsters();
+        /** @var array<int, \App\Models\Game\GameMonsterDefinition> $monsters */
         if (empty($monsters)) {
-            return ['no-monster', null, null, null, null];
+            return [null, null, null, 0, 0];
         }
 
         $difficulty = $character->getDifficultyMultipliers();
+        $monsterHpMultiplier = isset($difficulty['monster_hp']) && is_numeric($difficulty['monster_hp']) ? (float) $difficulty['monster_hp'] : 1.0;
+        $monsterDamageMultiplier = isset($difficulty['monster_damage']) && is_numeric($difficulty['monster_damage']) ? (float) $difficulty['monster_damage'] : 1.0;
+        $rewardMultiplier = isset($difficulty['reward']) && is_numeric($difficulty['reward']) ? (float) $difficulty['reward'] : 1.0;
+        $monsterHpMultiplier = isset($difficulty['monster_hp']) && is_numeric($difficulty['monster_hp']) ? (float) $difficulty['monster_hp'] : 1.0;
+        $monsterDamageMultiplier = isset($difficulty['monster_damage']) && is_numeric($difficulty['monster_damage']) ? (float) $difficulty['monster_damage'] : 1.0;
+        $rewardMultiplier = isset($difficulty['reward']) && is_numeric($difficulty['reward']) ? (float) $difficulty['reward'] : 1.0;
+        
+        $monsterHpMultiplier = isset($difficulty['monster_hp']) && is_numeric($difficulty['monster_hp']) ? (float) $difficulty['monster_hp'] : 1.0;
+        $monsterDamageMultiplier = isset($difficulty['monster_damage']) && is_numeric($difficulty['monster_damage']) ? (float) $difficulty['monster_damage'] : 1.0;
+        $rewardMultiplier = isset($difficulty['reward']) && is_numeric($difficulty['reward']) ? (float) $difficulty['reward'] : 1.0;
 
         // 随机生成 1-5 个怪物
         $monsterCount = rand(1, 5);
@@ -126,7 +155,9 @@ class GameMonsterService
             $level = $baseLevel + rand(-1, 1);
             $level = max(1, $level);
             $stats = $baseMonster->getCombatStats();
-            $maxHp = (int) ($stats['hp'] * $difficulty['monster_hp']);
+            /** @var array<string,mixed> $stats */
+            $hpBase = isset($stats['hp']) && is_numeric($stats['hp']) ? (int) $stats['hp'] : 0;
+            $maxHp = (int) ($hpBase * $monsterHpMultiplier);
 
             // 固定槽位位置，确保刷新时怪物位置一致
             $slot = $i;
@@ -136,8 +167,12 @@ class GameMonsterService
             if ($isRefresh && isset($existingByPosition[$slot])) {
                 $existing = $existingByPosition[$slot];
                 // 保持现有HP，但不超出新maxHp
-                $hp = min($existing['hp'] ?? $maxHp, $maxHp);
+                $hp = min(isset($existing['hp']) && is_numeric($existing['hp']) ? (int) $existing['hp'] : $maxHp, $maxHp);
             }
+
+            $attackBase = isset($stats['attack']) && is_numeric($stats['attack']) ? (int) $stats['attack'] : 0;
+            $defBase = isset($stats['defense']) && is_numeric($stats['defense']) ? (int) $stats['defense'] : 0;
+            $expBase = isset($stats['experience']) && is_numeric($stats['experience']) ? (int) $stats['experience'] : 0;
 
             $monsterDataList[] = [
                 'id' => $baseMonster->id,
@@ -149,9 +184,9 @@ class GameMonsterService
                 'level' => $level,
                 'hp' => $hp,
                 'max_hp' => $maxHp,
-                'attack' => (int) ($stats['attack'] * $difficulty['monster_damage']),
-                'defense' => (int) ($stats['defense'] * $difficulty['monster_damage']),
-                'experience' => (int) ($stats['experience'] * $difficulty['reward']),
+                'attack' => (int) ($attackBase * $monsterDamageMultiplier),
+                'defense' => (int) ($defBase * $monsterDamageMultiplier),
+                'experience' => (int) ($expBase * $rewardMultiplier),
                 'position' => $slot,
                 'damage_taken' => -1, // 新怪物未被攻击
             ];
@@ -169,8 +204,8 @@ class GameMonsterService
         // 更新刷新时间戳
         $character->combat_monsters_refreshed_at = now();
         $character->combat_monster_id = $baseMonster->id;
-        $character->combat_monster_hp = array_sum(array_column(array_filter($newMonsters, 'is_array'), 'hp'));
-        $character->combat_monster_max_hp = array_sum(array_column(array_filter($newMonsters, 'is_array'), 'max_hp'));
+        $character->combat_monster_hp = (int) array_sum(array_column(array_filter($newMonsters, 'is_array'), 'hp'));
+        $character->combat_monster_max_hp = (int) array_sum(array_column(array_filter($newMonsters, 'is_array'), 'max_hp'));
         $character->combat_total_damage_dealt = 0;
         $character->combat_total_damage_taken = 0;
         $character->combat_rounds = 0;
@@ -189,12 +224,19 @@ class GameMonsterService
             }
         }
         $firstMonster = $firstMonster ?? $monsterDataList[0] ?? null;
-        $monster = GameMonsterDefinition::query()->find($firstMonster['id']);
-        $monsterStats = $monster?->getCombatStats();
+        $monster = null;
+        $monsterStats = null;
+        $firstLevel = null;
+        if (is_array($firstMonster)) {
+            $monster = GameMonsterDefinition::query()->find($firstMonster['id']);
+            /** @var \App\Models\Game\GameMonsterDefinition|null $monster */
+            $monsterStats = $monster ? $monster->getCombatStats() : null;
+            $firstLevel = isset($firstMonster['level']) && is_numeric($firstMonster['level']) ? (int) $firstMonster['level'] : null;
+        }
 
         return [
             $monster,
-            $firstMonster['level'],
+            $firstLevel,
             $monsterStats,
             $character->combat_monster_hp,
             $character->combat_monster_max_hp,
@@ -204,6 +246,13 @@ class GameMonsterService
     /**
      * 每回合按概率尝试补充新怪物：30% 不生成，70% 按权重生成 1～5 只（1 只概率最大，依次递减）
      * 空槽位 = 未占用或怪物已死亡，每回合都可能补怪，不要求全部死亡才刷新
+     */
+    /**
+     * @param GameCharacter $character
+     * @param GameMapDefinition $map
+     * @param array<string,mixed> $roundResult
+     * @param int $currentRound
+     * @return array<string,mixed>
      */
     public function tryAddNewMonsters(GameCharacter $character, GameMapDefinition $map, array $roundResult, int $currentRound): array
     {
@@ -259,6 +308,9 @@ class GameMonsterService
         }
 
         $difficulty = $character->getDifficultyMultipliers();
+        $monsterHpMultiplier = isset($difficulty['monster_hp']) && is_numeric($difficulty['monster_hp']) ? (float) $difficulty['monster_hp'] : 1.0;
+        $monsterDamageMultiplier = isset($difficulty['monster_damage']) && is_numeric($difficulty['monster_damage']) ? (float) $difficulty['monster_damage'] : 1.0;
+        $rewardMultiplier = isset($difficulty['reward']) && is_numeric($difficulty['reward']) ? (float) $difficulty['reward'] : 1.0;
         $monsters = $map->getMonsters();
         if (empty($monsters)) {
             $this->syncRoundResultMonsterHp($roundResult, $currentMonsters);
@@ -276,7 +328,12 @@ class GameMonsterService
             $level = $baseLevel + rand(-1, 1);
             $level = max(1, $level);
             $stats = $baseMonster->getCombatStats();
-            $maxHp = (int) ($stats['hp'] * $difficulty['monster_hp']);
+            $hpVal = isset($stats['hp']) && is_numeric($stats['hp']) ? (int) $stats['hp'] : 0;
+            $maxHp = (int) ($hpVal * $monsterHpMultiplier);
+
+            $attackVal = isset($stats['attack']) && is_numeric($stats['attack']) ? (int) $stats['attack'] : 0;
+            $defVal = isset($stats['defense']) && is_numeric($stats['defense']) ? (int) $stats['defense'] : 0;
+            $expVal = isset($stats['experience']) && is_numeric($stats['experience']) ? (int) $stats['experience'] : 0;
 
             $currentMonsters[$slot] = [
                 'id' => $baseMonster->id,
@@ -286,9 +343,9 @@ class GameMonsterService
                 'level' => $level,
                 'hp' => $maxHp,
                 'max_hp' => $maxHp,
-                'attack' => (int) ($stats['attack'] * $difficulty['monster_damage']),
-                'defense' => (int) ($stats['defense'] * $difficulty['monster_damage']),
-                'experience' => (int) ($stats['experience'] * $difficulty['reward']),
+                'attack' => (int) ($attackVal * $monsterDamageMultiplier),
+                'defense' => (int) ($defVal * $monsterDamageMultiplier),
+                'experience' => (int) ($expVal * $rewardMultiplier),
                 'position' => $slot,
             ];
         }
@@ -302,6 +359,10 @@ class GameMonsterService
     /**
      * 将当前怪物列表的 hp/max_hp 合计写入 roundResult
      */
+    /**
+     * @param array<string,mixed> $roundResult
+     * @param array<int, array<string,mixed>|null> $currentMonsters
+     */
     private function syncRoundResultMonsterHp(array &$roundResult, array $currentMonsters): void
     {
         $alive = array_filter($currentMonsters, fn ($m) => is_array($m));
@@ -311,6 +372,10 @@ class GameMonsterService
 
     /**
      * 格式化怪物用于响应（固定5个槽位）
+     */
+    /**
+     * @param GameCharacter $character
+     * @return array{monsters: array<int, array<string,mixed>|null>, first_alive_monster: array<string,mixed>}
      */
     public function formatMonstersForResponse(GameCharacter $character): array
     {

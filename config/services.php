@@ -40,4 +40,19 @@ return [
         'build_index_url' => env('KNOWLEDGE_BUILD_INDEX_URL'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | System status (OpenClaw + Supervisor)
+    |--------------------------------------------------------------------------
+    */
+    'openclaw' => [
+        'health_url' => env('OPENCLAW_HEALTH_URL'),
+        'timeout_seconds' => (int) env('OPENCLAW_HEALTH_TIMEOUT', 5),
+    ],
+
+    'supervisor' => [
+        'reverb_program' => env('SUPERVISOR_REVERB_PROGRAM', 'reverb'),
+        'queue_program' => env('SUPERVISOR_QUEUE_PROGRAM', 'queue-default'),
+    ],
+
 ];

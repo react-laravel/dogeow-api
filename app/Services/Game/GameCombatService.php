@@ -144,8 +144,8 @@ class GameCombatService
      * 执行一轮战斗（支持多怪物连续战斗）
      *
      * @param  GameCharacter  $character  角色实例
-     * @param  array  $skillIds  使用的技能ID数组
-     * @return array 战斗结果
+    * @param  int[]  $skillIds  使用的技能ID数组
+    * @return array
      *
      * @throws \InvalidArgumentException 地图不存在或没有怪物
      * @throws \RuntimeException 血量不足或战斗结束
@@ -167,8 +167,8 @@ class GameCombatService
 
         // 初始化HP和Mana
         $character->initializeHpMana();
-        $currentHp = $character->getCurrentHp();
-        $currentMana = $character->getCurrentMana();
+        $currentHp = (int) $character->getCurrentHp();
+        $currentMana = (int) $character->getCurrentMana();
 
         // 检查血量是否不足
         if ($currentHp <= 0) {
@@ -181,16 +181,16 @@ class GameCombatService
         }
 
         $map = $character->currentMap;
-        if (! $map) {
+        if (! $map instanceof GameMapDefinition) {
             throw new \InvalidArgumentException('地图不存在');
         }
 
         // 准备怪物信息
         $monsterInfo = $this->monsterService->prepareMonsterInfo($character, $map);
-        $monster = $monsterInfo[0];
-        $monsterLevel = $monsterInfo[1];
-        $monsterHp = $monsterInfo[3];
-        $monsterMaxHp = $monsterInfo[4];
+        $monster = $monsterInfo[0] ?? null;
+        $monsterLevel = isset($monsterInfo[1]) && is_numeric($monsterInfo[1]) ? (int) $monsterInfo[1] : null;
+        $monsterHp = isset($monsterInfo[3]) && is_numeric($monsterInfo[3]) ? (int) $monsterInfo[3] : 0;
+        $monsterMaxHp = isset($monsterInfo[4]) && is_numeric($monsterInfo[4]) ? (int) $monsterInfo[4] : 0;
 
         // 检查怪物是否存在
         if (! $monster) {
@@ -205,21 +205,24 @@ class GameCombatService
 
         // 处理回合
         $currentRound = (int) $character->combat_rounds + 1;
-        $skillCooldowns = $character->combat_skill_cooldowns ?? [];
-        $skillsUsedAggregated = $character->combat_skills_used ?? [];
-        $requestedSkillIds = array_map('intval', array_values($skillIds));
+        $skillCooldowns = is_array($character->combat_skill_cooldowns ?? []) ? $character->combat_skill_cooldowns : [];
+        $skillsUsedAggregated = is_array($character->combat_skills_used ?? []) ? $character->combat_skills_used : [];
+        $requestedSkillIds = array_map(fn($v) => (int) $v, array_values($skillIds));
+
+        // 回合前的药水使用记录（用于日志和响应），默认空数组
+        $potionUsedBeforeRound = [];
 
         $roundResult = $this->roundProcessor->processOneRound(
             $character,
             $currentRound,
-            $skillCooldowns,
-            $skillsUsedAggregated,
+            (array) $skillCooldowns,
+            (array) $skillsUsedAggregated,
             $requestedSkillIds
         );
 
-        // 回合后自动使用药水
+        // 回合后自动使用药水（确保传入数值为 int）
         $charStats = $character->getCombatStats();
-        $potionUsed = $this->potionService->tryAutoUsePotions($character, $roundResult['new_char_hp'], $roundResult['new_char_mana'], $charStats);
+        $potionUsed = $this->potionService->tryAutoUsePotions($character, (int) ($roundResult['new_char_hp'] ?? 0), (int) ($roundResult['new_char_mana'] ?? 0), $charStats);
         if (! empty($potionUsed)) {
             $roundResult['new_char_hp'] = $character->getCurrentHp();
             $roundResult['new_char_mana'] = $character->getCurrentMana();
@@ -229,8 +232,8 @@ class GameCombatService
         $this->persistCombatState($character, $roundResult, $currentRound);
 
         // 处理失败
-        if ($roundResult['defeat']) {
-            return $this->handleDefeat($character, $map, $monster, $monsterLevel, $monsterMaxHp, $currentRound, $roundResult, $monsterHp);
+        if (! empty($roundResult['defeat'])) {
+            return $this->handleDefeat($character, $map, $monster, $monsterLevel ?? 0, $monsterMaxHp, $currentRound, $roundResult, $monsterHp);
         }
 
         // 检查是否所有怪物都死亡
@@ -272,10 +275,10 @@ class GameCombatService
         $combatLog = $this->combatLogService->createRoundLog(
             $character,
             $map,
-            $firstAliveMonster['id'] ?? $monster->id,
+            isset($firstAliveMonster['id']) ? (int) $firstAliveMonster['id'] : ($monster->id ?? 0),
             $roundResult,
-            null, // potionUsedBeforeRound
-            $potionUsed // potionUsedAfterRound
+            $potionUsedBeforeRound,
+            $potionUsed
         );
 
         $result = [
@@ -297,14 +300,14 @@ class GameCombatService
             'experience_gained' => $roundResult['experience_gained'] ?? 0,
             'copper_gained' => $roundResult['copper_gained'] ?? 0,
             'loot' => $roundResult['loot'] ?? [],
-            'potion_used' => [
-                'before' => $potionUsedBeforeRound ?? [],
-                'after' => $potionUsed ?? [],
-            ],
             'skills_used' => $roundResult['skills_used_this_round'],
             'skill_target_positions' => $roundResult['skill_target_positions'] ?? [],
             'skill_cooldowns' => $character->combat_skill_cooldowns ?? [], // 技能冷却（回合数）
-            'character' => $character->fresh()->toArray(),
+            'potion_used' => [
+                'before' => $potionUsedBeforeRound,
+                'after' => $potionUsed ?? [],
+            ],
+            'character' => ($character->fresh() ?? $character)->toArray(),
             'combat_log_id' => $combatLog->id,
         ];
 
@@ -323,21 +326,21 @@ class GameCombatService
      * 持久化战斗状态
      *
      * @param  GameCharacter  $character  角色实例
-     * @param  array  $roundResult  回合结果
+     * @param  array<string,mixed>  $roundResult  回合结果
      * @param  int  $currentRound  当前回合数
      */
     private function persistCombatState(GameCharacter $character, array $roundResult, int $currentRound): void
     {
-        $character->current_hp = max(0, $roundResult['new_char_hp']);
-        $character->current_mana = max(0, $roundResult['new_char_mana']);
-        $character->combat_total_damage_dealt += $roundResult['round_damage_dealt'];
-        $character->combat_total_damage_taken += $roundResult['round_damage_taken'];
+        $character->current_hp = max(0, (int) ($roundResult['new_char_hp'] ?? 0));
+        $character->current_mana = max(0, (int) ($roundResult['new_char_mana'] ?? 0));
+        $character->combat_total_damage_dealt += (int) ($roundResult['round_damage_dealt'] ?? 0);
+        $character->combat_total_damage_taken += (int) ($roundResult['round_damage_taken'] ?? 0);
         $character->combat_rounds = $currentRound;
-        $character->combat_skills_used = $roundResult['new_skills_aggregated'];
-        $character->combat_skill_cooldowns = $roundResult['new_cooldowns'];
+        $character->combat_skills_used = is_array($roundResult['new_skills_aggregated'] ?? []) ? $roundResult['new_skills_aggregated'] : [];
+        $character->combat_skill_cooldowns = is_array($roundResult['new_cooldowns'] ?? []) ? $roundResult['new_cooldowns'] : [];
 
-        // 保存更新的怪物数组
-        if (isset($roundResult['monsters_updated'])) {
+        // 保存更新的怪物数组（如果有）
+        if (isset($roundResult['monsters_updated']) && is_array($roundResult['monsters_updated'])) {
             $character->combat_monsters = $roundResult['monsters_updated'];
         }
     }
@@ -351,7 +354,7 @@ class GameCombatService
      * @param  int  $monsterLevel  怪物等级
      * @param  int  $monsterMaxHp  怪物最大生命值
      * @param  int  $currentRound  当前回合数
-     * @param  array  $roundResult  回合结果
+     * @param  array<string,mixed>  $roundResult  回合结果
      * @param  int  $monsterHpBeforeRound  回合前怪物生命值
      * @return array 失败结果
      */
@@ -365,8 +368,8 @@ class GameCombatService
         array $roundResult,
         int $monsterHpBeforeRound
     ): array {
-        // 失败时
-        $character->current_hp = max(0, $roundResult['new_char_hp']);
+        // 失败时（显式转换为 int，避免 mixed 导致的静态分析问题）
+        $character->current_hp = max(0, (int) ($roundResult['new_char_hp'] ?? 0));
         $character->is_fighting = false;
 
         // 创建失败日志
@@ -376,14 +379,14 @@ class GameCombatService
         $character->clearCombatState();
         $character->save();
 
-        // 调试：保存后检查值
+        // 调试：保存后检查值（fresh 可能为 null，使用 ?? 回退）
+        $freshCharacter = $character->fresh() ?? $character;
         Log::info('[handleDefeat] 保存后数据库中的current_hp:', [
             'character_id' => $character->id,
             'current_hp' => $character->current_hp,
-            'fresh_current_hp' => $character->fresh()->current_hp,
+            'fresh_current_hp' => $freshCharacter->current_hp,
         ]);
 
-        $freshCharacter = $character->fresh();
         Log::info('[handleDefeat] 刷新后的角色:', ['current_hp' => $freshCharacter->current_hp]);
         $charArray = $freshCharacter->toArray();
         $charArray['current_hp'] = 0;
@@ -404,13 +407,13 @@ class GameCombatService
                 'max_hp' => $monsterMaxHp,
             ],
             'monster_hp_before_round' => $monsterHpBeforeRound,
-            'damage_dealt' => $character->combat_total_damage_dealt,
-            'damage_taken' => $character->combat_total_damage_taken,
+            'damage_dealt' => (int) $character->combat_total_damage_dealt,
+            'damage_taken' => (int) $character->combat_total_damage_taken,
             'rounds' => $currentRound,
             'experience_gained' => 0,
             'copper_gained' => 0,
             'loot' => [],
-            'skills_used' => $roundResult['new_skills_aggregated'],
+            'skills_used' => is_array($roundResult['new_skills_aggregated'] ?? []) ? $roundResult['new_skills_aggregated'] : [],
             'character' => $charArray,
             'current_hp' => 0,
             'current_mana' => 0,

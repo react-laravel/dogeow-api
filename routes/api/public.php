@@ -14,6 +14,9 @@ Route::get('/client-basic-info', [App\Http\Controllers\Api\ClientInfoController:
 Route::get('/client-info', [App\Http\Controllers\Api\ClientInfoController::class, 'getClientInfo']);
 Route::get('/client-location-info', [App\Http\Controllers\Api\ClientInfoController::class, 'getLocationInfo']);
 
+// System status (public, for /about/site)
+Route::get('/system/status', [App\Http\Controllers\Api\SystemStatusController::class, 'index']);
+
 // Cloud
 require base_path('routes/api/cloud.php');
 

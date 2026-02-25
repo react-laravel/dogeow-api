@@ -6,6 +6,18 @@ use Illuminate\Database\Eloquent\Model;
 
 class GameItemDefinition extends Model
 {
+    /**
+     * @property int $id
+     * @property string $name
+     * @property string $type
+     * @property string|null $sub_type
+     * @property array<string,mixed> $base_stats
+     * @property int $required_level
+     * @property string|null $icon
+     * @property string|null $description
+     * @property bool $is_active
+     * @property int|null $buy_price
+     */
     protected $fillable = [
         'id',
         'name',

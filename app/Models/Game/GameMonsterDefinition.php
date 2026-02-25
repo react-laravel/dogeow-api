@@ -72,8 +72,10 @@ class GameMonsterDefinition extends Model
 
     /**
      * 获取完整战斗属性
-     */
-    public function getCombatStats(): array
+        *
+        * @return array{hp:int,attack:int,defense:int,experience:int}
+        */
+        public function getCombatStats(): array
     {
         return [
             'hp' => $this->getHp(),

@@ -5,6 +5,19 @@ namespace App\Models\Game;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property int $definition_id
+ * @property int $quantity
+ * @property bool $is_in_storage
+ * @property bool $is_equipped
+ * @property int|null $slot_index
+ * @property int $sell_price
+ * @property array<string,mixed> $stats
+ * @property array<int,array<string,mixed>>|null $affixes
+ * @property int|null $sockets
+ * @property GameItemDefinition|null $definition
+ */
 class GameItem extends GameItemDefinition
 {
     protected $table = 'game_items';

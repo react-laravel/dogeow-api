@@ -26,6 +26,9 @@ class GameShopService
     /**
      * 强制刷新商店：扣除 1 银币后清除缓存并返回新列表
      */
+    /**
+     * @return array{items: \Illuminate\Support\Collection<int, array<string,mixed>>, player_copper: int, next_refresh_at: int}
+     */
     public function refreshShop(GameCharacter $character): array
     {
         if ($character->copper < self::REFRESH_COST_COPPER) {
@@ -43,25 +46,36 @@ class GameShopService
     /**
      * 获取商店物品列表
      */
+    /**
+        * @return array{items: \Illuminate\Support\Collection<int, array<string,mixed>>, player_copper: int, next_refresh_at: int, purchased: array<int>}
+     */
     public function getShopItems(GameCharacter $character): array
     {
         // 药品固定显示
         $fixedPotionItems = $this->buildFixedPotionItems($character);
 
         // 装备列表使用缓存
-        $cacheKey = "rpg:shop:{$character->id}";
-        $cached = Cache::get($cacheKey);
+        $cacheKey = sprintf('game_shop_%s', $character->id);
+        $cached = cache()->get($cacheKey, []);
+        $equipmentArray = [];
+        if (is_array($cached) && isset($cached['equipment']) && is_array($cached['equipment'])) {
+            $equipmentArray = $cached['equipment'];
+        }
+        $equipment = collect($equipmentArray);
 
         // 获取已购买的装备ID列表
         $purchasedItemIds = $this->getPurchasedItemIds($character);
 
         if (is_array($cached) && isset($cached['equipment'], $cached['refreshed_at'])) {
-            $randomEquipmentItems = collect($cached['equipment'])
-                ->filter(fn (array $item) => ($item['required_level'] ?? 0) <= $character->level)
+            /** @var array<int, array<string,mixed>> $cachedEquipment */
+            $cachedEquipment = is_array($cached['equipment']) ? $cached['equipment'] : [];
+            $cachedRefreshed = isset($cached['refreshed_at']) && is_numeric($cached['refreshed_at']) ? (int) $cached['refreshed_at'] : time();
+            $randomEquipmentItems = collect($cachedEquipment)
+                ->filter(fn ($item) => is_array($item) && (($item['required_level'] ?? 0) <= $character->level))
                 // 过滤掉已购买的物品
-                ->filter(fn (array $item) => ! in_array($item['id'], $purchasedItemIds))
+                ->filter(fn ($item) => is_array($item) && ! in_array($item['id'], $purchasedItemIds))
                 ->values();
-            $nextRefreshAt = $cached['refreshed_at'] + self::SHOP_CACHE_TTL_SECONDS;
+            $nextRefreshAt = $cachedRefreshed + self::SHOP_CACHE_TTL_SECONDS;
         } else {
             $randomEquipmentItems = $this->buildRandomEquipmentItems($character);
             $refreshedAt = time();
@@ -76,15 +90,28 @@ class GameShopService
 
         $shopItems = $fixedPotionItems->concat($randomEquipmentItems);
 
+        $purchased = [];
+        if (is_array($cached) && isset($cached['purchased']) && is_array($cached['purchased'])) {
+            $purchased = array_map(static fn($v): int => (int) $v, $cached['purchased']);
+        }
+
+        $refreshedAt = time();
+        if (is_array($cached) && isset($cached['refreshed_at']) && is_numeric($cached['refreshed_at'])) {
+            $refreshedAt = (int) $cached['refreshed_at'];
+        }
+
         return [
             'items' => $shopItems,
-            'player_copper' => $character->copper,
+            'player_copper' => (int) $character->copper,
             'next_refresh_at' => $nextRefreshAt,
+            'purchased' => $purchased,
         ];
     }
 
     /**
      * 获取已购买的物品ID列表（仅装备，排除药品）
+        *
+        * @return int[]
      */
     private function getPurchasedItemIds(GameCharacter $character): array
     {
@@ -103,7 +130,7 @@ class GameShopService
             return [];
         }
 
-        $cacheAge = time() - $shopCache['refreshed_at'];
+        $cacheAge = time() - (isset($shopCache['refreshed_at']) ? (int) $shopCache['refreshed_at'] : 0);
         if ($cacheAge > self::SHOP_CACHE_TTL_SECONDS) {
             // 缓存已过期，清空已购买记录
             $this->clearPurchasedItems($character);
@@ -111,7 +138,8 @@ class GameShopService
             return [];
         }
 
-        return $purchased;
+        // Return normalized ints
+        return array_values(array_map(static fn($v): int => (int) $v, $purchased));
     }
 
     /**
@@ -143,6 +171,8 @@ class GameShopService
 
     /**
      * 构建固定药品列表
+     *
+     * @return \Illuminate\Support\Collection<int, array{id:int,name:string,type:string,sub_type:string|null,base_stats:array<string,mixed>,required_level:int,icon:string|null,description:string|null,buy_price:int,sell_price:int}>
      */
     private function buildFixedPotionItems(GameCharacter $character): \Illuminate\Support\Collection
     {
@@ -170,13 +200,16 @@ class GameShopService
                 'icon' => $definition->icon,
                 'description' => $definition->description,
                 'buy_price' => $buyPrice,
-                'sell_price' => (int) floor($buyPrice * config('game.shop.sell_ratio', 0.3)),
+                'sell_price' => (int) floor($buyPrice * (float) config('game.shop.sell_ratio', 0.3)),
             ];
         });
     }
 
     /**
      * 构建随机装备列表（仅包含所需等级不超过角色等级的装备）
+     */
+    /**
+     * @return \Illuminate\Support\Collection<int, array{id:int,name:string,type:string,sub_type:string|null,base_stats:array<string,mixed>,quality:string,required_level:int,icon:string|null,description:string|null,buy_price:int}>
      */
     private function buildRandomEquipmentItems(GameCharacter $character): \Illuminate\Support\Collection
     {
@@ -189,8 +222,8 @@ class GameShopService
             ->orderBy('required_level')
             ->get();
 
-        $shopSizeMin = config('game.shop.equipment_count_min', 20);
-        $shopSizeMax = config('game.shop.equipment_count_max', 25);
+        $shopSizeMin = (int) config('game.shop.equipment_count_min', 20);
+        $shopSizeMax = (int) config('game.shop.equipment_count_max', 25);
         $shopSize = rand($shopSizeMin, $shopSizeMax);
         $selectedEquipments = $equipmentDefinitions->shuffle()->take($shopSize);
 
@@ -221,25 +254,29 @@ class GameShopService
         $rand = rand(1, 100);
 
         // 从配置读取品质概率
-        $qualityConfig = config('game.shop.quality_chance', []);
+        $qualityConfig = (array) config('game.shop.quality_chance', []);
 
-        $mythicBase = $qualityConfig['mythic']['base'] ?? 0;
-        $mythicPerLevel = $qualityConfig['mythic']['per_level'] ?? 0.2;
-        $mythicMax = $qualityConfig['mythic']['max'] ?? 21;
+        $mythicCfg = is_array($qualityConfig['mythic'] ?? null) ? $qualityConfig['mythic'] : [];
+        $mythicBase = isset($mythicCfg['base']) ? (int) $mythicCfg['base'] : 0;
+        $mythicPerLevel = $mythicCfg['per_level'] ?? 0.2;
+        $mythicMax = $mythicCfg['max'] ?? 21;
         $mythicChance = min($mythicMax, $mythicBase + $requiredLevel * $mythicPerLevel);
 
-        $legendaryBase = $qualityConfig['legendary']['base'] ?? 0;
-        $legendaryPerLevel = $qualityConfig['legendary']['per_level'] ?? 0.5;
-        $legendaryMax = $qualityConfig['legendary']['max'] ?? 26;
+        $legendaryCfg = is_array($qualityConfig['legendary'] ?? null) ? $qualityConfig['legendary'] : [];
+        $legendaryBase = isset($legendaryCfg['base']) ? (int) $legendaryCfg['base'] : 0;
+        $legendaryPerLevel = $legendaryCfg['per_level'] ?? 0.5;
+        $legendaryMax = $legendaryCfg['max'] ?? 26;
         $legendaryChance = min($legendaryMax, $legendaryBase + $requiredLevel * $legendaryPerLevel);
 
-        $rareBase = $qualityConfig['rare']['base'] ?? 15;
-        $rareMax = $qualityConfig['rare']['max'] ?? 41;
-        $rareChance = min($rareMax, $rareBase + $requiredLevel * ($qualityConfig['rare']['per_level'] ?? 0));
+        $rareCfg = is_array($qualityConfig['rare'] ?? null) ? $qualityConfig['rare'] : [];
+        $rareBase = $rareCfg['base'] ?? 15;
+        $rareMax = $rareCfg['max'] ?? 41;
+        $rareChance = min($rareMax, $rareBase + $requiredLevel * ($rareCfg['per_level'] ?? 0));
 
-        $magicBase = $qualityConfig['magic']['base'] ?? 30;
-        $magicMax = $qualityConfig['magic']['max'] ?? 71;
-        $magicChance = min($magicMax, $magicBase + $requiredLevel * ($qualityConfig['magic']['per_level'] ?? 0));
+        $magicCfg = is_array($qualityConfig['magic'] ?? null) ? $qualityConfig['magic'] : [];
+        $magicBase = $magicCfg['base'] ?? 30;
+        $magicMax = $magicCfg['max'] ?? 71;
+        $magicChance = min($magicMax, $magicBase + $requiredLevel * ($magicCfg['per_level'] ?? 0));
 
         if ($rand <= $mythicChance) {
             return 'mythic';
@@ -256,6 +293,9 @@ class GameShopService
 
     /**
      * 生成随机属性
+     */
+    /**
+     * @return array<string,int|float>
      */
     private function generateRandomStats(GameItemDefinition $definition): array
     {
@@ -340,6 +380,8 @@ class GameShopService
 
     /**
      * 计算购买价格
+        *
+        * @param array<string,int|float> $stats
      */
     private function calculateBuyPrice(GameItemDefinition $item, array $stats = [], string $quality = 'common'): int
     {
@@ -348,7 +390,11 @@ class GameShopService
             return $item->buy_price;
         }
 
-        $basePrice = $item->base_stats['price'] ?? 0;
+        // base_stats may be array or null; guard access
+        $basePrice = 0;
+        if (is_array($item->base_stats)) {
+            $basePrice = isset($item->base_stats['price']) && is_numeric($item->base_stats['price']) ? (int) $item->base_stats['price'] : 0;
+        }
 
         if ($basePrice > 0) {
             return $basePrice;
@@ -356,29 +402,38 @@ class GameShopService
 
         // 从配置读取
         $levelMultiplierConfig = config('game.shop.level_price_multiplier', 0.5);
-        $levelMultiplier = 1 + ($item->required_level * $levelMultiplierConfig);
+        $levelMultiplierConfig = is_numeric($levelMultiplierConfig) ? (float) $levelMultiplierConfig : 0.5;
+        $levelMultiplier = 1 + ((int) $item->required_level * $levelMultiplierConfig);
 
         // 品质价格乘数
         $qualityMultiplierConfig = config('game.shop.quality_price_multiplier', []);
-        $qualityMultiplier = $qualityMultiplierConfig[$quality] ?? 1.0;
+        $qualityMultiplier = is_array($qualityMultiplierConfig) ? (isset($qualityMultiplierConfig[$quality]) && is_numeric($qualityMultiplierConfig[$quality]) ? (float)$qualityMultiplierConfig[$quality] : 1.0) : 1.0;
 
         // 基础价格（按类型）
         $typeBasePriceConfig = config('game.shop.type_base_price', []);
-        $typeBasePrice = $typeBasePriceConfig[$item->type] ?? 20;
+        $typeBasePrice = 20;
+        if (is_array($typeBasePriceConfig)) {
+            $typeKey = (string) $item->type;
+            $typeBasePrice = isset($typeBasePriceConfig[$typeKey]) && is_numeric($typeBasePriceConfig[$typeKey]) ? (float)$typeBasePriceConfig[$typeKey] : 20;
+        }
 
         // 属性价格计算
         $statPriceConfig = config('game.shop.stat_price', []);
-        $statsPrice = 0;
+        $statPriceConfig = is_array($statPriceConfig) ? $statPriceConfig : [];
+        $statsPrice = 0.0;
         foreach ($stats as $stat => $value) {
-            $statMultiplier = $statPriceConfig[$stat] ?? 2;
-            $statsPrice += $value * $statMultiplier;
+            $statMultiplier = isset($statPriceConfig[$stat]) && is_numeric($statPriceConfig[$stat]) ? (float) $statPriceConfig[$stat] : 2.0;
+            $valueNumeric = is_numeric($value) ? (float) $value : 0.0;
+            $statsPrice += $valueNumeric * $statMultiplier;
         }
 
-        return (int) (($typeBasePrice + $statsPrice) * $levelMultiplier * $qualityMultiplier * 100);
+        return (int) (round((($typeBasePrice + $statsPrice) * $levelMultiplier * $qualityMultiplier) * 100));
     }
 
     /**
      * 购买物品
+     *
+     * @return array{copper:int,total_price:int,quantity:int,item_name:string}
      */
     public function buyItem(GameCharacter $character, int $itemId, int $quantity = 1): array
     {
@@ -408,6 +463,7 @@ class GameShopService
 
             // 药品处理
             if ($definition->type === 'potion') {
+                /** @var GameItem|null $existingItem */
                 $existingItem = $character->items()
                     ->where('definition_id', $definition->id)
                     ->where('is_in_storage', false)
@@ -498,6 +554,8 @@ class GameShopService
 
     /**
      * 出售物品
+     *
+     * @return array{copper:int,sell_price:int,quantity:int,item_name:string}
      */
     public function sellItem(GameCharacter $character, int $itemId, int $quantity = 1): array
     {
@@ -507,6 +565,7 @@ class GameShopService
             ->with('definition')
             ->first();
 
+        /** @var GameItem|null $item */
         if (! $item) {
             throw new \InvalidArgumentException('物品不存在或不属于你');
         }
@@ -554,7 +613,7 @@ class GameShopService
     {
         $buyPrice = $this->calculateBuyPrice($item->definition);
         $qualityMultiplier = GameItem::QUALITY_MULTIPLIERS[$item->quality] ?? 1.0;
-        $sellRatio = config('game.shop.sell_ratio', 0.3);
+        $sellRatio = (float) config('game.shop.sell_ratio', 0.3);
 
         return (int) ($buyPrice * $qualityMultiplier * $sellRatio);
     }

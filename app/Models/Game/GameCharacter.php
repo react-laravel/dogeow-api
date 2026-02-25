@@ -7,6 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property array<int, array<string,mixed>|null>|null $combat_monsters
+ * @property \Illuminate\Support\Carbon|null $combat_monsters_refreshed_at
+ * @property int|null $combat_monster_id
+ * @property int|null $combat_monster_hp
+ * @property int|null $combat_monster_max_hp
+ */
 class GameCharacter extends Model
 {
     protected $fillable = [
@@ -415,6 +422,9 @@ class GameCharacter extends Model
 
     /**
      * 获取完整战斗属性
+     */
+    /**
+     * @return array<string,mixed>
      */
     public function getCombatStats(): array
     {

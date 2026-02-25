@@ -40,6 +40,11 @@ class GameMapDefinition extends Model
     /**
      * 获取地图中的怪物列表
      */
+    /**
+     * 获取地图中的怪物列表
+     *
+     * @return array<int, GameMonsterDefinition>
+     */
     public function getMonsters(): array
     {
         $ids = $this->monster_ids;
