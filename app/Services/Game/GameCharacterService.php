@@ -295,7 +295,7 @@ class GameCharacterService
 
         // 最小60秒才发放离线奖励
         if ($offlineSeconds < 60) {
-            return $this->formatOfflineRewards($offlineSeconds, false);
+            return $this->formatOfflineRewards((int) $offlineSeconds, false);
         }
 
         // 最多24小时（从配置读取）
@@ -315,7 +315,7 @@ class GameCharacterService
         $newExp = $currentExp + $experience;
         $levelUp = $newExp >= $expNeeded;
 
-        return $this->formatOfflineRewards($offlineSeconds, true, $experience, $copper, $levelUp);
+        return $this->formatOfflineRewards((int) $offlineSeconds, true, $experience, $copper, $levelUp);
     }
 
     /**

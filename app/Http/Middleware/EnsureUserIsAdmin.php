@@ -21,7 +21,7 @@ class EnsureUserIsAdmin
             return response()->json(['message' => '未认证'], 401);
         }
 
-        if (method_exists($user, 'isAdmin') && ! $user->isAdmin()) {
+        if (! $user->isAdmin()) {
             return response()->json(['message' => '需要管理员权限'], 403);
         }
 

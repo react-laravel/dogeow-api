@@ -5,6 +5,9 @@ namespace App\Models\Game;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property array<string, mixed>|null $drop_table
+ */
 class GameMonsterDefinition extends Model
 {
     protected $fillable = [
@@ -72,10 +75,10 @@ class GameMonsterDefinition extends Model
 
     /**
      * 获取完整战斗属性
-        *
-        * @return array{hp:int,attack:int,defense:int,experience:int}
-        */
-        public function getCombatStats(): array
+     *
+     * @return array{hp:int,attack:int,defense:int,experience:int}
+     */
+    public function getCombatStats(): array
     {
         return [
             'hp' => $this->getHp(),

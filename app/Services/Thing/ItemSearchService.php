@@ -72,16 +72,14 @@ class ItemSearchService
         }
 
         return DB::table('thing_search_history')
-            ->select('search_term', DB::raw('COUNT(*) as frequency'))
             ->where('search_term', 'like', "%{$query}%")
             ->when(Auth::check(), function ($q) {
                 return $q->where('user_id', Auth::id());
             })
             ->groupBy('search_term')
-            ->orderBy('frequency', 'desc')
+            ->orderByRaw('COUNT(*) desc')
             ->orderBy('created_at', 'desc')
             ->limit($limit)
-            ->get()
             ->pluck('search_term');
     }
 

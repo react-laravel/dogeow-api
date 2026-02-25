@@ -4,6 +4,7 @@ namespace App\Models\Nav;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Item extends Model
@@ -49,7 +50,7 @@ class Item extends Model
     /**
      * 获取该导航项所属的分类
      */
-    public function category()
+    public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class, 'nav_category_id');
     }

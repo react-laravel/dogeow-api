@@ -37,6 +37,6 @@ class GameItemGem extends Model
      */
     public function getGemStats(): array
     {
-        return $this->gemDefinition?->gem_stats ?? [];
+        return $this->gemDefinition !== null ? ($this->gemDefinition->gem_stats ?? []) : [];
     }
 }

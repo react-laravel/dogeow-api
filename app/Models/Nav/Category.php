@@ -4,6 +4,7 @@ namespace App\Models\Nav;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Category extends Model
@@ -43,7 +44,7 @@ class Category extends Model
     /**
      * 获取该分类下的所有导航项
      */
-    public function items()
+    public function items(): HasMany
     {
         return $this->hasMany(Item::class, 'nav_category_id');
     }

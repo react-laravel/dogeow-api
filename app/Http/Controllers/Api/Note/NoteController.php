@@ -184,7 +184,7 @@ class NoteController extends Controller
         // 检查权限：
         // 1. 如果是用户自己的笔记（user_id 匹配）
         // 2. 或者是 wiki 节点（is_wiki = true，允许所有认证用户编辑）
-        $isUserNote = $userId !== null && $note->user_id !== null && $note->user_id === $userId;
+        $isUserNote = $note->user_id === $userId;
         $isWikiNode = $note->is_wiki === true;
 
         if (! $isUserNote && ! $isWikiNode) {
@@ -236,7 +236,7 @@ class NoteController extends Controller
             'id' => $node->id,
             'title' => $node->title,
             'slug' => $node->slug,
-            'tags' => $node->tags ? $node->tags->pluck('name')->toArray() : [],
+            'tags' => $node->tags->pluck('name')->toArray(),
             'summary' => $node->summary ?? '',
         ];
     }

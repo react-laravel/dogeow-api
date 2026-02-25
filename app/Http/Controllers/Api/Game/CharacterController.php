@@ -36,6 +36,7 @@ class CharacterController extends Controller
     public function show(Request $request): JsonResponse
     {
         $characterId = $request->query('character_id');
+        $characterId = $characterId !== null && $characterId !== '' ? (int) $characterId : null;
         $result = $this->characterService->getCharacterDetail($request->user()->id, $characterId);
 
         return $this->success(['character' => $result['character'] ?? null] + [
@@ -137,6 +138,7 @@ class CharacterController extends Controller
     public function detail(Request $request): JsonResponse
     {
         $characterId = $request->query('character_id');
+        $characterId = $characterId !== null && $characterId !== '' ? (int) $characterId : null;
         $result = $this->characterService->getCharacterFullDetail($request->user()->id, $characterId);
 
         return $this->success($result);

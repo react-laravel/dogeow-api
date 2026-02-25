@@ -24,7 +24,7 @@ class CompendiumController extends Controller
             ->get();
 
         $character = $this->getCharacter($request);
-        $discoveredItems = $character?->discovered_items ?? [];
+        $discoveredItems = $character->discovered_items ?? [];
 
         // 为每个物品添加 discovered 字段
         $items = $items->map(function ($item) use ($discoveredItems) {
@@ -50,7 +50,7 @@ class CompendiumController extends Controller
             ->get();
 
         $character = $this->getCharacter($request);
-        $discoveredMonsters = $character?->discovered_monsters ?? [];
+        $discoveredMonsters = $character->discovered_monsters ?? [];
 
         // 为每个怪物添加 discovered 字段
         $monsters = $monsters->map(function ($monster) use ($discoveredMonsters) {
@@ -74,7 +74,7 @@ class CompendiumController extends Controller
         $monster = GameMonsterDefinition::where('is_active', true)
             ->findOrFail($monster);
 
-        $dropTable = $monster->drop_table ?? [];
+        $dropTable = is_array($monster->drop_table) ? $monster->drop_table : [];
 
         // 计算掉落概率
         $baseDropChance = $dropTable['item_chance'] ?? 0.1;

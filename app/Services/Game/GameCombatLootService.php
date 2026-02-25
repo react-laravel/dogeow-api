@@ -99,7 +99,9 @@ class GameCombatLootService
         $quality = $itemData['quality'];
         $qualityMultiplier = GameItem::QUALITY_MULTIPLIERS[$quality] ?? 1.0;
         $stats = [];
-        foreach ($definition->base_stats ?? [] as $stat => $value) {
+        /** @var array<string, mixed> $baseStatsArr */
+        $baseStatsArr = $definition->base_stats ?? [];
+        foreach ($baseStatsArr as $stat => $value) {
             $statValue = (int) ($value * $qualityMultiplier * (0.8 + rand(0, 40) / 100));
             if ($statValue !== 0) {
                 $stats[$stat] = $statValue;
@@ -139,7 +141,7 @@ class GameCombatLootService
             }
         }
 
-        $basePrice = $definition->base_stats['price'] ?? 10;
+        $basePrice = $baseStatsArr['price'] ?? 10;
         $sellRatio = config('game.shop.sell_ratio', 0.3);
         $sellPrice = (int) ($basePrice * $qualityMultiplier * $sellRatio);
 
@@ -193,6 +195,7 @@ class GameCombatLootService
         $config = $potionConfigs[$type][$level];
         $statKey = $type === 'hp' ? 'max_hp' : 'max_mana';
 
+        /** @var GameItem|null $existingPotion */
         $existingPotion = $character->items()
             ->whereHas('definition', function ($query) use ($type) {
                 $query->where('type', 'potion')->where('sub_type', $type);
@@ -201,8 +204,9 @@ class GameCombatLootService
             ->first();
         if ($existingPotion) {
             $existingPotion->increment('quantity');
+            $existingPotion->load('definition');
 
-            return $existingPotion->load('definition');
+            return $existingPotion;
         }
 
         $inventoryService = new GameInventoryService;
@@ -231,6 +235,7 @@ class GameCombatLootService
             ]);
         }
 
+        /** @var GameItem $potion */
         $potion = GameItem::create([
             'character_id' => $character->id,
             'definition_id' => $definition->id,
@@ -244,14 +249,13 @@ class GameCombatLootService
             'sell_price' => 0,
         ]);
 
-        // Calculate sell price based on attributes
         $potion->sell_price = $potion->calculateSellPrice();
         $potion->save();
 
-        // 发现物品
         $character->discoverItem($definition->id);
+        $potion->load('definition');
 
-        return $potion->load('definition');
+        return $potion;
     }
 
     /**

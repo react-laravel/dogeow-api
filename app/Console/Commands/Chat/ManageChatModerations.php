@@ -61,6 +61,7 @@ class ManageChatModerations extends Command
         $this->newLine();
 
         // 获取被静音的用户
+        /** @var \Illuminate\Database\Eloquent\Collection<int, ChatRoomUser> $mutedUsers */
         $mutedUsers = ChatRoomUser::where('is_muted', true)
             ->with(['user:id,name,email', 'room:id,name', 'mutedByUser:id,name'])
             ->get();
@@ -68,11 +69,18 @@ class ManageChatModerations extends Command
         if ($mutedUsers->isNotEmpty()) {
             $this->info('🔇 已被静音的用户:');
             $muteData = [];
+            /** @var ChatRoomUser $roomUser */
             foreach ($mutedUsers as $roomUser) {
+                /** @var User $user */
+                $user = $roomUser->user;
+                /** @var ChatRoom $room */
+                $room = $roomUser->room;
+                /** @var User|null $mutedBy */
+                $mutedBy = $roomUser->mutedByUser;
                 $muteData[] = [
-                    '用户' => $roomUser->user->name . ' (' . $roomUser->user->email . ')',
-                    '房间' => $roomUser->room->name,
-                    '操作人' => $roomUser->mutedByUser->name ?? '系统',
+                    '用户' => $user->name . ' (' . $user->email . ')',
+                    '房间' => $room->name,
+                    '操作人' => $mutedBy !== null ? $mutedBy->name : '系统',
                     '截止时间' => $roomUser->muted_until ? $roomUser->muted_until->format('Y-m-d H:i:s') : '永久',
                     '状态' => $roomUser->muted_until && $roomUser->muted_until->isPast() ? '已过期' : '生效中',
                 ];
@@ -81,6 +89,7 @@ class ManageChatModerations extends Command
         }
 
         // 获取被封禁的用户
+        /** @var \Illuminate\Database\Eloquent\Collection<int, ChatRoomUser> $bannedUsers */
         $bannedUsers = ChatRoomUser::where('is_banned', true)
             ->with(['user:id,name,email', 'room:id,name', 'bannedByUser:id,name'])
             ->get();
@@ -89,11 +98,18 @@ class ManageChatModerations extends Command
             $this->newLine();
             $this->info('🚫 已被封禁的用户:');
             $banData = [];
+            /** @var ChatRoomUser $roomUser */
             foreach ($bannedUsers as $roomUser) {
+                /** @var User $user */
+                $user = $roomUser->user;
+                /** @var ChatRoom $room */
+                $room = $roomUser->room;
+                /** @var User|null $bannedBy */
+                $bannedBy = $roomUser->bannedByUser;
                 $banData[] = [
-                    '用户' => $roomUser->user->name . ' (' . $roomUser->user->email . ')',
-                    '房间' => $roomUser->room->name,
-                    '操作人' => $roomUser->bannedByUser->name ?? '系统',
+                    '用户' => $user->name . ' (' . $user->email . ')',
+                    '房间' => $room->name,
+                    '操作人' => $bannedBy !== null ? $bannedBy->name : '系统',
                     '截止时间' => $roomUser->banned_until ? $roomUser->banned_until->format('Y-m-d H:i:s') : '永久',
                     '状态' => $roomUser->banned_until && $roomUser->banned_until->isPast() ? '已过期' : '生效中',
                 ];

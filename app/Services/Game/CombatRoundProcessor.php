@@ -99,7 +99,7 @@ class CombatRoundProcessor
         // 统计本回合杀死的怪物数量，并记录死亡槽位（本回合不在此槽位生成新怪，避免与死亡动画重叠）
         $slotsWhereMonsterDiedThisRound = [];
         foreach ($monstersUpdated as $idx => $m) {
-            if (is_array($m) && ($hpAtRoundStart[$idx] ?? 0) > 0 && ($m['hp'] ?? 0) <= 0) {
+            if (($hpAtRoundStart[$idx] ?? 0) > 0 && ($m['hp'] ?? 0) <= 0) {
                 $monstersKilledThisRound++;
                 $slotsWhereMonsterDiedThisRound[] = $idx;
             }
@@ -109,7 +109,7 @@ class CombatRoundProcessor
         $charHp -= $totalMonsterDamage;
 
         $character->combat_monsters = $monstersUpdated;
-        $newTotalHp = array_sum(array_column(array_filter($monstersUpdated, 'is_array'), 'hp'));
+        $newTotalHp = array_sum(array_column($monstersUpdated, 'hp'));
 
         $newSkillsAggregated = $this->aggregateSkillsUsed($skillsUsedThisRound, $skillsUsedAggregated);
         $hasAliveMonster = $this->hasAliveMonster($monstersUpdated);
@@ -195,9 +195,9 @@ class CombatRoundProcessor
 
         // 获取当前怪物信息用于智能选择
         $monsters = $character->combat_monsters ?? [];
-        $aliveMonsters = array_filter($monsters, fn ($m) => is_array($m) && ($m['hp'] ?? 0) > 0);
+        $aliveMonsters = array_filter($monsters, fn ($m) => ($m['hp'] ?? 0) > 0);
         $aliveMonsterCount = count($aliveMonsters);
-        $lowHpMonsters = array_filter($aliveMonsters, fn ($m) => is_array($m) && ($m['hp'] ?? 0) > 0 && ($m['hp'] ?? 0) <= ($m['max_hp'] ?? 100) * 0.3);
+        $lowHpMonsters = array_filter($aliveMonsters, fn ($m) => $m['hp'] > 0 && $m['hp'] <= ($m['max_hp'] ?? 100) * 0.3);
         $lowHpMonsterCount = count($lowHpMonsters);
         $totalMonsterHp = array_sum(array_column($aliveMonsters, 'hp'));
 
@@ -399,7 +399,7 @@ class CombatRoundProcessor
      */
     private function selectRoundTargets(array $monsters, bool $isAoeSkill): array
     {
-        $aliveMonsters = array_filter($monsters, fn ($m) => is_array($m) && ($m['hp'] ?? 0) > 0);
+        $aliveMonsters = array_filter($monsters, fn ($m) => ($m['hp'] ?? 0) > 0);
         if (empty($aliveMonsters)) {
             return [];
         }
@@ -432,11 +432,6 @@ class CombatRoundProcessor
         $monstersUpdated = [];
 
         foreach ($monsters as $idx => $m) {
-            if (! is_array($m)) {
-                $monstersUpdated[$idx] = null;
-
-                continue;
-            }
             $m['damage_taken'] = -1; // -1 表示未受攻击
             $m['was_attacked'] = false; // 每回合开始时清除被攻击标记
 
@@ -470,7 +465,7 @@ class CombatRoundProcessor
             $aoeMultiplier = config('game.combat.aoe_damage_multiplier', 0.7);
             $targetDamage = $useAoe ? (int) ($damage * $aoeMultiplier) : $damage;
 
-            $m['hp'] = max(0, ($m['hp'] ?? 0) - $targetDamage);
+            $m['hp'] = max(0, $m['hp'] - $targetDamage);
             $m['damage_taken'] = $targetDamage;
             $m['was_attacked'] = true; // 标记该怪物被攻击
             $totalDamageDealt += $targetDamage;
@@ -479,7 +474,7 @@ class CombatRoundProcessor
 
         // 清除所有新怪物标记 现在可以攻击了
         foreach ($monstersUpdated as $idx => $m) {
-            if (is_array($m) && isset($m['is_new'])) {
+            if (isset($m['is_new'])) {
                 unset($monstersUpdated[$idx]['is_new']);
             }
         }
@@ -517,7 +512,7 @@ class CombatRoundProcessor
     {
         $total = 0;
         foreach ($monstersUpdated as $m) {
-            if (! is_array($m) || ($m['hp'] ?? 0) <= 0) {
+            if (($m['hp'] ?? 0) <= 0) {
                 continue;
             }
             $monsterAttack = $m['attack'] ?? 0;
@@ -539,7 +534,7 @@ class CombatRoundProcessor
      */
     private function getAliveMonsters(array $monsters): array
     {
-        return array_filter($monsters, fn ($m) => is_array($m) && ($m['hp'] ?? 0) > 0);
+        return array_filter($monsters, fn ($m) => ($m['hp'] ?? 0) > 0);
     }
 
     /**
@@ -552,7 +547,7 @@ class CombatRoundProcessor
     {
         $hpAtRoundStart = [];
         foreach ($monsters as $idx => $m) {
-            $hpAtRoundStart[$idx] = is_array($m) ? ($m['hp'] ?? 0) : 0;
+            $hpAtRoundStart[$idx] = $m['hp'] ?? 0;
         }
 
         return $hpAtRoundStart;
@@ -594,7 +589,7 @@ class CombatRoundProcessor
         }
 
         $firstTarget = reset($targetMonsters);
-        $targetDefense = is_array($firstTarget) ? ($firstTarget['defense'] ?? 0) : 0;
+        $targetDefense = $firstTarget['defense'] ?? 0;
         $baseAttackDamage = max(0, (int) ($charAttack - $targetDefense * $defenseReduction));
 
         if (! $isCrit) {
@@ -616,7 +611,7 @@ class CombatRoundProcessor
     private function getFirstAliveMonster(array $monstersUpdated): ?array
     {
         foreach ($monstersUpdated as $m) {
-            if (is_array($m) && ($m['hp'] ?? 0) > 0) {
+            if (($m['hp'] ?? 0) > 0) {
                 return $m;
             }
         }
@@ -722,7 +717,7 @@ class CombatRoundProcessor
     private function hasAliveMonster(array $monstersUpdated): bool
     {
         foreach ($monstersUpdated as $m) {
-            if (is_array($m) && ($m['hp'] ?? 0) > 0) {
+            if (($m['hp'] ?? 0) > 0) {
                 return true;
             }
         }
@@ -747,9 +742,6 @@ class CombatRoundProcessor
         $rewardMultiplier = $difficulty['reward'] ?? 1;
 
         foreach ($monstersUpdated as $i => $monster) {
-            if (! is_array($monster)) {
-                continue;
-            }
             $before = $hpAtRoundStart[$i] ?? 0;
             $after = $monster['hp'] ?? 0;
             if ($before > 0 && $after <= 0) {

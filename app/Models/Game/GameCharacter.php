@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $combat_monster_id
  * @property int|null $combat_monster_hp
  * @property int|null $combat_monster_max_hp
+ * @property array<int, int>|null $discovered_items
+ * @property array<int, int>|null $discovered_monsters
  */
 class GameCharacter extends Model
 {

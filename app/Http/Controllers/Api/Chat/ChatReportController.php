@@ -8,6 +8,7 @@ use App\Models\Chat\ChatMessageReport;
 use App\Models\Chat\ChatRoom;
 use App\Models\User;
 use App\Services\Chat\ContentFilterService;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -249,8 +250,13 @@ class ChatReportController extends Controller
         $report = ChatMessageReport::with(['room', 'message'])->findOrFail($reportId);
         $reviewer = $this->getUser();
 
+        $room = $report->room;
+        if (! $room instanceof ChatRoom) {
+            return response()->json(['message' => 'Report or room not found'], 404);
+        }
+
         // Check if user can moderate
-        $guard = $this->ensureCanModerate($reviewer, $report->room, 'You are not authorized to review this report');
+        $guard = $this->ensureCanModerate($reviewer, $room, 'You are not authorized to review this report');
         if ($guard) {
             return $guard;
         }
@@ -479,27 +485,42 @@ class ChatReportController extends Controller
     /**
      * Normalize JsonApiPaginate output into a stable data/meta pair.
      *
-     * @param  mixed  $paged
      * @return array{0: mixed, 1: array}
      */
-    private function normalizePagination($paged): array
+    private function normalizePagination(mixed $paged): array
     {
         if (is_array($paged) && isset($paged['data'])) {
             return [$paged['data'], $paged['meta'] ?? []];
         }
 
-        if (method_exists($paged, 'toArray')) {
-            $arr = $paged->toArray();
-            $data = $arr['data'] ?? ($paged->items() ?? []);
-            $meta = $arr['meta'] ?? [
-                'current_page' => $paged->currentPage() ?? null,
-                'per_page' => $paged->perPage() ?? null,
-                'total' => $paged->total() ?? null,
+        if ($paged instanceof LengthAwarePaginator) {
+            return [
+                $paged->items(),
+                [
+                    'current_page' => $paged->currentPage(),
+                    'per_page' => $paged->perPage(),
+                    'total' => $paged->total(),
+                ],
             ];
-
-            return [$data, $meta];
         }
 
-        return [$paged->items() ?? [], []];
+        if (is_object($paged) && method_exists($paged, 'toArray')) {
+            $arr = $paged->toArray();
+
+            return [
+                $arr['data'] ?? (method_exists($paged, 'items') ? $paged->items() : []),
+                $arr['meta'] ?? (
+                    method_exists($paged, 'currentPage')
+                        ? [
+                            'current_page' => $paged->currentPage(),
+                            'per_page' => $paged->perPage(),
+                            'total' => $paged->total(),
+                        ]
+                        : []
+                ),
+            ];
+        }
+
+        return [is_object($paged) && method_exists($paged, 'items') ? $paged->items() : [], []];
     }
 }

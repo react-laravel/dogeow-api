@@ -297,17 +297,4 @@ class ChatPaginationService
             return false;
         }
     }
-
-    /**
-     * Optimize message queries with proper indexing hints
-     */
-    private function optimizeQuery(Builder $query, int $roomId): Builder
-    {
-        // Add index hints for MySQL
-        if (\DB::getDriverName() === 'mysql') {
-            $query->from(\DB::raw('chat_messages USE INDEX (idx_room_id_cursor)'));
-        }
-
-        return $query;
-    }
 }

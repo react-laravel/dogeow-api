@@ -23,15 +23,12 @@ class GameInventoryService
     /** 缓存键前缀 */
     private const CACHE_PREFIX = 'game_inventory:';
 
-    /** 缓存有效期（秒） */
-    private const CACHE_TTL = 60;
-
-     /**
-      * 获取背包物品
-      *
-      * @param GameCharacter $character 角色实例
-      * @return array{inventory: \Illuminate\Database\Eloquent\Collection<int, \App\Models\Game\GameItem>, storage: \Illuminate\Database\Eloquent\Collection<int, \App\Models\Game\GameItem>, equipment: \Illuminate\Support\Collection<string, \App\Models\Game\GameEquipment>, inventory_size: int, storage_size: int}
-      */
+    /**
+     * 获取背包物品
+     *
+     * @param  GameCharacter  $character  角色实例
+     * @return array{inventory: \Illuminate\Database\Eloquent\Collection<int, \App\Models\Game\GameItem>, storage: \Illuminate\Database\Eloquent\Collection<int, \App\Models\Game\GameItem>, equipment: \Illuminate\Support\Collection<string, \App\Models\Game\GameEquipment>, inventory_size: int, storage_size: int}
+     */
     public function getInventory(GameCharacter $character): array
     {
         // 背包：不在仓库且未装备（兼容 is_equipped 为 null 或 false 的情况）
@@ -55,13 +52,11 @@ class GameInventoryService
             ->orderBy('slot_index')
             ->get();
         /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\Game\GameItem> $storage */
-
         $equipment = $character->equipment()
             ->with(['item.definition', 'item.gems.gemDefinition'])
             ->get()
             ->keyBy('slot');
         /** @var \Illuminate\Support\Collection<string, \App\Models\Game\GameEquipment> $equipment */
-
         $this->ensureItemsSellPrice($inventory);
         $this->ensureItemsSellPrice($storage);
         foreach ($equipment as $eq) {
@@ -80,12 +75,12 @@ class GameInventoryService
         ];
     }
 
-        /**
-         * 确保物品列表中的 sell_price 已计算（若为 0 或未设置则按属性计算）
-         *
-         * @param \Illuminate\Support\Collection<int, \App\Models\Game\GameItem>|\Illuminate\Database\Eloquent\Collection<int, \App\Models\Game\GameItem> $items
-         */
-        private function ensureItemsSellPrice(\Illuminate\Support\Collection|\Illuminate\Database\Eloquent\Collection $items): void
+    /**
+     * 确保物品列表中的 sell_price 已计算（若为 0 或未设置则按属性计算）
+     *
+     * @param  \Illuminate\Support\Collection<int, \App\Models\Game\GameItem>|\Illuminate\Database\Eloquent\Collection<int, \App\Models\Game\GameItem>  $items
+     */
+    private function ensureItemsSellPrice(\Illuminate\Support\Collection|\Illuminate\Database\Eloquent\Collection $items): void
     {
         /** @var GameItem $item */
         foreach ($items as $item) {
@@ -96,12 +91,12 @@ class GameInventoryService
         }
     }
 
-     /**
-      * 获取背包数据（用于 WebSocket 广播）
-      *
-    * @param GameCharacter $character 角色实例
-    * @return array{inventory: array<int, array<int|string,mixed>>, storage: array<int, array<int|string,mixed>>, equipment: array<string, array<int|string,mixed>|null>, inventory_size: int, storage_size: int}
-      */
+    /**
+     * 获取背包数据（用于 WebSocket 广播）
+     *
+     * @param  GameCharacter  $character  角色实例
+     * @return array{inventory: array<int, array<int|string,mixed>>, storage: array<int, array<int|string,mixed>>, equipment: array<string, array<int|string,mixed>|null>, inventory_size: int, storage_size: int}
+     */
     public function getInventoryForBroadcast(GameCharacter $character): array
     {
         $result = $this->getInventory($character);
@@ -111,12 +106,11 @@ class GameInventoryService
         $resultEquipment = $result['equipment'];
         foreach ($resultEquipment as $slot => $eq) {
             /** @var \App\Models\Game\GameEquipment $eq */
-            $equipmentArray[$slot] = isset($eq->item) && $eq->item ? $eq->item->toArray() : null;
+            $equipmentArray[$slot] = isset($eq->item) ? $eq->item->toArray() : null;
         }
 
         $inventoryArr = array_values($result['inventory']->toArray());
         /** @var array<int, array<int|string,mixed>> $inventoryArr */
-
         $storageArr = array_values($result['storage']->toArray());
         /** @var array<int, array<int|string,mixed>> $storageArr */
 
@@ -150,7 +144,7 @@ class GameInventoryService
         if (! ($canEquip['can_equip'] ?? false)) {
             $reason = $canEquip['reason'] ?? '无法装备';
             if (! is_string($reason)) {
-                if (is_scalar($reason) || $reason === null) {
+                if (is_scalar($reason)) {
                     $reason = strval($reason);
                 } else {
                     $encoded = @json_encode($reason);
@@ -268,7 +262,7 @@ class GameInventoryService
      * @param  GameCharacter  $character  角色实例
      * @param  int  $itemId  物品ID
      * @param  int  $quantity  数量
-    * @return array{copper:int, sell_price:int}
+     * @return array{copper:int, sell_price:int}
      *
      * @throws \InvalidArgumentException 物品不存在或数量不足
      */
@@ -359,9 +353,8 @@ class GameInventoryService
         $item = $this->findItem($character, $itemId, false);
 
         $definition = $item->definition;
-        /** @var \App\Models\Game\GameItemDefinition $definition */
-        // 检查是否是药品
-        if (! $definition || $definition->type !== 'potion') {
+        /** @var \App\Models\Game\GameItemDefinition|null $definition */
+        if ($definition === null || $definition->type !== 'potion') {
             throw new \InvalidArgumentException('该物品不是药品');
         }
 
@@ -373,7 +366,7 @@ class GameInventoryService
         // 获取药品效果
         $effects = $this->getPotionEffects($item);
 
-        $definitionName = isset($definition->name) && is_string($definition->name) ? $definition->name : '物品';
+        $definitionName = $definition->name ?? '物品';
         $itemDbId = (int) $item->getRawOriginal('id');
         $quantity = (int) $item->quantity;
 
@@ -670,12 +663,11 @@ class GameInventoryService
      */
     private function getPotionEffects(GameItem $item): array
     {
-        $baseStats = [];
         $def = $item->definition;
-        if ($def && is_array($def->base_stats ?? null)) {
-            /** @var array<string,mixed> $baseStats */
-            $baseStats = (array) $def->base_stats;
-        }
+        /** @var array<string, mixed>|null $rawStats */
+        $rawStats = $def !== null ? $def->base_stats : null;
+        /** @var array<string, mixed> $baseStats */
+        $baseStats = $rawStats ?? [];
 
         $hp = 0;
         if (isset($baseStats['max_hp']) && is_numeric($baseStats['max_hp'])) {
@@ -699,10 +691,10 @@ class GameInventoryService
      * 格式化恢复消息
      */
     /**
-     * @param array<string,int> $effects
+     * @param  array<string,int>  $effects
      */
     /**
-     * @param array<string,int> $effects
+     * @param  array<string,int>  $effects
      */
     private function formatRestoreMessage(array $effects): string
     {
@@ -724,8 +716,7 @@ class GameInventoryService
     /**
      * 排序物品
      *
-     * @param \Illuminate\Database\Eloquent\Relations\HasMany<\App\Models\Game\GameItem, \App\Models\Game\GameCharacter>|\Illuminate\Database\Eloquent\Builder<\App\Models\Game\GameItem> $query
-     * @param string $sortBy
+     * @param  \Illuminate\Database\Eloquent\Relations\HasMany<\App\Models\Game\GameItem, \App\Models\Game\GameCharacter>|\Illuminate\Database\Eloquent\Builder<\App\Models\Game\GameItem>  $query
      * @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\Game\GameItem>
      */
     private function sortItems(\Illuminate\Database\Eloquent\Relations\HasMany|\Illuminate\Database\Eloquent\Builder $query, string $sortBy): \Illuminate\Database\Eloquent\Collection

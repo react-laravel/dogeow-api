@@ -1,0 +1,7 @@
+includes:
+    - ./phpstan.neon
+
+parameters:
+    paths:
+        - app/Services
+    level: 6

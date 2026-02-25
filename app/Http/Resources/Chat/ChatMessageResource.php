@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Chat;
 
+use App\Models\Chat\ChatMessage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -10,21 +11,25 @@ class ChatMessageResource extends JsonResource
     /**
      * Transform the resource into an array.
      *
+     * @param  Request  $request
      * @return array<string, mixed>
      */
-    public function toArray(Request $request): array
+    public function toArray($request): array
     {
+        /** @var ChatMessage $resource */
+        $resource = $this->resource;
+
         return [
-            'id' => $this->id,
-            'room_id' => $this->room_id,
-            'user_id' => $this->user_id,
-            'message' => $this->message,
-            'message_type' => $this->message_type,
-            'created_at' => $this->created_at?->toISOString(),
+            'id' => $resource->id,
+            'room_id' => $resource->room_id,
+            'user_id' => $resource->user_id,
+            'message' => $resource->message,
+            'message_type' => $resource->message_type,
+            'created_at' => $resource->created_at?->toISOString(),
             'user' => $this->whenLoaded('user', fn () => [
-                'id' => $this->user->id,
-                'name' => $this->user->name,
-                'email' => $this->user->email,
+                'id' => $resource->user->id,
+                'name' => $resource->user->name,
+                'email' => $resource->user->email,
             ]),
         ];
     }

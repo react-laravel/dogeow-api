@@ -35,8 +35,7 @@ class CharLengthHelper
             }
             // 检查是否是 emoji
             elseif (
-                ($codePoint >= 0x1F300 && $codePoint <= 0x1F9FF) || // 杂项符号和象形文字
-                ($codePoint >= 0x1F600 && $codePoint <= 0x1F64F) || // 表情符号
+                ($codePoint >= 0x1F300 && $codePoint <= 0x1F9FF) || // 杂项符号、象形文字、表情符号
                 ($codePoint >= 0x2600 && $codePoint <= 0x26FF) || // 杂项符号
                 ($codePoint >= 0x2700 && $codePoint <= 0x27BF) || // 装饰符号
                 ($codePoint >= 0x1F1E6 && $codePoint <= 0x1F1FF) // 区域指示符号（国旗）

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Thing\ItemImage;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ItemImageResource extends JsonResource
@@ -14,8 +15,11 @@ class ItemImageResource extends JsonResource
      */
     public function toArray($request)
     {
+        /** @var ItemImage $resource */
+        $resource = $this->resource;
+
         return [
-            'thumbnail_path' => $this->thumbnail_path,
+            'thumbnail_path' => $resource->thumbnail_path,
         ];
     }
 }

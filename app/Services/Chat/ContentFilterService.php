@@ -62,7 +62,7 @@ class ContentFilterService
                 ];
 
                 // 如果有替换内容则进行替换
-                if (isset(self::WORD_REPLACEMENTS[$word])) {
+                if (array_key_exists($word, self::WORD_REPLACEMENTS)) {
                     $filteredMessage = str_ireplace($word, self::WORD_REPLACEMENTS[$word], $filteredMessage);
                 }
 
@@ -240,7 +240,7 @@ class ContentFilterService
         }
 
         $capsChars = strlen(preg_replace('/[^A-Z]/', '', $letters));
-        $capsRatio = $totalChars > 0 ? $capsChars / $totalChars : 0;
+        $capsRatio = $capsChars / $totalChars;
 
         return [
             'is_spam' => $capsRatio > self::SPAM_CAPS_THRESHOLD,
@@ -276,7 +276,7 @@ class ContentFilterService
             $i = $j;
         }
 
-        $repetitionRatio = $length > 0 ? $repetitionCount / $length : 0;
+        $repetitionRatio = $repetitionCount / $length;
 
         return [
             'is_spam' => $repetitionRatio > self::SPAM_REPETITION_THRESHOLD,

@@ -12,8 +12,6 @@ use Illuminate\Support\Facades\Redis;
 class ChatCacheService
 {
     // Cache TTL constants (in seconds)
-    private const ROOM_LIST_TTL = 300; // 5 minutes
-
     private const ROOM_STATS_TTL = 600; // 10 minutes
 
     private const ONLINE_USERS_TTL = 60; // 1 minute
@@ -21,8 +19,6 @@ class ChatCacheService
     private const MESSAGE_HISTORY_TTL = 1800; // 30 minutes
 
     private const USER_PRESENCE_TTL = 120; // 2 minutes
-
-    private const RATE_LIMIT_TTL = 3600; // 1 hour
 
     // Cache key prefixes
     private const PREFIX_ROOM_LIST = 'chat:rooms:list';
@@ -137,22 +133,31 @@ class ChatCacheService
     {
         $cacheKey = self::PREFIX_ONLINE_USERS . $roomId;
 
-        $users = Cache::remember($cacheKey, self::ONLINE_USERS_TTL, function () use ($roomId) {
-            return ChatRoomUser::where('room_id', $roomId)
+        /** @var Collection<int, array<string, mixed>> $users */
+        $users = Cache::remember($cacheKey, self::ONLINE_USERS_TTL, function () use ($roomId): Collection {
+            $roomUsers = ChatRoomUser::where('room_id', $roomId)
                 ->where('is_online', true)
                 ->with('user:id,name,email')
                 ->orderBy('joined_at', 'asc')
-                ->get()
-                ->map(function ($roomUser) {
-                    return [
-                        'id' => $roomUser->user->id,
-                        'name' => $roomUser->user->name,
-                        'email' => $roomUser->user->email,
-                        'joined_at' => $roomUser->joined_at,
-                        'last_seen_at' => $roomUser->last_seen_at,
-                        'is_online' => $roomUser->is_online,
-                    ];
-                });
+                ->get();
+
+            $list = new Collection;
+            foreach ($roomUsers as $roomUser) {
+                $user = $roomUser->user;
+                if ($user === null) {
+                    continue;
+                }
+                $list->push([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'joined_at' => $roomUser->joined_at,
+                    'last_seen_at' => $roomUser->last_seen_at,
+                    'is_online' => $roomUser->is_online,
+                ]);
+            }
+
+            return $list;
         });
 
         $this->registerCacheKey($cacheKey);

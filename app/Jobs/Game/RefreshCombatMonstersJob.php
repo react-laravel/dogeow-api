@@ -25,7 +25,7 @@ class RefreshCombatMonstersJob implements ShouldQueue
         foreach ($characters as $character) {
             if ($monsterService->shouldRefreshMonsters($character)) {
                 $map = $character->currentMap;
-                if (! $map) {
+                if (! $map instanceof \App\Models\Game\GameMapDefinition) {
                     continue;
                 }
 

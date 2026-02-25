@@ -2,7 +2,9 @@
 
 namespace App\Console\Commands\Chat;
 
+use App\Models\Chat\ChatRoom;
 use App\Models\Chat\ChatRoomUser;
+use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -41,14 +43,20 @@ class CleanupDisconnectedChatUsers extends Command
             DB::beginTransaction();
 
             // 查询指定分钟内未活跃的在线用户
+            /** @var \Illuminate\Database\Eloquent\Collection<int, ChatRoomUser> $inactiveUsers */
             $inactiveUsers = ChatRoomUser::online()
                 ->inactiveSince($inactiveMinutes)
                 ->with(['user:id,name', 'room:id,name'])
                 ->get();
 
             $cleanedCount = 0;
+            /** @var ChatRoomUser $roomUser */
             foreach ($inactiveUsers as $roomUser) {
-                $this->line('将用户 ' . $roomUser->user?->name . " 标记为在房间 '" . $roomUser->room?->name . "' 离线");
+                /** @var User|null $user */
+                $user = $roomUser->user;
+                /** @var ChatRoom|null $room */
+                $room = $roomUser->room;
+                $this->line('将用户 ' . $user?->name . " 标记为在房间 '" . $room?->name . "' 离线");
                 $roomUser->markAsOffline();
                 $cleanedCount++;
             }

@@ -8,7 +8,7 @@ use App\Models\Chat\ChatRoomUser;
 use App\Models\Game\GameCharacter;
 use App\Models\Game\GameItem;
 use App\Models\Note\Note;
-use App\Models\Thing\ThingItem;
+use App\Models\Thing\Item;
 use App\Models\Word\Word;
 use App\Policies\Chat\ChatMessagePolicy;
 use App\Policies\Chat\ChatModerationPolicy;
@@ -34,7 +34,7 @@ class PolicyServiceProvider extends ServiceProvider
         GameCharacter::class => GameCharacterPolicy::class,
         GameItem::class => GameItemPolicy::class,
         Note::class => NotePolicy::class,
-        ThingItem::class => ThingItemPolicy::class,
+        Item::class => ThingItemPolicy::class,
         Word::class => WordPolicy::class,
     ];
 

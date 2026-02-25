@@ -203,7 +203,7 @@ class CombatController extends Controller
                 'current_mana' => $character->getCurrentMana(),
                 'max_hp' => $character->getMaxHp(),
                 'max_mana' => $character->getMaxMana(),
-                'message' => $result['message'] ?? '药品使用成功',
+                'message' => $result['message'],
             ], '药品使用成功');
         } catch (Throwable $e) {
             return $this->error('使用药品失败', ['error' => $e->getMessage()]);

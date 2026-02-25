@@ -195,7 +195,7 @@ class FetchWordFromIcibaCommand extends Command
                 $this->newLine();
                 $this->warn("✗ {$word->content} - 未找到数据");
                 $this->line('  已尝试: 有道 API、有道(网页)');
-                $this->line('  已获取音标: ' . ($phonetic ? "/{$phonetic}/" : '（无）'));
+                $this->line('  已获取音标: （无）');
                 $this->line('  已获取释义: （无）');
                 if (! empty($examples)) {
                     $hasZh = $this->hasChineseExamples($examples);

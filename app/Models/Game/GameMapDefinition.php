@@ -5,6 +5,9 @@ namespace App\Models\Game;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property array<int, int>|null $monster_ids
+ */
 class GameMapDefinition extends Model
 {
     protected $fillable = [
@@ -48,7 +51,7 @@ class GameMapDefinition extends Model
     public function getMonsters(): array
     {
         $ids = $this->monster_ids;
-        if (empty($ids) || ! is_array($ids)) {
+        if (empty($ids)) {
             return [];
         }
 

@@ -254,8 +254,7 @@ class ChatMessageReport extends Model
             self::TYPE_VIOLENCE => 'Violence/Threats',
             self::TYPE_SEXUAL_CONTENT => 'Sexual Content',
             self::TYPE_MISINFORMATION => 'Misinformation',
-            self::TYPE_OTHER => 'Other',
-            default => 'Unknown',
+            default => 'Other',
         };
     }
 }

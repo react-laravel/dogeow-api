@@ -40,7 +40,9 @@ class WebSocketAuthMiddleware
         }
 
         // 设置已认证用户
-        Auth::setUser($accessToken->tokenable);
+        $user = $accessToken->tokenable;
+        assert($user instanceof \Illuminate\Contracts\Auth\Authenticatable);
+        Auth::setUser($user);
 
         // 更新 Token 最后活动时间
         $accessToken->forceFill([

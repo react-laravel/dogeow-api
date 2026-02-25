@@ -80,18 +80,19 @@ class CheckInController extends Controller
         $checkIns = CheckIn::where('user_id', $user->id)
             ->whereBetween('check_in_date', [$startDate, $endDate])
             ->get()
-            ->keyBy(fn ($item) => $item->check_in_date->toDateString());
+            ->keyBy(fn ($item) => \Carbon\Carbon::parse($item->check_in_date)->toDateString());
 
         // 生成该月所有日期的打卡状态
         $calendar = [];
         $currentDate = $startDate->copy();
         while ($currentDate->lte($endDate)) {
             $dateStr = $currentDate->toDateString();
+            $checkIn = $checkIns->get($dateStr);
             $calendar[] = [
                 'date' => $dateStr,
                 'checked' => $checkIns->has($dateStr),
-                'new_words_count' => $checkIns->get($dateStr)?->new_words_count ?? 0,
-                'review_words_count' => $checkIns->get($dateStr)?->review_words_count ?? 0,
+                'new_words_count' => $checkIn !== null ? ($checkIn->new_words_count ?? 0) : 0,
+                'review_words_count' => $checkIn !== null ? ($checkIn->review_words_count ?? 0) : 0,
             ];
             $currentDate->addDay();
         }
@@ -116,17 +117,18 @@ class CheckInController extends Controller
         $checkIns = CheckIn::where('user_id', $user->id)
             ->whereBetween('check_in_date', [$startDate, $endDate])
             ->get()
-            ->keyBy(fn ($item) => $item->check_in_date->toDateString());
+            ->keyBy(fn ($item) => \Carbon\Carbon::parse($item->check_in_date)->toDateString());
 
         $calendar = [];
         $currentDate = $startDate->copy();
         while ($currentDate->lte($endDate)) {
             $dateStr = $currentDate->toDateString();
+            $checkIn = $checkIns->get($dateStr);
             $calendar[] = [
                 'date' => $dateStr,
                 'checked' => $checkIns->has($dateStr),
-                'new_words_count' => $checkIns->get($dateStr)?->new_words_count ?? 0,
-                'review_words_count' => $checkIns->get($dateStr)?->review_words_count ?? 0,
+                'new_words_count' => $checkIn !== null ? ($checkIn->new_words_count ?? 0) : 0,
+                'review_words_count' => $checkIn !== null ? ($checkIn->review_words_count ?? 0) : 0,
             ];
             $currentDate->addDay();
         }
@@ -150,17 +152,18 @@ class CheckInController extends Controller
         $checkIns = CheckIn::where('user_id', $user->id)
             ->whereBetween('check_in_date', [$startDate, $endDate])
             ->get()
-            ->keyBy(fn ($item) => $item->check_in_date->toDateString());
+            ->keyBy(fn ($item) => \Carbon\Carbon::parse($item->check_in_date)->toDateString());
 
         $calendar = [];
         $currentDate = $startDate->copy();
         while ($currentDate->lte($endDate)) {
             $dateStr = $currentDate->toDateString();
+            $checkIn = $checkIns->get($dateStr);
             $calendar[] = [
                 'date' => $dateStr,
                 'checked' => $checkIns->has($dateStr),
-                'new_words_count' => $checkIns->get($dateStr)?->new_words_count ?? 0,
-                'review_words_count' => $checkIns->get($dateStr)?->review_words_count ?? 0,
+                'new_words_count' => $checkIn !== null ? ($checkIn->new_words_count ?? 0) : 0,
+                'review_words_count' => $checkIn !== null ? ($checkIn->review_words_count ?? 0) : 0,
             ];
             $currentDate->addDay();
         }

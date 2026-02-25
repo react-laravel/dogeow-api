@@ -352,7 +352,7 @@ class LearningController extends Controller
             return $userWord->word
                 && $userWord->word->example_sentences
                 && is_array($userWord->word->example_sentences)
-                && count($userWord->word->example_sentences) > 0;
+                && ! empty($userWord->word->example_sentences);
         });
 
         // 随机选择指定数量的单词

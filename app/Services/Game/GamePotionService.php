@@ -11,7 +11,7 @@ class GamePotionService
     /**
      * Try to automatically use potions based on HP/MANA thresholds
      *
-     * @param array<string,mixed> $charStats
+     * @param  array<string,mixed>  $charStats
      * @return array<string,array<string,mixed>> List of potions used
      */
     public function tryAutoUsePotions(GameCharacter $character, int $currentHp, int $currentMana, array $charStats): array
@@ -32,13 +32,13 @@ class GamePotionService
                 if ($potion) {
                     $this->usePotionItem($character, $potion);
                     $def = $potion->definition;
-                        /** @var GameItemDefinition|null $def */
-                        $base = [];
-                        if ($def instanceof GameItemDefinition) {
-                            $base = $def->getBaseStats();
-                        }
+                    /** @var GameItemDefinition|null $def */
+                    $base = [];
+                    if ($def instanceof GameItemDefinition) {
+                        $base = $def->getBaseStats();
+                    }
                     $used['hp'] = [
-                        'name' => isset($def->name) && is_string($def->name) ? $def->name : '药品',
+                        'name' => isset($def->name) ? $def->name : '药品',
                         'restored' => (int) ($base['max_hp'] ?? 0),
                     ];
                 }
@@ -59,13 +59,13 @@ class GamePotionService
                 if ($potion) {
                     $this->usePotionItem($character, $potion);
                     $def = $potion->definition;
-                        /** @var GameItemDefinition|null $def */
-                        $base = [];
-                        if ($def instanceof GameItemDefinition) {
-                            $base = $def->getBaseStats();
-                        }
+                    /** @var GameItemDefinition|null $def */
+                    $base = [];
+                    if ($def instanceof GameItemDefinition) {
+                        $base = $def->getBaseStats();
+                    }
                     $used['mp'] = [
-                        'name' => isset($def->name) && is_string($def->name) ? $def->name : '药品',
+                        'name' => isset($def->name) ? $def->name : '药品',
                         'restored' => (int) ($base['max_mana'] ?? 0),
                     ];
                 }
@@ -102,11 +102,10 @@ class GamePotionService
      */
     public function usePotionItem(GameCharacter $character, GameItem $potion): void
     {
-        $stats = [];
         $def = $potion->definition;
-        if ($def && is_array($def->base_stats ?? null)) {
-            $stats = (array) $def->base_stats;
-        }
+        /** @var array<string, mixed>|null $rawStats */
+        $rawStats = $def !== null ? $def->base_stats : null;
+        $stats = $rawStats ?? [];
         $hpRestored = (int) ($stats['max_hp'] ?? 0);
         $manaRestored = (int) ($stats['max_mana'] ?? 0);
 
@@ -171,15 +170,14 @@ class GamePotionService
         return $potions->map(function (GameItem $potion): array {
             $def = $potion->definition;
             /** @var \App\Models\Game\GameItemDefinition|null $def */
-            $base = [];
-            if ($def && is_array($def->base_stats ?? null)) {
-                $base = (array) $def->base_stats;
-            }
+            /** @var array<string, mixed>|null $rawBase */
+            $rawBase = $def !== null ? $def->base_stats : null;
+            $base = $rawBase ?? [];
 
             return [
                 'id' => $potion->id,
-                'type' => isset($def->sub_type) && is_string($def->sub_type) ? $def->sub_type : '',
-                'name' => isset($def->name) && is_string($def->name) ? $def->name : '',
+                'type' => isset($def->sub_type) ? $def->sub_type : '',
+                'name' => isset($def->name) ? $def->name : '',
                 'quantity' => (int) $potion->quantity,
                 'restore_hp' => (int) ($base['max_hp'] ?? 0),
                 'restore_mp' => (int) ($base['max_mana'] ?? 0),

@@ -11,7 +11,6 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use InvalidArgumentException;
 use RuntimeException;
@@ -82,7 +81,7 @@ class AutoCombatRoundJob implements ShouldQueue
             // 先检查是否需要刷新怪物，如果需要则广播怪物出现
             if ($combatService->shouldRefreshMonsters($character)) {
                 $map = $character->currentMap;
-                if ($map) {
+                if ($map instanceof \App\Models\Game\GameMapDefinition) {
                     $combatService->broadcastMonstersAppear($character, $map);
                 }
             }
@@ -119,7 +118,7 @@ class AutoCombatRoundJob implements ShouldQueue
             }
         } catch (RuntimeException|InvalidArgumentException $e) {
             $lock->release();
-            $this->broadcastAutoStoppedAndCleanup($character ?? null, $e, $key);
+            $this->broadcastAutoStoppedAndCleanup($character, $e, $key);
         }
     }
 

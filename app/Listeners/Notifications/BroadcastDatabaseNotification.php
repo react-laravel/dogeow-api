@@ -37,7 +37,7 @@ class BroadcastDatabaseNotification
             userId: (int) $event->notifiable->id,
             notificationId: (string) $notification->id,
             type: (string) $notification->type,
-            data: is_array($notification->data) ? $notification->data : [],
+            data: $notification->data,
             createdAt: $notification->created_at?->toIso8601String() ?? now()->toIso8601String(),
             unreadCount: $event->notifiable->unreadNotifications()->count()
         ));

@@ -115,7 +115,7 @@ class GameCombatLogService
             'round_number' => $currentRound,
             // 难度相关
             'difficulty_tier' => $character->difficulty_tier ?? 0,
-            'difficulty_multiplier' => $difficulty['reward'] ?? 1,
+            'difficulty_multiplier' => $difficulty['reward'],
         ]);
     }
 

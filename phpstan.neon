@@ -4,6 +4,10 @@ includes:
 parameters:
     paths:
         - app
-    level: 4
-    # 设置为 false 是为了隐藏那些"已失效的忽略注释"的警告，让它们不会显示在结果中。
+        - routes
+        - config
+        - database
+        - tests
+    level: 5
+    checkModelProperties: false
     reportUnmatchedIgnoredErrors: false

@@ -46,7 +46,7 @@ class UpyunService
      * @param  string  $localPath  本地文件路径（如 Ollama 生成图片的路径，或 Laravel 上传的临时路径）
      * @param  string  $remotePath  又拍云上的路径，如 /images/ollama/xxx.png（以 / 开头，不要带 bucket）
      * @param  string|null  $contentType  可选。未传时按路径扩展名猜测（临时文件无扩展名时会得到 application/octet-stream，易导致访问乱码）
-     * @return array{success: bool, url?: string, message?: string}
+     * @return array{success: bool, url?: string, path?: string, message?: string}
      */
     public function upload(string $localPath, string $remotePath, ?string $contentType = null): array
     {

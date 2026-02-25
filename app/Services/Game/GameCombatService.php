@@ -144,8 +144,7 @@ class GameCombatService
      * 执行一轮战斗（支持多怪物连续战斗）
      *
      * @param  GameCharacter  $character  角色实例
-    * @param  int[]  $skillIds  使用的技能ID数组
-    * @return array
+     * @param  int[]  $skillIds  使用的技能ID数组
      *
      * @throws \InvalidArgumentException 地图不存在或没有怪物
      * @throws \RuntimeException 血量不足或战斗结束
@@ -188,26 +187,20 @@ class GameCombatService
         // 准备怪物信息
         $monsterInfo = $this->monsterService->prepareMonsterInfo($character, $map);
         $monster = $monsterInfo[0] ?? null;
-        $monsterLevel = isset($monsterInfo[1]) && is_numeric($monsterInfo[1]) ? (int) $monsterInfo[1] : null;
-        $monsterHp = isset($monsterInfo[3]) && is_numeric($monsterInfo[3]) ? (int) $monsterInfo[3] : 0;
-        $monsterMaxHp = isset($monsterInfo[4]) && is_numeric($monsterInfo[4]) ? (int) $monsterInfo[4] : 0;
+        $monsterLevel = isset($monsterInfo[1]) ? (int) $monsterInfo[1] : null;
+        $monsterHp = (int) $monsterInfo[3];
+        $monsterMaxHp = (int) $monsterInfo[4];
 
         // 检查怪物是否存在
         if (! $monster) {
             throw new \InvalidArgumentException('当前战斗怪物不存在，已清除状态');
-        }
-        if ($monster === 'no-monster') {
-            $character->update(['is_fighting' => false]);
-            throw new \RuntimeException('该地图没有怪物，已自动停止战斗，请选择其他地图', previous: new \Exception(json_encode([
-                'auto_stopped' => true,
-            ])));
         }
 
         // 处理回合
         $currentRound = (int) $character->combat_rounds + 1;
         $skillCooldowns = is_array($character->combat_skill_cooldowns ?? []) ? $character->combat_skill_cooldowns : [];
         $skillsUsedAggregated = is_array($character->combat_skills_used ?? []) ? $character->combat_skills_used : [];
-        $requestedSkillIds = array_map(fn($v) => (int) $v, array_values($skillIds));
+        $requestedSkillIds = array_map(fn ($v) => (int) $v, array_values($skillIds));
 
         // 回合前的药水使用记录（用于日志和响应），默认空数组
         $potionUsedBeforeRound = [];
@@ -222,7 +215,7 @@ class GameCombatService
 
         // 回合后自动使用药水（确保传入数值为 int）
         $charStats = $character->getCombatStats();
-        $potionUsed = $this->potionService->tryAutoUsePotions($character, (int) ($roundResult['new_char_hp'] ?? 0), (int) ($roundResult['new_char_mana'] ?? 0), $charStats);
+        $potionUsed = $this->potionService->tryAutoUsePotions($character, (int) $roundResult['new_char_hp'], (int) $roundResult['new_char_mana'], $charStats);
         if (! empty($potionUsed)) {
             $roundResult['new_char_hp'] = $character->getCurrentHp();
             $roundResult['new_char_mana'] = $character->getCurrentMana();
@@ -237,7 +230,7 @@ class GameCombatService
         }
 
         // 检查是否所有怪物都死亡
-        $isVictory = ! ($roundResult['has_alive_monster'] ?? true);
+        $isVictory = ! $roundResult['has_alive_monster'];
         if ($isVictory) {
             // 所有怪物死亡，不立即重生，保持死亡怪物可见直到下一回合
             $roundResult['new_monster_max_hp'] = $roundResult['new_monster_hp']; // 保持总HP不变
@@ -305,7 +298,7 @@ class GameCombatService
             'skill_cooldowns' => $character->combat_skill_cooldowns ?? [], // 技能冷却（回合数）
             'potion_used' => [
                 'before' => $potionUsedBeforeRound,
-                'after' => $potionUsed ?? [],
+                'after' => $potionUsed,
             ],
             'character' => ($character->fresh() ?? $character)->toArray(),
             'combat_log_id' => $combatLog->id,

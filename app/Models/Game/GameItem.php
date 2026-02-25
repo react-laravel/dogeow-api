@@ -193,7 +193,7 @@ class GameItem extends GameItemDefinition
      */
     public function getQualityColor(): string
     {
-        return self::QUALITY_COLORS[$this->quality] ?? '#ffffff';
+        return self::QUALITY_COLORS[$this->quality];
     }
 
     /**
@@ -201,7 +201,7 @@ class GameItem extends GameItemDefinition
      */
     public function getQualityMultiplier(): float
     {
-        return self::QUALITY_MULTIPLIERS[$this->quality] ?? 1.0;
+        return self::QUALITY_MULTIPLIERS[$this->quality];
     }
 
     /**
@@ -266,6 +266,7 @@ class GameItem extends GameItemDefinition
      */
     private function calculatePotionPrice(): int
     {
+        /** @var array<string, mixed> $stats */
         $stats = $this->definition->base_stats ?? [];
         $hpRestore = $stats['max_hp'] ?? 0;
         $manaRestore = $stats['max_mana'] ?? 0;
@@ -281,6 +282,7 @@ class GameItem extends GameItemDefinition
      */
     private function calculateGemPrice(): int
     {
+        /** @var array<string, mixed> $gemStats */
         $gemStats = $this->definition->gem_stats ?? [];
         $price = 0;
 
@@ -314,11 +316,11 @@ class GameItem extends GameItemDefinition
         $qualityMultiplier = $this->getQualityMultiplier();
 
         // 3. 应用物品类型倍率
-        $type = $this->definition?->type ?? 'weapon';
+        $type = $this->definition->type ?? 'weapon';
         $typeMultiplier = self::TYPE_PRICE_MULTIPLIERS[$type] ?? 1.0;
 
         // 4. 应用需求等级加成（高等级装备更值钱）
-        $requiredLevel = $this->definition?->required_level ?? 1;
+        $requiredLevel = $this->definition->required_level ?? 1;
         $levelMultiplier = 1 + ($requiredLevel / 50); // 每50级价格翻倍
 
         // 5. 插槽加成

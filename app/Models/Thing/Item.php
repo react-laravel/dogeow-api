@@ -5,7 +5,10 @@ namespace App\Models\Thing;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Laravel\Scout\Searchable;
 
 class Item extends Model
@@ -92,37 +95,37 @@ class Item extends Model
         });
     }
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function images()
+    public function images(): HasMany
     {
         return $this->hasMany(ItemImage::class)->orderBy('sort_order');
     }
 
-    public function primaryImage()
+    public function primaryImage(): HasOne
     {
         return $this->hasOne(ItemImage::class)->where('is_primary', true);
     }
 
-    public function category()
+    public function category(): BelongsTo
     {
         return $this->belongsTo(ItemCategory::class, 'category_id');
     }
 
-    public function area()
+    public function area(): BelongsTo
     {
         return $this->belongsTo(Area::class);
     }
 
-    public function room()
+    public function room(): BelongsTo
     {
         return $this->belongsTo(Room::class);
     }
 
-    public function spot()
+    public function spot(): BelongsTo
     {
         return $this->belongsTo(Spot::class);
     }

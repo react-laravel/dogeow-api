@@ -47,7 +47,7 @@ class GameShopService
      * 获取商店物品列表
      */
     /**
-        * @return array{items: \Illuminate\Support\Collection<int, array<string,mixed>>, player_copper: int, next_refresh_at: int, purchased: array<int>}
+     * @return array{items: \Illuminate\Support\Collection<int, array<string,mixed>>, player_copper: int, next_refresh_at: int, purchased: array<int>}
      */
     public function getShopItems(GameCharacter $character): array
     {
@@ -69,11 +69,10 @@ class GameShopService
         if (is_array($cached) && isset($cached['equipment'], $cached['refreshed_at'])) {
             /** @var array<int, array<string,mixed>> $cachedEquipment */
             $cachedEquipment = is_array($cached['equipment']) ? $cached['equipment'] : [];
-            $cachedRefreshed = isset($cached['refreshed_at']) && is_numeric($cached['refreshed_at']) ? (int) $cached['refreshed_at'] : time();
+            $cachedRefreshed = is_numeric($cached['refreshed_at']) ? (int) $cached['refreshed_at'] : time();
             $randomEquipmentItems = collect($cachedEquipment)
-                ->filter(fn ($item) => is_array($item) && (($item['required_level'] ?? 0) <= $character->level))
-                // 过滤掉已购买的物品
-                ->filter(fn ($item) => is_array($item) && ! in_array($item['id'], $purchasedItemIds))
+                ->filter(fn ($item) => ($item['required_level'] ?? 0) <= $character->level)
+                ->filter(fn ($item) => ! in_array($item['id'], $purchasedItemIds))
                 ->values();
             $nextRefreshAt = $cachedRefreshed + self::SHOP_CACHE_TTL_SECONDS;
         } else {
@@ -92,7 +91,7 @@ class GameShopService
 
         $purchased = [];
         if (is_array($cached) && isset($cached['purchased']) && is_array($cached['purchased'])) {
-            $purchased = array_map(static fn($v): int => (int) $v, $cached['purchased']);
+            $purchased = array_map(static fn ($v): int => (int) $v, $cached['purchased']);
         }
 
         $refreshedAt = time();
@@ -110,8 +109,8 @@ class GameShopService
 
     /**
      * 获取已购买的物品ID列表（仅装备，排除药品）
-        *
-        * @return int[]
+     *
+     * @return int[]
      */
     private function getPurchasedItemIds(GameCharacter $character): array
     {
@@ -130,7 +129,7 @@ class GameShopService
             return [];
         }
 
-        $cacheAge = time() - (isset($shopCache['refreshed_at']) ? (int) $shopCache['refreshed_at'] : 0);
+        $cacheAge = time() - (int) $shopCache['refreshed_at'];
         if ($cacheAge > self::SHOP_CACHE_TTL_SECONDS) {
             // 缓存已过期，清空已购买记录
             $this->clearPurchasedItems($character);
@@ -139,7 +138,7 @@ class GameShopService
         }
 
         // Return normalized ints
-        return array_values(array_map(static fn($v): int => (int) $v, $purchased));
+        return array_values(array_map(static fn ($v): int => (int) $v, $purchased));
     }
 
     /**
@@ -186,7 +185,7 @@ class GameShopService
 
         $fixedPotions = $potionDefinitions->unique('sub_type')->values();
 
-        return $fixedPotions->map(function ($definition) {
+        return $fixedPotions->map(function ($definition) { // @phpstan-ignore return.type
             $randomStats = $this->generateRandomStats($definition);
             $buyPrice = $this->calculateBuyPrice($definition, $randomStats);
 
@@ -227,7 +226,7 @@ class GameShopService
         $shopSize = rand($shopSizeMin, $shopSizeMax);
         $selectedEquipments = $equipmentDefinitions->shuffle()->take($shopSize);
 
-        return $selectedEquipments->map(function ($definition) {
+        return $selectedEquipments->map(function ($definition) { // @phpstan-ignore return.type
             $randomStats = $this->generateRandomStats($definition);
             $quality = $this->generateRandomQuality($definition->required_level);
 
@@ -380,8 +379,8 @@ class GameShopService
 
     /**
      * 计算购买价格
-        *
-        * @param array<string,int|float> $stats
+     *
+     * @param  array<string,int|float>  $stats
      */
     private function calculateBuyPrice(GameItemDefinition $item, array $stats = [], string $quality = 'common'): int
     {
@@ -390,10 +389,11 @@ class GameShopService
             return $item->buy_price;
         }
 
-        // base_stats may be array or null; guard access
+        /** @var array<string, mixed>|null $baseStats */
+        $baseStats = $item->base_stats;
         $basePrice = 0;
-        if (is_array($item->base_stats)) {
-            $basePrice = isset($item->base_stats['price']) && is_numeric($item->base_stats['price']) ? (int) $item->base_stats['price'] : 0;
+        if (is_array($baseStats)) {
+            $basePrice = isset($baseStats['price']) && is_numeric($baseStats['price']) ? (int) $baseStats['price'] : 0;
         }
 
         if ($basePrice > 0) {
@@ -407,14 +407,14 @@ class GameShopService
 
         // 品质价格乘数
         $qualityMultiplierConfig = config('game.shop.quality_price_multiplier', []);
-        $qualityMultiplier = is_array($qualityMultiplierConfig) ? (isset($qualityMultiplierConfig[$quality]) && is_numeric($qualityMultiplierConfig[$quality]) ? (float)$qualityMultiplierConfig[$quality] : 1.0) : 1.0;
+        $qualityMultiplier = is_array($qualityMultiplierConfig) ? (isset($qualityMultiplierConfig[$quality]) && is_numeric($qualityMultiplierConfig[$quality]) ? (float) $qualityMultiplierConfig[$quality] : 1.0) : 1.0;
 
         // 基础价格（按类型）
         $typeBasePriceConfig = config('game.shop.type_base_price', []);
         $typeBasePrice = 20;
         if (is_array($typeBasePriceConfig)) {
             $typeKey = (string) $item->type;
-            $typeBasePrice = isset($typeBasePriceConfig[$typeKey]) && is_numeric($typeBasePriceConfig[$typeKey]) ? (float)$typeBasePriceConfig[$typeKey] : 20;
+            $typeBasePrice = isset($typeBasePriceConfig[$typeKey]) && is_numeric($typeBasePriceConfig[$typeKey]) ? (float) $typeBasePriceConfig[$typeKey] : 20;
         }
 
         // 属性价格计算
@@ -423,7 +423,7 @@ class GameShopService
         $statsPrice = 0.0;
         foreach ($stats as $stat => $value) {
             $statMultiplier = isset($statPriceConfig[$stat]) && is_numeric($statPriceConfig[$stat]) ? (float) $statPriceConfig[$stat] : 2.0;
-            $valueNumeric = is_numeric($value) ? (float) $value : 0.0;
+            $valueNumeric = (float) $value;
             $statsPrice += $valueNumeric * $statMultiplier;
         }
 
@@ -612,7 +612,7 @@ class GameShopService
     private function calculateItemSellPrice(GameItem $item): int
     {
         $buyPrice = $this->calculateBuyPrice($item->definition);
-        $qualityMultiplier = GameItem::QUALITY_MULTIPLIERS[$item->quality] ?? 1.0;
+        $qualityMultiplier = GameItem::QUALITY_MULTIPLIERS[$item->quality];
         $sellRatio = (float) config('game.shop.sell_ratio', 0.3);
 
         return (int) ($buyPrice * $qualityMultiplier * $sellRatio);
