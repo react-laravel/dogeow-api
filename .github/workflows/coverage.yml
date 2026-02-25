@@ -50,11 +50,13 @@ jobs:
     - name: Check code style
       run: vendor/bin/pint --test
 
+    - name: Prepare Laravel directories
+      run: |
+        mkdir -p bootstrap/cache storage/framework/{sessions,views,cache} storage/logs
+        chmod -R 777 storage bootstrap/cache
+
     - name: Generate key
       run: php artisan key:generate
-
-    - name: Directory permissions
-      run: chmod -R 777 storage bootstrap/cache
 
     - name: Create database
       run: |
