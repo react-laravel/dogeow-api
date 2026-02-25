@@ -10,11 +10,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class CategoryFactory extends Factory
 {
-    /**
-     * The name of the factory's corresponding model.
-     *
-     * @var string
-     */
+    /** @var class-string<\App\Models\Nav\Category> */
     protected $model = Category::class;
 
     /**

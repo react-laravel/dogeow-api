@@ -27,7 +27,7 @@ class CategoryController extends Controller
                 // 计算所有子分类的物品数量总和
                 $totalItems = $category->items_count;
                 $childrenItems = $category->children->sum('items_count');
-                $category->items_count = $totalItems + $childrenItems;
+                $category->setAttribute('items_count', $totalItems + $childrenItems);
             }
         });
 

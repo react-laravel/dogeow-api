@@ -2,12 +2,13 @@
 
 namespace Database\Factories\Thing;
 
-use App\Models\Thing\Category;
+use App\Models\Thing\ItemCategory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class CategoryFactory extends Factory
 {
-    protected $model = Category::class;
+    /** @var class-string<\App\Models\Thing\ItemCategory> */
+    protected $model = ItemCategory::class;
 
     public function definition()
     {

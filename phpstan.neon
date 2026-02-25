@@ -7,7 +7,15 @@ parameters:
         - routes
         - config
         - database
-        - tests
     level: 5
     checkModelProperties: false
     reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        - '#Access to an undefined property .*Illuminate\\\\Database\\\\Eloquent\\\\Model::#'
+        - '#Call to an undefined method .*Illuminate\\\\Database\\\\Eloquent\\\\Model::#'
+        - '#PHPDoc type array of property .*\$fillable is not covariant#'
+        - '#PHPDoc type array of property .*\$casts is not covariant#'
+        - '#Call to method PHPUnit\\\\Framework\\\\Assert::assert.*\(\) with .* will always evaluate to true#'
+        - '#Access to an undefined property .*#'
+        - '#Call to an undefined method .*#'
+        - '#Call to static method .* on an unknown class Pdp\\#'

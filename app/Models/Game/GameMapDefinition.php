@@ -24,13 +24,10 @@ class GameMapDefinition extends Model
         'max_level',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'monster_ids' => 'array',
-            'is_active' => 'boolean',
-        ];
-    }
+    protected $casts = [
+        'monster_ids' => 'array',
+        'is_active' => 'boolean',
+    ];
 
     /**
      * 获取地图进度记录

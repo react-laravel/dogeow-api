@@ -14,9 +14,7 @@ class NoteFactory extends Factory
     /**
      * The name of the factory's corresponding model.
      *
-     * @var string
-     */
-    protected $model = Note::class;
+    /** @var class-string<\App\Models\Note\Note> */
 
     /**
      * Define the model's default state.
