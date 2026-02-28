@@ -6,6 +6,10 @@ use Illuminate\Support\Facades\Route;
 Route::post('/login', [App\Http\Controllers\Api\AuthController::class, 'login']);
 Route::post('/register', [App\Http\Controllers\Api\AuthController::class, 'register']);
 
+// GitHub OAuth
+Route::get('/auth/github', [App\Http\Controllers\Api\GithubController::class, 'redirect']);
+Route::get('/auth/github/callback', [App\Http\Controllers\Api\GithubController::class, 'callback']);
+
 // Web Push：VAPID 公钥（公开，供前端订阅使用）
 Route::get('/webpush/vapid', [App\Http\Controllers\Api\WebPushController::class, 'vapidKey']);
 
