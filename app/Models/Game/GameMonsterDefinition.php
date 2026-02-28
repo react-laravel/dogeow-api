@@ -143,6 +143,15 @@ class GameMonsterDefinition extends Model
         $roll = mt_rand(1, 10000) / 100;
         $chances = config('game.item_quality_chances');
 
+        // 测试模式概率加成
+        if ($this->isTestMode()) {
+            $multipliers = config('game.test_mode.quality_multiplier', []);
+            foreach ($chances as $quality => $chance) {
+                $multiplier = $multipliers[$quality] ?? 1;
+                $chances[$quality] = $chance * $multiplier;
+            }
+        }
+
         $cumulative = 0;
         foreach ($chances as $quality => $chance) {
             $cumulative += $chance;
@@ -159,7 +168,27 @@ class GameMonsterDefinition extends Model
      */
     private function rollChance(float $chance): bool
     {
+        // 测试模式：掉落概率大幅提升
+        if ($this->isTestMode()) {
+            $chanceMultiplier = config('game.test_mode.copper_drop_chance', 10);
+            $chance = min(1.0, $chance * $chanceMultiplier);
+        }
+
         return mt_rand() / mt_getrandmax() < $chance;
+    }
+
+    /**
+     * 判断是否启用测试模式
+     */
+    private function isTestMode(): bool
+    {
+        $testMode = config('game.test_mode.enabled', false);
+        if ($testMode) {
+            return true;
+        }
+        // 也支持 APP_ENV 为 testing 或 sandbox
+        $env = app()->environment();
+        return in_array($env, ['testing', 'sandbox', 'test']);
     }
 
     /**
