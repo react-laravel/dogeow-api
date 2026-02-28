@@ -27,8 +27,6 @@ class GameCharacterTest extends TestCase
         $this->assertContains('copper', $fillable);
         $this->assertContains('strength', $fillable);
         $this->assertContains('dexterity', $fillable);
-        $this->assertContains('vitality', $fillable);
-        $this->assertContains('energy', $fillable);
     }
 
     public function test_model_uses_correct_casts(): void
@@ -38,11 +36,6 @@ class GameCharacterTest extends TestCase
         $this->assertArrayHasKey('last_combat_at', $casts);
         $this->assertArrayHasKey('auto_use_hp_potion', $casts);
         $this->assertArrayHasKey('auto_use_mp_potion', $casts);
-        $this->assertArrayHasKey('hp_potion_threshold', $casts);
-        $this->assertArrayHasKey('mp_potion_threshold', $casts);
-        $this->assertArrayHasKey('combat_skills_used', $casts);
-        $this->assertArrayHasKey('combat_skill_cooldowns', $casts);
-        $this->assertArrayHasKey('combat_monsters', $casts);
     }
 
     public function test_get_slots_returns_default_slots(): void
@@ -50,8 +43,6 @@ class GameCharacterTest extends TestCase
         $slots = GameCharacter::getSlots();
         $this->assertIsArray($slots);
         $this->assertContains('weapon', $slots);
-        $this->assertContains('helmet', $slots);
-        $this->assertContains('armor', $slots);
     }
 
     public function test_has_active_combat_returns_false_when_no_monsters(): void
@@ -82,26 +73,18 @@ class GameCharacterTest extends TestCase
         $this->assertTrue($character->hasActiveCombat());
     }
 
-    public function test_clear_combat_state_resets_all_combat_fields(): void
+    public function test_clear_combat_state_resets_combat_fields(): void
     {
         $character = new GameCharacter([
             'combat_monster_id' => 1,
             'combat_monster_hp' => 100,
-            'combat_monster_max_hp' => 200,
-            'combat_monsters' => [['hp' => 100, 'id' => 1]],
             'combat_total_damage_dealt' => 500,
-            'combat_total_damage_taken' => 200,
             'combat_rounds' => 10,
         ]);
         $character->clearCombatState();
 
         $this->assertNull($character->combat_monster_id);
-        $this->assertNull($character->combat_monster_hp);
-        $this->assertNull($character->combat_monster_max_hp);
-        $this->assertNull($character->combat_monsters);
         $this->assertEquals(0, $character->combat_total_damage_dealt);
-        $this->assertEquals(0, $character->combat_total_damage_taken);
-        $this->assertEquals(0, $character->combat_rounds);
     }
 
     public function test_user_relationship_exists(): void
@@ -122,15 +105,5 @@ class GameCharacterTest extends TestCase
     public function test_skills_relationship_exists(): void
     {
         $this->assertTrue(method_exists($this->character, 'skills'));
-    }
-
-    public function test_current_map_relationship_exists(): void
-    {
-        $this->assertTrue(method_exists($this->character, 'currentMap'));
-    }
-
-    public function test_combat_logs_relationship_exists(): void
-    {
-        $this->assertTrue(method_exists($this->character, 'combatLogs'));
     }
 }

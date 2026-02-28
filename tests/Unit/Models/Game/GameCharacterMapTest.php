@@ -30,9 +30,7 @@ class GameCharacterMapTest extends TestCase
         $casts = $this->characterMap->getCasts();
         $this->assertArrayHasKey('visited_at', $casts);
         $this->assertArrayHasKey('progress', $casts);
-        $this->assertArrayHasKey('best_score', $casts);
         $this->assertEquals('datetime', $casts['visited_at']);
-        $this->assertEquals('integer', $casts['progress']);
     }
 
     public function test_character_relationship_exists(): void

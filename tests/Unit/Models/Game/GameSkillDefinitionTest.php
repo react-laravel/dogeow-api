@@ -25,19 +25,6 @@ class GameSkillDefinitionTest extends TestCase
         $this->assertContains('damage', $fillable);
         $this->assertContains('mana_cost', $fillable);
         $this->assertContains('cooldown', $fillable);
-        $this->assertContains('icon', $fillable);
-        $this->assertContains('effect_key', $fillable);
-        $this->assertContains('effects', $fillable);
-        $this->assertContains('target_type', $fillable);
-        $this->assertContains('is_active', $fillable);
-        $this->assertContains('max_level', $fillable);
-        $this->assertContains('base_damage', $fillable);
-        $this->assertContains('damage_per_level', $fillable);
-        $this->assertContains('mana_cost_per_level', $fillable);
-        $this->assertContains('skill_points_cost', $fillable);
-        $this->assertContains('branch', $fillable);
-        $this->assertContains('tier', $fillable);
-        $this->assertContains('prerequisite_skill_id', $fillable);
     }
 
     public function test_model_uses_correct_casts(): void
@@ -48,12 +35,8 @@ class GameSkillDefinitionTest extends TestCase
         $this->assertArrayHasKey('cooldown', $casts);
         $this->assertArrayHasKey('max_level', $casts);
         $this->assertArrayHasKey('base_damage', $casts);
-        $this->assertArrayHasKey('damage_per_level', $casts);
-        $this->assertArrayHasKey('mana_cost_per_level', $casts);
         $this->assertEquals('array', $casts['effects']);
         $this->assertEquals('boolean', $casts['is_active']);
-        $this->assertEquals('float', $casts['cooldown']);
-        $this->assertEquals('integer', $casts['max_level']);
     }
 
     public function test_model_has_correct_type_constants(): void

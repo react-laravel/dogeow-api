@@ -53,7 +53,7 @@ class GameMapDefinitionTest extends TestCase
     public function test_get_level_range_text_returns_no_restriction(): void
     {
         $map = new GameMapDefinition();
-        $this->assertEquals('无等级限制', $map->getLevelRangeText());
+        $this->assertEquals('No Level Restriction', $map->getLevelRangeText());
     }
 
     public function test_character_maps_relationship(): void

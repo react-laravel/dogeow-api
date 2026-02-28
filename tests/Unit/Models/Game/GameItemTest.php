@@ -129,42 +129,42 @@ class GameItemTest extends TestCase
 
     public function test_get_display_name_with_no_quality_prefix(): void
     {
-        $definition = new GameItemDefinition(['name' => '测试剑']);
+        $definition = new GameItemDefinition(['name' => 'Test Sword']);
         $item = new GameItem(['quality' => 'common']);
         $item->definition = $definition;
-        $this->assertEquals('测试剑', $item->getDisplayName());
+        $this->assertEquals('Test Sword', $item->getDisplayName());
     }
 
     public function test_get_display_name_with_magic_prefix(): void
     {
-        $definition = new GameItemDefinition(['name' => '测试剑']);
+        $definition = new GameItemDefinition(['name' => 'Test Sword']);
         $item = new GameItem(['quality' => 'magic']);
         $item->definition = $definition;
-        $this->assertEquals('魔法 测试剑', $item->getDisplayName());
+        $this->assertEquals('Magic Test Sword', $item->getDisplayName());
     }
 
     public function test_get_display_name_with_rare_prefix(): void
     {
-        $definition = new GameItemDefinition(['name' => '测试剑']);
+        $definition = new GameItemDefinition(['name' => 'Test Sword']);
         $item = new GameItem(['quality' => 'rare']);
         $item->definition = $definition;
-        $this->assertEquals('稀有 测试剑', $item->getDisplayName());
+        $this->assertEquals('Rare Test Sword', $item->getDisplayName());
     }
 
     public function test_get_display_name_with_legendary_prefix(): void
     {
-        $definition = new GameItemDefinition(['name' => '测试剑']);
+        $definition = new GameItemDefinition(['name' => 'Test Sword']);
         $item = new GameItem(['quality' => 'legendary']);
         $item->definition = $definition;
-        $this->assertEquals('传奇 测试剑', $item->getDisplayName());
+        $this->assertEquals('Legendary Test Sword', $item->getDisplayName());
     }
 
     public function test_get_display_name_with_mythic_prefix(): void
     {
-        $definition = new GameItemDefinition(['name' => '测试剑']);
+        $definition = new GameItemDefinition(['name' => 'Test Sword']);
         $item = new GameItem(['quality' => 'mythic']);
         $item->definition = $definition;
-        $this->assertEquals('神话 测试剑', $item->getDisplayName());
+        $this->assertEquals('Mythic Test Sword', $item->getDisplayName());
     }
 
     public function test_can_equip_returns_true_when_level_sufficient(): void
@@ -188,7 +188,7 @@ class GameItemTest extends TestCase
 
         $result = $item->canEquip($character);
         $this->assertFalse($result['can_equip']);
-        $this->assertStringContainsString('需要等级', $result['reason']);
+        $this->assertStringContainsString('Level', $result['reason']);
     }
 
     public function test_character_relationship(): void

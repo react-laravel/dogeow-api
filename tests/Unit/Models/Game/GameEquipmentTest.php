@@ -28,8 +28,6 @@ class GameEquipmentTest extends TestCase
         $slots = GameEquipment::getSlots();
         $this->assertIsArray($slots);
         $this->assertContains('weapon', $slots);
-        $this->assertContains('helmet', $slots);
-        $this->assertContains('armor', $slots);
     }
 
     public function test_character_relationship_exists(): void

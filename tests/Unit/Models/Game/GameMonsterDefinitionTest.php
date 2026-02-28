@@ -130,7 +130,6 @@ class GameMonsterDefinitionTest extends TestCase
 
     public function test_generate_loot_potion_level_based_on_monster_level(): void
     {
-        // Test minor potion for low level
         $monster = new GameMonsterDefinition([
             'level' => 5,
             'drop_table' => [
@@ -141,7 +140,6 @@ class GameMonsterDefinitionTest extends TestCase
         $loot = $monster->generateLoot(5);
         $this->assertEquals('minor', $loot['potion']['level']);
 
-        // Test light potion for mid level
         $monster = new GameMonsterDefinition([
             'level' => 20,
             'drop_table' => [
@@ -152,7 +150,6 @@ class GameMonsterDefinitionTest extends TestCase
         $loot = $monster->generateLoot(20);
         $this->assertEquals('light', $loot['potion']['level']);
 
-        // Test medium potion for higher level
         $monster = new GameMonsterDefinition([
             'level' => 45,
             'drop_table' => [
@@ -163,7 +160,6 @@ class GameMonsterDefinitionTest extends TestCase
         $loot = $monster->generateLoot(45);
         $this->assertEquals('medium', $loot['potion']['level']);
 
-        // Test full potion for highest level
         $monster = new GameMonsterDefinition([
             'level' => 70,
             'drop_table' => [
