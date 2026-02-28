@@ -336,13 +336,13 @@ return [
         'enabled' => env('GAME_TEST_MODE', false),
         // 物品品质概率加成（值越大高品质装备概率越高）
         'quality_multiplier' => [
-            'mythic' => 10,      //神话装备概率 ×10
-            'legendary' => 10,   //传奇装备概率 ×10
-            'rare' => 5,         //稀有装备概率 ×5
-            'magic' => 2,        //魔法装备概率 ×2
+            'mythic' => 10, // 神话装备概率 ×10
+            'legendary' => 10, // 传奇装备概率 ×10
+            'rare' => 5, // 稀有装备概率 ×5
+            'magic' => 2, // 魔法装备概率 ×2
         ],
         // 铜币掉落概率加成
-        'copper_drop_chance' => 10,   // 掉落概率 ×10（原本10%变成100%）
+        'copper_drop_chance' => 10, // 掉落概率 ×10（原本10%变成100%）
         // 铜币掉落数量加成
         'copper_amount_multiplier' => 10,
         // 经验获取加成

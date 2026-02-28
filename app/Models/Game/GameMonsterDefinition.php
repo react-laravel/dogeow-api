@@ -186,8 +186,10 @@ class GameMonsterDefinition extends Model
         if ($testMode) {
             return true;
         }
+
         // 也支持 APP_ENV 为 testing 或 sandbox
         $env = app()->environment();
+
         return in_array($env, ['testing', 'sandbox', 'test']);
     }
 
