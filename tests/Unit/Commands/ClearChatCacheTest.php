@@ -114,7 +114,7 @@ class ClearChatCacheTest extends TestCase
     public function test_command_has_correct_description(): void
     {
         // Assert
-        $this->assertEquals('Clear all chat-related cache', $this->command->getDescription());
+        $this->assertEquals('清除所有聊天室相关的缓存', $this->command->getDescription());
     }
 
     /**

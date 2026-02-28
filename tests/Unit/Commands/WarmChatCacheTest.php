@@ -141,7 +141,7 @@ class WarmChatCacheTest extends TestCase
     public function test_command_has_correct_description(): void
     {
         // Assert
-        $this->assertEquals('Warm up chat-related cache for better performance', $this->command->getDescription());
+        $this->assertEquals('预热聊天相关缓存以提升性能', $this->command->getDescription());
     }
 
     /**

@@ -91,8 +91,8 @@ class ManageChatModerationsTest extends TestCase
     public function it_can_list_moderations_when_no_moderations_exist()
     {
         $this->artisan('chat:moderation', ['action' => 'list'])
-            ->expectsOutput('Current Chat Moderations:')
-            ->expectsOutput('No active moderations found.')
+            ->expectsOutput('当前聊天室管控列表:')
+            ->expectsOutput('没有发现活跃的管控。')
             ->assertExitCode(0);
     }
 
@@ -113,8 +113,8 @@ class ManageChatModerationsTest extends TestCase
         ]);
 
         $this->artisan('chat:moderation', ['action' => 'list'])
-            ->expectsOutput('Current Chat Moderations:')
-            ->expectsOutput('🔇 MUTED USERS:')
+            ->expectsOutput('当前聊天室管控列表:')
+            ->expectsOutput('🔇 已被静音的用户:')
             ->assertExitCode(0);
     }
 
@@ -135,8 +135,8 @@ class ManageChatModerationsTest extends TestCase
         ]);
 
         $this->artisan('chat:moderation', ['action' => 'list'])
-            ->expectsOutput('Current Chat Moderations:')
-            ->expectsOutput('🚫 BANNED USERS:')
+            ->expectsOutput('当前聊天室管控列表:')
+            ->expectsOutput('🚫 已被封禁的用户:')
             ->assertExitCode(0);
     }
 
@@ -168,9 +168,9 @@ class ManageChatModerationsTest extends TestCase
         ]);
 
         $this->artisan('chat:moderation', ['action' => 'list'])
-            ->expectsOutput('Current Chat Moderations:')
-            ->expectsOutput('🔇 MUTED USERS:')
-            ->expectsOutput('🚫 BANNED USERS:')
+            ->expectsOutput('当前聊天室管控列表:')
+            ->expectsOutput('🔇 已被静音的用户:')
+            ->expectsOutput('🚫 已被封禁的用户:')
             ->assertExitCode(0);
     }
 
@@ -195,7 +195,7 @@ class ManageChatModerationsTest extends TestCase
             '--user' => $user3->id,
             '--room' => $room3->id,
         ])
-            ->expectsOutput("Successfully unmuted {$user3->name} in room {$room3->name}")
+            ->expectsOutput("已成功取消用户 {$user3->name} 在房间 {$room3->name} 的静音。")
             ->assertExitCode(0);
 
         $this->assertDatabaseHas('chat_room_users', [
@@ -223,9 +223,9 @@ class ManageChatModerationsTest extends TestCase
         $this->artisan('chat:moderation', [
             'action' => 'unmute',
             '--user' => $user3->email,
-            '--room' => $room3->name,
+            '--room' => $room3->id,
         ])
-            ->expectsOutput("Successfully unmuted {$user3->name} in room {$room3->name}")
+            ->expectsOutput("已成功取消用户 {$user3->name} 在房间 {$room3->name} 的静音。")
             ->assertExitCode(0);
 
         $this->assertDatabaseHas('chat_room_users', [
@@ -262,7 +262,7 @@ class ManageChatModerationsTest extends TestCase
             'action' => 'unmute',
             '--all' => true,
         ])
-            ->expectsOutput('Unmuted 2 users from all rooms.')
+            ->expectsOutput('已取消全部房间共 2 个用户的静音。')
             ->assertExitCode(0);
 
         $this->assertDatabaseMissing('chat_room_users', [
@@ -274,7 +274,7 @@ class ManageChatModerationsTest extends TestCase
     public function it_returns_error_when_unmuting_without_user_and_room()
     {
         $this->artisan('chat:moderation', ['action' => 'unmute'])
-            ->expectsOutput('Please specify --user and --room options, or use --all to unmute all users')
+            ->expectsOutput('请指定 --user 和 --room，或者使用 --all 取消全部静音')
             ->assertExitCode(1);
     }
 
@@ -286,7 +286,7 @@ class ManageChatModerationsTest extends TestCase
             '--user' => '999999',
             '--room' => $this->room1->id,
         ])
-            ->expectsOutput('User not found: 999999')
+            ->expectsOutput('未找到用户：999999')
             ->assertExitCode(1);
     }
 
@@ -298,7 +298,7 @@ class ManageChatModerationsTest extends TestCase
             '--user' => $this->user1->id,
             '--room' => 'NonExistentRoom',
         ])
-            ->expectsOutput('Room not found: NonExistentRoom')
+            ->expectsOutput('未找到房间：NonExistentRoom')
             ->assertExitCode(1);
     }
 
@@ -310,7 +310,7 @@ class ManageChatModerationsTest extends TestCase
             '--user' => $this->user1->id,
             '--room' => $this->room2->id,
         ])
-            ->expectsOutput("User {$this->user1->name} is not in room {$this->room2->name}")
+            ->expectsOutput("用户 {$this->user1->name} 不在房间 {$this->room2->name} 中。")
             ->assertExitCode(1);
     }
 
@@ -322,7 +322,7 @@ class ManageChatModerationsTest extends TestCase
             '--user' => $this->user1->id,
             '--room' => $this->room1->id,
         ])
-            ->expectsOutput("User {$this->user1->name} is not muted in room {$this->room1->name}")
+            ->expectsOutput("用户 {$this->user1->name} 在房间 {$this->room1->name} 没有被静音。")
             ->assertExitCode(0);
     }
 
@@ -347,7 +347,7 @@ class ManageChatModerationsTest extends TestCase
             '--user' => $user3->id,
             '--room' => $room3->id,
         ])
-            ->expectsOutput("Successfully unbanned {$user3->name} in room {$room3->name}")
+            ->expectsOutput("已成功解除用户 {$user3->name} 在房间 {$room3->name} 的封禁。")
             ->assertExitCode(0);
 
         $this->assertDatabaseHas('chat_room_users', [
@@ -375,9 +375,9 @@ class ManageChatModerationsTest extends TestCase
         $this->artisan('chat:moderation', [
             'action' => 'unban',
             '--user' => $user3->email,
-            '--room' => $room3->name,
+            '--room' => $room3->id,
         ])
-            ->expectsOutput("Successfully unbanned {$user3->name} in room {$room3->name}")
+            ->expectsOutput("已成功解除用户 {$user3->name} 在房间 {$room3->name} 的封禁。")
             ->assertExitCode(0);
 
         $this->assertDatabaseHas('chat_room_users', [
@@ -414,7 +414,7 @@ class ManageChatModerationsTest extends TestCase
             'action' => 'unban',
             '--all' => true,
         ])
-            ->expectsOutput('Unbanned 2 users from all rooms.')
+            ->expectsOutput('已解除全部房间共 2 个用户的封禁。')
             ->assertExitCode(0);
 
         $this->assertDatabaseMissing('chat_room_users', [
@@ -426,7 +426,7 @@ class ManageChatModerationsTest extends TestCase
     public function it_returns_error_when_unbanning_without_user_and_room()
     {
         $this->artisan('chat:moderation', ['action' => 'unban'])
-            ->expectsOutput('Please specify --user and --room options, or use --all to unban all users')
+            ->expectsOutput('请指定 --user 和 --room，或者使用 --all 解除全部封禁')
             ->assertExitCode(1);
     }
 
@@ -438,7 +438,7 @@ class ManageChatModerationsTest extends TestCase
             '--user' => '999999',
             '--room' => $this->room1->id,
         ])
-            ->expectsOutput('User not found: 999999')
+            ->expectsOutput('未找到用户：999999')
             ->assertExitCode(1);
     }
 
@@ -450,7 +450,7 @@ class ManageChatModerationsTest extends TestCase
             '--user' => $this->user1->id,
             '--room' => 'NonExistentRoom',
         ])
-            ->expectsOutput('Room not found: NonExistentRoom')
+            ->expectsOutput('未找到房间：NonExistentRoom')
             ->assertExitCode(1);
     }
 
@@ -462,7 +462,7 @@ class ManageChatModerationsTest extends TestCase
             '--user' => $this->user1->id,
             '--room' => $this->room2->id,
         ])
-            ->expectsOutput("User {$this->user1->name} is not in room {$this->room2->name}")
+            ->expectsOutput("用户 {$this->user1->name} 不在房间 {$this->room2->name} 中。")
             ->assertExitCode(1);
     }
 
@@ -474,7 +474,7 @@ class ManageChatModerationsTest extends TestCase
             '--user' => $this->user1->id,
             '--room' => $this->room1->id,
         ])
-            ->expectsOutput("User {$this->user1->name} is not banned in room {$this->room1->name}")
+            ->expectsOutput("用户 {$this->user1->name} 在房间 {$this->room1->name} 没有被封禁。")
             ->assertExitCode(0);
     }
 
@@ -523,7 +523,7 @@ class ManageChatModerationsTest extends TestCase
         ]);
 
         $this->artisan('chat:moderation', ['action' => 'cleanup'])
-            ->expectsOutput('Cleaned up 3 expired moderations (2 mutes, 1 bans)')
+            ->expectsOutput('清理了 3 条已过期的管控（静音：2，封禁：1）')
             ->assertExitCode(0);
 
         // Check that expired moderations were cleaned up
@@ -548,8 +548,8 @@ class ManageChatModerationsTest extends TestCase
     public function it_returns_error_for_unknown_action()
     {
         $this->artisan('chat:moderation', ['action' => 'unknown'])
-            ->expectsOutput('Unknown action: unknown')
-            ->expectsOutput('Available actions: list, unmute, unban, cleanup')
+            ->expectsOutput('未知操作：unknown')
+            ->expectsOutput('可用操作：list, unmute, unban, cleanup')
             ->assertExitCode(1);
     }
 
@@ -667,9 +667,9 @@ class ManageChatModerationsTest extends TestCase
         ]);
 
         $this->artisan('chat:moderation', ['action' => 'list'])
-            ->expectsOutput('Current Chat Moderations:')
-            ->expectsOutput('🔇 MUTED USERS:')
-            ->expectsOutput('🚫 BANNED USERS:')
+            ->expectsOutput('当前聊天室管控列表:')
+            ->expectsOutput('🔇 已被静音的用户:')
+            ->expectsOutput('🚫 已被封禁的用户:')
             ->assertExitCode(0);
     }
 
@@ -701,9 +701,9 @@ class ManageChatModerationsTest extends TestCase
         ]);
 
         $this->artisan('chat:moderation', ['action' => 'list'])
-            ->expectsOutput('Current Chat Moderations:')
-            ->expectsOutput('🔇 MUTED USERS:')
-            ->expectsOutput('🚫 BANNED USERS:')
+            ->expectsOutput('当前聊天室管控列表:')
+            ->expectsOutput('🔇 已被静音的用户:')
+            ->expectsOutput('🚫 已被封禁的用户:')
             ->assertExitCode(0);
     }
 }
