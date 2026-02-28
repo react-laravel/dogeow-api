@@ -12,7 +12,7 @@ class GameItemDefinitionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->item = new GameItemDefinition();
+        $this->item = new GameItemDefinition;
     }
 
     public function test_model_uses_correct_fillable_attributes(): void

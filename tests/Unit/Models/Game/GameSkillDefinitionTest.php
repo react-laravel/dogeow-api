@@ -12,7 +12,7 @@ class GameSkillDefinitionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->skill = new GameSkillDefinition();
+        $this->skill = new GameSkillDefinition;
     }
 
     public function test_model_uses_correct_fillable_attributes(): void

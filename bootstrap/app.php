@@ -9,7 +9,7 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__ . '/../routes/web.php',
         api: __DIR__ . '/../routes/api.php',
         commands: __DIR__ . '/../routes/console.php',
-        channels: __DIR__ . '/../routes/channels.php',
+        channels: null, // 由 BroadcastServiceProvider 负责 channels 与 auth:sanctum 路由
         health: '/up',
     )
     ->withProviders([

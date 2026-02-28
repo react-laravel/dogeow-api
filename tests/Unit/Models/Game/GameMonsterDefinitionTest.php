@@ -12,7 +12,7 @@ class GameMonsterDefinitionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->monster = new GameMonsterDefinition();
+        $this->monster = new GameMonsterDefinition;
     }
 
     public function test_model_uses_correct_fillable_attributes(): void
@@ -189,7 +189,7 @@ class GameMonsterDefinitionTest extends TestCase
 
     public function test_combat_logs_relationship(): void
     {
-        $monster = new GameMonsterDefinition();
+        $monster = new GameMonsterDefinition;
         $this->assertTrue(method_exists($monster, 'combatLogs'));
     }
 }

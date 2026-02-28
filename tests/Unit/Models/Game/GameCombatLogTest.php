@@ -12,7 +12,7 @@ class GameCombatLogTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->combatLog = new GameCombatLog();
+        $this->combatLog = new GameCombatLog;
     }
 
     public function test_model_uses_correct_fillable_attributes(): void

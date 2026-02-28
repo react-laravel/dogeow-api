@@ -12,7 +12,7 @@ class GameCharacterMapTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->characterMap = new GameCharacterMap();
+        $this->characterMap = new GameCharacterMap;
     }
 
     public function test_model_uses_correct_fillable_attributes(): void

@@ -14,7 +14,7 @@ class GameItemTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->item = new GameItem();
+        $this->item = new GameItem;
     }
 
     public function test_model_uses_correct_fillable_attributes(): void
@@ -171,7 +171,7 @@ class GameItemTest extends TestCase
     {
         $character = new GameCharacter(['level' => 10]);
         $definition = new GameItemDefinition(['required_level' => 5]);
-        $item = new GameItem();
+        $item = new GameItem;
         $item->definition = $definition;
 
         $result = $item->canEquip($character);
@@ -183,7 +183,7 @@ class GameItemTest extends TestCase
     {
         $character = new GameCharacter(['level' => 5]);
         $definition = new GameItemDefinition(['required_level' => 10]);
-        $item = new GameItem();
+        $item = new GameItem;
         $item->definition = $definition;
 
         $result = $item->canEquip($character);

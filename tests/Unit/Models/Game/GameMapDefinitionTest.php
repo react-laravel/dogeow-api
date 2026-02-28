@@ -12,7 +12,7 @@ class GameMapDefinitionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->map = new GameMapDefinition();
+        $this->map = new GameMapDefinition;
     }
 
     public function test_model_uses_correct_fillable_attributes(): void
@@ -44,7 +44,7 @@ class GameMapDefinitionTest extends TestCase
 
     public function test_can_enter_always_returns_true(): void
     {
-        $map = new GameMapDefinition();
+        $map = new GameMapDefinition;
         $this->assertTrue($map->canEnter(1));
         $this->assertTrue($map->canEnter(50));
         $this->assertTrue($map->canEnter(100));
@@ -52,13 +52,13 @@ class GameMapDefinitionTest extends TestCase
 
     public function test_get_level_range_text_returns_no_restriction(): void
     {
-        $map = new GameMapDefinition();
+        $map = new GameMapDefinition;
         $this->assertEquals('No Level Restriction', $map->getLevelRangeText());
     }
 
     public function test_character_maps_relationship(): void
     {
-        $map = new GameMapDefinition();
+        $map = new GameMapDefinition;
         $this->assertTrue(method_exists($map, 'characterMaps'));
     }
 

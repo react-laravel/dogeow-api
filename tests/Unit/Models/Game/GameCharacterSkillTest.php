@@ -12,7 +12,7 @@ class GameCharacterSkillTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->characterSkill = new GameCharacterSkill();
+        $this->characterSkill = new GameCharacterSkill;
     }
 
     public function test_model_uses_correct_fillable_attributes(): void

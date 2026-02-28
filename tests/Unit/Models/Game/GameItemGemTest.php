@@ -12,7 +12,7 @@ class GameItemGemTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->gem = new GameItemGem();
+        $this->gem = new GameItemGem;
     }
 
     public function test_model_uses_correct_fillable_attributes(): void
@@ -35,7 +35,7 @@ class GameItemGemTest extends TestCase
 
     public function test_get_gem_stats_returns_empty_array_when_no_definition(): void
     {
-        $gem = new GameItemGem();
+        $gem = new GameItemGem;
         $stats = $gem->getGemStats();
         $this->assertIsArray($stats);
         $this->assertEmpty($stats);

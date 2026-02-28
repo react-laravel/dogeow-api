@@ -12,12 +12,12 @@ class WebSocketAuthTest extends TestCase
 
     public function test_websocket_auth_middleware_requires_token(): void
     {
-        $response = $this->post('/broadcasting/auth', [
+        $response = $this->postJson('/broadcasting/auth', [
             'channel_name' => 'private-chat.room.1',
         ]);
 
-        // Broadcasting auth returns 403 for unauthenticated requests on private channels
-        $response->assertStatus(403);
+        // auth:sanctum 对未认证请求返回 401
+        $response->assertStatus(401);
     }
 
     public function test_websocket_auth_middleware_accepts_valid_token(): void
@@ -27,11 +27,10 @@ class WebSocketAuthTest extends TestCase
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
-        ])->post('/broadcasting/auth', [
+        ])->postJson('/broadcasting/auth', [
             'channel_name' => 'private-chat.room.1',
         ]);
 
-        // Should return 200 for valid token on private channel
         $response->assertStatus(200);
     }
 
@@ -39,42 +38,41 @@ class WebSocketAuthTest extends TestCase
     {
         $response = $this->withHeaders([
             'Authorization' => 'Bearer invalid-token',
-        ])->post('/broadcasting/auth', [
+        ])->postJson('/broadcasting/auth', [
             'channel_name' => 'private-chat.room.1',
         ]);
 
-        // Broadcasting auth returns 403 for invalid tokens on private channels
-        $response->assertStatus(403);
+        $response->assertStatus(401);
     }
 
-    public function test_public_channels_allow_access_without_auth(): void
+    public function test_public_channels_require_auth_with_auth_sanctum(): void
     {
-        $response = $this->post('/broadcasting/auth', [
+        // auth:sanctum 下所有请求均需认证，无 token 返回 401
+        $response = $this->postJson('/broadcasting/auth', [
             'channel_name' => 'chat.room.1',
         ]);
 
-        // Public channels should allow access without authentication
-        $response->assertStatus(200);
+        $response->assertStatus(401);
     }
 
     public function test_websocket_auth_with_malformed_token(): void
     {
         $response = $this->withHeaders([
             'Authorization' => 'Bearer',
-        ])->post('/broadcasting/auth', [
+        ])->postJson('/broadcasting/auth', [
             'channel_name' => 'private-chat.room.1',
         ]);
 
-        $response->assertStatus(403);
+        $response->assertStatus(401);
     }
 
     public function test_websocket_auth_without_authorization_header(): void
     {
-        $response = $this->post('/broadcasting/auth', [
+        $response = $this->postJson('/broadcasting/auth', [
             'channel_name' => 'private-chat.room.1',
         ]);
 
-        $response->assertStatus(403);
+        $response->assertStatus(401);
     }
 
     public function test_websocket_auth_with_expired_token(): void
@@ -84,10 +82,10 @@ class WebSocketAuthTest extends TestCase
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
-        ])->post('/broadcasting/auth', [
+        ])->postJson('/broadcasting/auth', [
             'channel_name' => 'private-chat.room.1',
         ]);
 
-        $response->assertStatus(403);
+        $response->assertStatus(401);
     }
 }
