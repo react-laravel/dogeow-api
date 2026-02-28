@@ -68,7 +68,7 @@ jobs:
     - name: Create database
       run: |
         mysql -h 127.0.0.1 -u root -ppassword -e "CREATE DATABASE IF NOT EXISTS laravel_test;"
-        php artisan migrate --force
+        php artisan migrate:fresh --force
 
     - name: Run tests with coverage
       run: composer run test:coverage

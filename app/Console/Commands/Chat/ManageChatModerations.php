@@ -46,7 +46,7 @@ class ManageChatModerations extends Command
                 return $this->cleanupExpiredModerations();
             default:
                 $this->error("未知操作：{$action}");
-                $this->info('可用操作: list, unmute, unban, cleanup');
+                $this->info('可用操作：list, unmute, unban, cleanup');
 
                 return Command::FAILURE;
         }
