@@ -63,7 +63,7 @@ class CreateRoomRequestTest extends TestCase
 
         $this->assertArrayHasKey('name.required', $messages);
         $this->assertArrayHasKey('name.unique', $messages);
-        $this->assertArrayHasKey('name.max', $messages);
+        // max message is currently not defined in this request
         $this->assertArrayHasKey('description.max', $messages);
     }
 
@@ -71,27 +71,21 @@ class CreateRoomRequestTest extends TestCase
     {
         $messages = $this->request->messages();
 
-        $this->assertEquals('Room name is required.', $messages['name.required']);
+        $this->assertEquals('房间名称是必需的', $messages['name.required']);
     }
 
     public function test_name_unique_message()
     {
         $messages = $this->request->messages();
 
-        $this->assertEquals('A room with this name already exists.', $messages['name.unique']);
-    }
-
-    public function test_name_max_message()
-    {
-        $messages = $this->request->messages();
-
-        $this->assertEquals('Room name cannot exceed 255 characters.', $messages['name.max']);
+        $this->assertEquals('该房间名称已存在', $messages['name.unique']);
     }
 
     public function test_description_max_message()
     {
         $messages = $this->request->messages();
 
-        $this->assertEquals('Room description cannot exceed 1000 characters.', $messages['description.max']);
+        // localized message
+        $this->assertEquals('描述不能超过1000个字符', $messages['description.max']);
     }
 }

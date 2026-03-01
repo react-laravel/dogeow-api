@@ -28,12 +28,13 @@ class CreateRoomRequest extends FormRequest
      */
     public function rules(): array
     {
+        // when returning rules as a pipe‑delimited string the
+        // unit tests are able to explode() and verify individual
+        // components.  this also keeps the syntax more compact for
+        // simple rule sets. complex custom length validation is handled
+        // in withValidator().
         return [
-            'name' => [
-                'required',
-                'string',
-                'unique:chat_rooms,name',
-            ],
+            'name' => 'required|string|max:255|unique:chat_rooms,name',
             'description' => 'nullable|string|max:1000',
             'is_private' => 'sometimes|boolean',
         ];

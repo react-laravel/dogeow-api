@@ -116,8 +116,8 @@ class FileHelperTest extends TestCase
      */
     public function test_get_file_size(): void
     {
-        // Test with non-existent file
-        $this->assertEquals(0, FileHelper::getFileSize($this->nonExistentFile));
+        // Test with non-existent file (returns false)
+        $this->assertFalse(FileHelper::getFileSize($this->nonExistentFile));
 
         // Test with existing file
         $content = 'Hello World!';

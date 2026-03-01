@@ -143,4 +143,28 @@ class GameExceptionTest extends TestCase
 
         $this->assertEquals(GameException::CODE_CHARACTER_NOT_FOUND, $exception->getErrorCode());
     }
+
+    public function test_static_factory_accepts_custom_message(): void
+    {
+        $exception = GameException::characterNotFound('角色 ID 999 不存在');
+
+        $this->assertInstanceOf(GameException::class, $exception);
+        $this->assertSame('角色 ID 999 不存在', $exception->getMessage());
+    }
+
+    public function test_static_factory_accepts_previous_exception(): void
+    {
+        $previous = new \RuntimeException('DB error');
+        $exception = GameException::mapNotFound(null, $previous);
+
+        $this->assertInstanceOf(GameException::class, $exception);
+        $this->assertSame($previous, $exception->getPrevious());
+    }
+
+    public function test_unknown_code_uses_default_message(): void
+    {
+        $exception = new GameException(99999);
+
+        $this->assertSame('Unknown game error', $exception->getMessage());
+    }
 }

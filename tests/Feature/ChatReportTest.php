@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Chat\ChatMessage;
 use App\Models\Chat\ChatMessageReport;
+use App\Models\Chat\ChatModerationAction;
 use App\Models\Chat\ChatRoom;
+use App\Models\Chat\ChatRoomUser;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -32,6 +34,17 @@ class ChatReportTest extends TestCase
         $this->user = User::factory()->create();
         $this->admin = User::factory()->create(['is_admin' => true]);
         $this->room = ChatRoom::factory()->create(['created_by' => $this->admin->id]);
+
+        ChatRoomUser::factory()->create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->admin->id,
+            'is_online' => true,
+        ]);
+        ChatRoomUser::factory()->create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->user->id,
+            'is_online' => true,
+        ]);
 
         // Create a message from admin that user can report
         $this->message = ChatMessage::create([
@@ -223,6 +236,196 @@ class ChatReportTest extends TestCase
             ]);
     }
 
+    public function test_admin_can_view_all_reports()
+    {
+        ChatMessageReport::create([
+            'message_id' => $this->message->id,
+            'reported_by' => $this->user->id,
+            'room_id' => $this->room->id,
+            'report_type' => ChatMessageReport::TYPE_SPAM,
+            'reason' => 'Global report listing',
+            'status' => ChatMessageReport::STATUS_PENDING,
+        ]);
+
+        Sanctum::actingAs($this->admin);
+
+        $response = $this->getJson('/api/chat/reports');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'reports' => [
+                    '*' => [
+                        'id',
+                        'room_id',
+                        'report_type',
+                        'status',
+                        'reporter',
+                        'room',
+                    ],
+                ],
+                'pagination',
+            ]);
+    }
+
+    public function test_non_admin_cannot_view_all_reports()
+    {
+        Sanctum::actingAs($this->user);
+
+        $response = $this->getJson('/api/chat/reports');
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'message' => 'You are not authorized to view all reports',
+            ]);
+    }
+
+    public function test_admin_can_filter_room_reports()
+    {
+        ChatMessageReport::create([
+            'message_id' => $this->message->id,
+            'reported_by' => $this->user->id,
+            'room_id' => $this->room->id,
+            'report_type' => ChatMessageReport::TYPE_SPAM,
+            'reason' => 'Should remain after filter',
+            'status' => ChatMessageReport::STATUS_PENDING,
+        ]);
+
+        ChatMessageReport::create([
+            'message_id' => $this->message->id,
+            'reported_by' => User::factory()->create()->id,
+            'room_id' => $this->room->id,
+            'report_type' => ChatMessageReport::TYPE_HARASSMENT,
+            'reason' => 'Should be filtered out',
+            'status' => ChatMessageReport::STATUS_RESOLVED,
+        ]);
+
+        Sanctum::actingAs($this->admin);
+
+        $response = $this->getJson("/api/chat/reports/rooms/{$this->room->id}?status=pending&report_type=spam");
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'reports');
+        $response->assertJsonPath('reports.0.report_type', ChatMessageReport::TYPE_SPAM);
+        $response->assertJsonPath('reports.0.status', ChatMessageReport::STATUS_PENDING);
+    }
+
+    public function test_admin_can_dismiss_report_and_apply_actions()
+    {
+        $report = ChatMessageReport::create([
+            'message_id' => $this->message->id,
+            'reported_by' => $this->user->id,
+            'room_id' => $this->room->id,
+            'report_type' => ChatMessageReport::TYPE_HARASSMENT,
+            'reason' => 'Dismiss with actions',
+            'status' => ChatMessageReport::STATUS_PENDING,
+        ]);
+
+        Sanctum::actingAs($this->admin);
+
+        $response = $this->postJson("/api/chat/reports/{$report->id}/review", [
+            'action' => 'dismiss',
+            'notes' => 'Handled manually',
+            'delete_message' => true,
+            'mute_user' => true,
+            'mute_duration' => 30,
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('action', 'dismiss');
+        $response->assertJsonPath('actions_performed.0', 'message_deleted');
+        $response->assertJsonPath('actions_performed.1', 'user_muted');
+
+        $this->assertDatabaseHas('chat_message_reports', [
+            'id' => $report->id,
+            'status' => ChatMessageReport::STATUS_DISMISSED,
+            'reviewed_by' => $this->admin->id,
+        ]);
+        $this->assertDatabaseMissing('chat_messages', [
+            'id' => $this->message->id,
+        ]);
+        $this->assertDatabaseHas('chat_room_users', [
+            'room_id' => $this->room->id,
+            'user_id' => $this->admin->id,
+            'is_muted' => true,
+            'muted_by' => $this->admin->id,
+        ]);
+    }
+
+    public function test_admin_can_escalate_report()
+    {
+        $report = ChatMessageReport::create([
+            'message_id' => $this->message->id,
+            'reported_by' => $this->user->id,
+            'room_id' => $this->room->id,
+            'report_type' => ChatMessageReport::TYPE_MISINFORMATION,
+            'reason' => 'Needs escalation',
+            'status' => ChatMessageReport::STATUS_PENDING,
+        ]);
+
+        Sanctum::actingAs($this->admin);
+
+        $response = $this->postJson("/api/chat/reports/{$report->id}/review", [
+            'action' => 'escalate',
+            'notes' => 'Escalated to moderators',
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('action', 'escalate');
+
+        $this->assertDatabaseHas('chat_message_reports', [
+            'id' => $report->id,
+            'status' => ChatMessageReport::STATUS_REVIEWED,
+            'reviewed_by' => $this->admin->id,
+            'review_notes' => 'Escalated to moderators',
+        ]);
+    }
+
+    public function test_non_admin_cannot_view_global_report_stats()
+    {
+        Sanctum::actingAs($this->user);
+
+        $response = $this->getJson('/api/chat/reports/stats');
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'message' => 'You are not authorized to view global report stats',
+            ]);
+    }
+
+    public function test_admin_can_view_room_specific_report_stats()
+    {
+        ChatMessageReport::create([
+            'message_id' => $this->message->id,
+            'reported_by' => $this->user->id,
+            'room_id' => $this->room->id,
+            'report_type' => ChatMessageReport::TYPE_SPAM,
+            'reason' => 'Room-specific stats',
+            'status' => ChatMessageReport::STATUS_PENDING,
+        ]);
+
+        Sanctum::actingAs($this->admin);
+
+        $response = $this->getJson("/api/chat/reports/stats?room_id={$this->room->id}&days=30");
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('period_days', '30');
+        $response->assertJsonPath('total_reports', 1);
+        $response->assertJsonPath('report_types.spam', 1);
+    }
+
+    public function test_invalid_report_type_is_rejected()
+    {
+        Sanctum::actingAs($this->user);
+
+        $response = $this->postJson("/api/chat/reports/rooms/{$this->room->id}/messages/{$this->message->id}", [
+            'report_type' => 'not_a_valid_type',
+            'reason' => 'Invalid payload',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['report_type']);
+    }
+
     public function test_auto_moderation_on_multiple_reports()
     {
         // Create 3 reports for the same message to trigger auto-moderation
@@ -257,10 +460,17 @@ class ChatReportTest extends TestCase
             'id' => $this->message->id,
         ]);
 
-        // Check that all reports were auto-resolved (message_id will be null after deletion)
         $this->assertEquals(4, ChatMessageReport::where('room_id', $this->room->id)
             ->where('status', ChatMessageReport::STATUS_RESOLVED)
-            ->whereNull('message_id') // Message was deleted, so message_id is now null
+            ->where('message_id', $this->message->id)
             ->count());
+
+        $this->assertDatabaseHas('chat_moderation_actions', [
+            'room_id' => $this->room->id,
+            'moderator_id' => 1,
+            'target_user_id' => $this->admin->id,
+            'action_type' => ChatModerationAction::ACTION_DELETE_MESSAGE,
+            'reason' => 'Automatic deletion due to multiple reports',
+        ]);
     }
 }

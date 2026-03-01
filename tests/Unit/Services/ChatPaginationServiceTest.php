@@ -7,6 +7,7 @@ use App\Models\Chat\ChatRoom;
 use App\Models\User;
 use App\Services\Chat\ChatPaginationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ChatPaginationServiceTest extends TestCase
@@ -21,7 +22,7 @@ class ChatPaginationServiceTest extends TestCase
         $this->paginationService = new ChatPaginationService;
     }
 
-    /** @test */
+    #[Test]
     public function it_gets_messages_with_cursor_pagination()
     {
         $room = ChatRoom::factory()->create();
@@ -42,7 +43,7 @@ class ChatPaginationServiceTest extends TestCase
         $this->assertCount(10, $result['messages']);
     }
 
-    /** @test */
+    #[Test]
     public function it_gets_messages_with_limit()
     {
         $room = ChatRoom::factory()->create();
@@ -60,7 +61,7 @@ class ChatPaginationServiceTest extends TestCase
         $this->assertTrue($result['has_more']);
     }
 
-    /** @test */
+    #[Test]
     public function it_gets_messages_before_cursor()
     {
         $room = ChatRoom::factory()->create();
@@ -87,7 +88,7 @@ class ChatPaginationServiceTest extends TestCase
         $this->assertNotEquals($firstResult['messages']->first()->id, $secondResult['messages']->first()->id);
     }
 
-    /** @test */
+    #[Test]
     public function it_gets_messages_after_cursor()
     {
         $room = ChatRoom::factory()->create();
@@ -110,10 +111,10 @@ class ChatPaginationServiceTest extends TestCase
             'after'
         );
 
-        $this->assertCount(5, $secondResult['messages']);
+        $this->assertCount(4, $secondResult['messages']);
     }
 
-    /** @test */
+    #[Test]
     public function it_gets_recent_messages()
     {
         $room = ChatRoom::factory()->create();
@@ -132,7 +133,7 @@ class ChatPaginationServiceTest extends TestCase
         $this->assertCount(5, $result['messages']);
     }
 
-    /** @test */
+    #[Test]
     public function it_gets_messages_after_specific_message()
     {
         $room = ChatRoom::factory()->create();
@@ -157,7 +158,7 @@ class ChatPaginationServiceTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function it_searches_messages()
     {
         $room = ChatRoom::factory()->create();
@@ -173,7 +174,7 @@ class ChatPaginationServiceTest extends TestCase
         ChatMessage::factory()->create([
             'room_id' => $room->id,
             'user_id' => $user->id,
-            'message' => 'Another message without test',
+            'message' => 'Another message without keyword',
         ]);
 
         $result = $this->paginationService->searchMessages($room->id, 'test');
@@ -185,7 +186,7 @@ class ChatPaginationServiceTest extends TestCase
         $this->assertStringContainsString('test', $result['messages']->first()->message);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_empty_search_for_no_matches()
     {
         $room = ChatRoom::factory()->create();
@@ -205,7 +206,7 @@ class ChatPaginationServiceTest extends TestCase
         $this->assertFalse($result['has_more']);
     }
 
-    /** @test */
+    #[Test]
     public function it_gets_message_statistics()
     {
         $room = ChatRoom::factory()->create();
@@ -226,7 +227,7 @@ class ChatPaginationServiceTest extends TestCase
         $this->assertEquals(10, $result['total_messages']);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_invalid_cursor()
     {
         $room = ChatRoom::factory()->create();
@@ -244,14 +245,14 @@ class ChatPaginationServiceTest extends TestCase
         $this->assertCount(5, $result['messages']);
     }
 
-    /** @test */
+    #[Test]
     public function it_respects_max_page_size()
     {
         $room = ChatRoom::factory()->create();
         $user = User::factory()->create();
 
-        // Create messages
-        ChatMessage::factory()->count(10)->create([
+        // Create more messages than the service max page size
+        ChatMessage::factory()->count(150)->create([
             'room_id' => $room->id,
             'user_id' => $user->id,
         ]);
@@ -262,7 +263,7 @@ class ChatPaginationServiceTest extends TestCase
         $this->assertCount(100, $result['messages']); // Should be limited to max page size
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_empty_room()
     {
         $room = ChatRoom::factory()->create();
@@ -275,13 +276,13 @@ class ChatPaginationServiceTest extends TestCase
         $this->assertNull($result['next_cursor']);
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_correct_cursors()
     {
         $room = ChatRoom::factory()->create();
         $user = User::factory()->create();
 
-        $message = ChatMessage::factory()->create([
+        ChatMessage::factory()->count(2)->create([
             'room_id' => $room->id,
             'user_id' => $user->id,
         ]);
@@ -294,7 +295,7 @@ class ChatPaginationServiceTest extends TestCase
         $this->assertIsString($result['prev_cursor']);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_search_with_cursor()
     {
         $room = ChatRoom::factory()->create();

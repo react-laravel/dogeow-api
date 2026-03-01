@@ -84,7 +84,7 @@ class UploadControllerTest extends TestCase
             UploadedFile::fake()->image('large.jpg')->size(25000), // 25MB
         ];
 
-        $response = $this->postJson('/api/upload/batch-images', [
+        $response = $this->postJson('/api/upload/images', [
             'images' => $files,
         ]);
 
@@ -102,7 +102,7 @@ class UploadControllerTest extends TestCase
             UploadedFile::fake()->create('invalid.txt', 100),
         ];
 
-        $response = $this->postJson('/api/upload/batch-images', [
+        $response = $this->postJson('/api/upload/images', [
             'images' => $files,
         ]);
 
@@ -116,7 +116,7 @@ class UploadControllerTest extends TestCase
             UploadedFile::fake()->image('image.jpg'),
         ];
 
-        $response = $this->postJson('/api/upload/batch-images', [
+        $response = $this->postJson('/api/upload/images', [
             'images' => $images,
         ]);
 
@@ -132,7 +132,7 @@ class UploadControllerTest extends TestCase
             UploadedFile::fake()->image('single.jpg'),
         ];
 
-        $response = $this->postJson('/api/upload/batch-images', [
+        $response = $this->postJson('/api/upload/images', [
             'images' => $images,
         ]);
 
@@ -145,7 +145,7 @@ class UploadControllerTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/api/upload/batch-images', [
+        $response = $this->postJson('/api/upload/images', [
             'images' => [],
         ]);
 
@@ -165,7 +165,7 @@ class UploadControllerTest extends TestCase
             UploadedFile::fake()->image('image4.webp'),
         ];
 
-        $response = $this->postJson('/api/upload/batch-images', [
+        $response = $this->postJson('/api/upload/images', [
             'images' => $images,
         ]);
 
@@ -183,7 +183,7 @@ class UploadControllerTest extends TestCase
             UploadedFile::fake()->image('image-测试.png'),
         ];
 
-        $response = $this->postJson('/api/upload/batch-images', [
+        $response = $this->postJson('/api/upload/images', [
             'images' => $images,
         ]);
 
@@ -201,7 +201,7 @@ class UploadControllerTest extends TestCase
             $images[] = UploadedFile::fake()->image("image{$i}.jpg");
         }
 
-        $response = $this->postJson('/api/upload/batch-images', [
+        $response = $this->postJson('/api/upload/images', [
             'images' => $images,
         ]);
 

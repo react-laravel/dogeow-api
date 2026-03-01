@@ -211,4 +211,71 @@ class ClientInfoControllerTest extends TestCase
         // Should return user agent (might be empty in tests but should be present)
         $this->assertArrayHasKey('user_agent', $responseData);
     }
+
+    public function test_get_client_basic_info_returns_ip_and_user_agent_without_location_lookup(): void
+    {
+        Http::fake();
+
+        $response = $this->withHeaders([
+            'User-Agent' => 'CodexTest/1.0',
+        ])->getJson('/api/client-basic-info');
+
+        $response->assertOk()
+            ->assertJson([
+                'user_agent' => 'CodexTest/1.0',
+            ])
+            ->assertJsonStructure([
+                'ip',
+                'user_agent',
+            ]);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_get_client_location_info_returns_location_payload(): void
+    {
+        Http::fake([
+            'http://ip-api.com/json/*' => Http::response([
+                'country' => 'Japan',
+                'regionName' => 'Tokyo',
+                'city' => 'Tokyo',
+                'isp' => 'Example ISP',
+                'timezone' => 'Asia/Tokyo',
+            ], 200),
+        ]);
+
+        $response = $this->getJson('/api/client-location-info');
+
+        $response->assertOk()
+            ->assertJson([
+                'location' => [
+                    'country' => 'Japan',
+                    'region' => 'Tokyo',
+                    'city' => 'Tokyo',
+                    'isp' => 'Example ISP',
+                    'timezone' => 'Asia/Tokyo',
+                ],
+            ]);
+    }
+
+    public function test_get_client_location_info_returns_500_when_lookup_throws(): void
+    {
+        Http::fake(function () {
+            throw new \RuntimeException('ip lookup failed');
+        });
+
+        $response = $this->getJson('/api/client-location-info');
+
+        $response->assertStatus(500)
+            ->assertJson([
+                'error' => '地理位置信息获取失败',
+                'location' => [
+                    'country' => null,
+                    'region' => null,
+                    'city' => null,
+                    'isp' => null,
+                    'timezone' => null,
+                ],
+            ]);
+    }
 }

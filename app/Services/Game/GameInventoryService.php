@@ -318,7 +318,7 @@ class GameInventoryService
      */
     public function moveItem(GameCharacter $character, int $itemId, bool $toStorage, ?int $slotIndex = null): array
     {
-        $item = $this->findItem($character, $itemId);
+        $item = $this->findItem($character, $itemId, false);
 
         // 检查目标空间
         $this->checkStorageSpace($character, $toStorage);
@@ -584,14 +584,19 @@ class GameInventoryService
      */
     private function findAvailableRingSlot(GameCharacter $character): string
     {
-        /** @var \App\Models\Game\GameEquipment|null $ring */
-        $ring = $character->equipment()->where('slot', 'ring')->first();
-
-        if ($ring && ! $ring->item_id) {
-            return 'ring';
+        /** @var \App\Models\Game\GameEquipment|null $ring1 */
+        $ring1 = $character->equipment()->where('slot', 'ring1')->first();
+        if ($ring1 && ! $ring1->item_id) {
+            return 'ring1';
         }
 
-        return 'ring';
+        /** @var \App\Models\Game\GameEquipment|null $ring2 */
+        $ring2 = $character->equipment()->where('slot', 'ring2')->first();
+        if ($ring2 && ! $ring2->item_id) {
+            return 'ring2';
+        }
+
+        return 'ring1';
     }
 
     /**

@@ -136,7 +136,8 @@ class GameItem extends GameItemDefinition
         $result = [];
         foreach ($arr as $key => $value) {
             if (is_numeric($value)) {
-                $result[$key] = (float) bcadd((string) $value, '0', $scale);
+                // Use PHP round to properly round to the given scale
+                $result[$key] = round((float) $value, $scale, PHP_ROUND_HALF_UP);
             } else {
                 $result[$key] = $value;
             }
@@ -227,6 +228,12 @@ class GameItem extends GameItemDefinition
     public function canEquip(GameCharacter $character): array
     {
         $definition = $this->definition;
+        if (! $definition instanceof GameItemDefinition) {
+            return [
+                'can_equip' => false,
+                'reason' => '该物品没有定义，无法装备',
+            ];
+        }
 
         if ($character->level < $definition->required_level) {
             return [

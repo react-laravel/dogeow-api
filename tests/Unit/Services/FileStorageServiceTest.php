@@ -147,4 +147,79 @@ class FileStorageServiceTest extends TestCase
         $this->assertTrue($result2['success']);
         $this->assertNotEquals($result1['basename'], $result2['basename']);
     }
+
+    public function test_store_file_rejects_disallowed_extension()
+    {
+        $file = UploadedFile::fake()->create('malware.exe', 10, 'application/octet-stream');
+        $directory = storage_path('app/public/uploads/1');
+
+        $result = $this->fileStorageService->storeFile($file, $directory);
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('File validation failed', $result['message']);
+        $this->assertStringContainsString('File type not allowed', $result['errors'][0]);
+    }
+
+    public function test_store_file_rejects_invalid_image_contents()
+    {
+        $file = UploadedFile::fake()->create('broken.jpg', 10, 'image/jpeg');
+        $directory = storage_path('app/public/uploads/1');
+
+        $result = $this->fileStorageService->storeFile($file, $directory);
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('File validation failed', $result['message']);
+        $this->assertContains('File is not a valid image', $result['errors']);
+    }
+
+    public function test_delete_file_removes_existing_file()
+    {
+        $filePath = storage_path('app/public/uploads/1/delete-me.txt');
+        if (! file_exists(dirname($filePath))) {
+            mkdir(dirname($filePath), 0755, true);
+        }
+        file_put_contents($filePath, 'delete me');
+
+        $result = $this->fileStorageService->deleteFile($filePath);
+
+        $this->assertTrue($result['success']);
+        $this->assertFileDoesNotExist($filePath);
+    }
+
+    public function test_delete_file_returns_error_for_missing_path()
+    {
+        $result = $this->fileStorageService->deleteFile(storage_path('app/public/uploads/1/missing.txt'));
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('File not found', $result['message']);
+    }
+
+    public function test_delete_user_files_removes_all_related_variants()
+    {
+        $directory = storage_path('app/public/uploads/42');
+        if (! file_exists($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $files = [
+            "{$directory}/avatar.jpg",
+            "{$directory}/avatar-thumb.jpg",
+            "{$directory}/avatar-origin.jpg",
+            "{$directory}/avatar.png",
+            "{$directory}/avatar-thumb.png",
+        ];
+
+        foreach ($files as $file) {
+            file_put_contents($file, 'content');
+        }
+
+        $result = $this->fileStorageService->deleteUserFiles('42', 'avatar');
+
+        $this->assertTrue($result['success']);
+        $this->assertSame(5, $result['deleted_files']);
+
+        foreach ($files as $file) {
+            $this->assertFileDoesNotExist($file);
+        }
+    }
 }

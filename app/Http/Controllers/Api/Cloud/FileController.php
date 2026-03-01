@@ -470,15 +470,6 @@ class FileController extends Controller
             ]);
         }
 
-        // 文本文件
-        if (in_array($extension, ['txt', 'md', 'json', 'xml', 'html', 'css', 'js', 'php']) ||
-            Str::startsWith($mimeType, 'text/')) {
-            return response()->json([
-                'type' => 'text',
-                'content' => Storage::disk('public')->get($file->path),
-            ]);
-        }
-
         // Apple 文档格式
         if (in_array($extension, ['pages', 'key', 'numbers'])) {
             return response()->json([
@@ -494,6 +485,15 @@ class FileController extends Controller
                 'type' => 'document',
                 'message' => '此文件是 Microsoft Office 格式，需要使用相应的应用程序打开',
                 'suggestion' => '您可以下载文件后使用 Microsoft Office 或其他兼容软件打开',
+            ]);
+        }
+
+        // 文本文件
+        if (in_array($extension, ['txt', 'md', 'json', 'xml', 'html', 'css', 'js', 'php']) ||
+            Str::startsWith($mimeType, 'text/')) {
+            return response()->json([
+                'type' => 'text',
+                'content' => Storage::disk('public')->get($file->path),
             ]);
         }
 

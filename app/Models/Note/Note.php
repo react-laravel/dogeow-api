@@ -57,6 +57,16 @@ class Note extends Model
     ];
 
     /**
+     * 属性类型转换
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'is_draft' => 'boolean',
+        'is_wiki' => 'boolean',
+    ];
+
+    /**
      * 获取笔记所属用户
      */
     public function user(): BelongsTo

@@ -25,7 +25,7 @@ class GameEquipment extends Model
     public static function getSlots(): array
     {
         return config('game.slots', [
-            'weapon', 'helmet', 'armor', 'gloves', 'boots', 'belt', 'ring',
+            'weapon', 'helmet', 'armor', 'gloves', 'boots', 'belt', 'ring1', 'ring2', 'amulet',
         ]);
     }
 

@@ -8,9 +8,10 @@ use App\Models\Chat\ChatMessage;
 use App\Models\Chat\ChatRoom;
 use App\Models\Chat\ChatRoomUser;
 use App\Models\User;
+use App\Services\Chat\ChatCacheService;
+use App\Services\Chat\ChatService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -230,17 +231,15 @@ class ChatControllerTest extends TestCase
 
     public function test_send_message_respects_rate_limiting()
     {
-        $this->markTestSkipped('Rate limiting test needs to be fixed');
-
-        // Mock the content filter service to allow all messages
-        $this->mock(\App\Services\Chat\ContentFilterService::class, function ($mock) {
-            $mock->shouldReceive('processMessage')->andReturn([
-                'allowed' => true,
-                'filtered_message' => 'Test message',
-                'violations' => [],
-                'actions_taken' => [],
-                'severity' => 'none',
-            ]);
+        $this->mock(\App\Services\Chat\ChatCacheService::class, function ($mock) {
+            $mock->shouldReceive('checkRateLimit')
+                ->once()
+                ->andReturn([
+                    'allowed' => false,
+                    'attempts' => 10,
+                    'remaining' => 0,
+                    'reset_time' => now()->addSeconds(60),
+                ]);
         });
 
         // Join the room and set online
@@ -249,31 +248,44 @@ class ChatControllerTest extends TestCase
             'user_id' => $this->user->id,
             'is_online' => true,
         ]);
-
-        // Clear any existing rate limit and spam detection cache
-        $rateLimitKey = "send_message:{$this->user->id}:{$this->room->id}";
-        RateLimiter::clear($rateLimitKey);
-
-        // Clear spam detection cache
-        $spamCacheKey = "chat_message_frequency_{$this->user->id}_{$this->room->id}";
-        \Illuminate\Support\Facades\Cache::forget($spamCacheKey);
-
-        // Send messages to hit the rate limit (10 messages per minute)
-        for ($i = 0; $i < 10; $i++) {
-            $response = $this->postJson("/api/chat/rooms/{$this->room->id}/messages", [
-                'message' => "Test message {$i}",
-            ]);
-            $response->assertStatus(201);
-        }
-
-        // The 11th message should be rate limited
         $response = $this->postJson("/api/chat/rooms/{$this->room->id}/messages", [
             'message' => 'Rate limited message',
         ]);
 
         $response->assertStatus(429);
-        $response->assertJsonFragment(['message' => 'Too many messages. Please wait']);
-        $response->assertJsonStructure(['message', 'rate_limit']);
+        $response->assertJsonStructure([
+            'message',
+            'rate_limit' => [
+                'attempts',
+                'remaining',
+                'reset_time',
+            ],
+        ]);
+        $this->assertStringStartsWith('Too many messages. Please wait', $response->json('message'));
+    }
+
+    public function test_send_message_blocked_by_content_filter()
+    {
+        ChatRoomUser::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->user->id,
+            'is_online' => true,
+        ]);
+
+        $response = $this->postJson("/api/chat/rooms/{$this->room->id}/messages", [
+            'message' => 'I hate spam and violence',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'Message blocked by content filter',
+            ]);
+
+        $this->assertDatabaseMissing('chat_messages', [
+            'room_id' => $this->room->id,
+            'user_id' => $this->user->id,
+            'message' => 'I hate spam and violence',
+        ]);
     }
 
     public function test_send_message_blocked_when_muted()
@@ -300,6 +312,32 @@ class ChatControllerTest extends TestCase
         $response->assertJsonFragment(['message' => 'You are muted in this room']);
     }
 
+    public function test_send_message_blocked_when_muted_until_specific_time()
+    {
+        $otherUser = User::factory()->create();
+        $muteUntil = now()->addMinutes(15)->second(0);
+
+        ChatRoomUser::create([
+            'room_id' => $this->room->id,
+            'user_id' => $otherUser->id,
+            'is_online' => true,
+            'is_muted' => true,
+            'muted_until' => $muteUntil,
+        ]);
+
+        Sanctum::actingAs($otherUser);
+
+        $response = $this->postJson("/api/chat/rooms/{$this->room->id}/messages", [
+            'message' => 'Hello, world!',
+        ]);
+
+        $response->assertStatus(403);
+        $this->assertSame(
+            'You are muted in this room until ' . $muteUntil->format('Y-m-d H:i:s'),
+            $response->json('message')
+        );
+    }
+
     public function test_send_message_blocked_when_banned()
     {
         // Create a different user who is not the room creator
@@ -322,6 +360,60 @@ class ChatControllerTest extends TestCase
 
         $response->assertStatus(403);
         $response->assertJsonFragment(['message' => 'You are banned from this room']);
+    }
+
+    public function test_send_message_blocked_when_banned_until_specific_time()
+    {
+        $otherUser = User::factory()->create();
+        $banUntil = now()->addMinutes(30)->second(0);
+
+        ChatRoomUser::create([
+            'room_id' => $this->room->id,
+            'user_id' => $otherUser->id,
+            'is_online' => true,
+            'is_banned' => true,
+            'banned_until' => $banUntil,
+        ]);
+
+        Sanctum::actingAs($otherUser);
+
+        $response = $this->postJson("/api/chat/rooms/{$this->room->id}/messages", [
+            'message' => 'Hello, world!',
+        ]);
+
+        $response->assertStatus(403);
+        $this->assertSame(
+            'You are banned from this room until ' . $banUntil->format('Y-m-d H:i:s'),
+            $response->json('message')
+        );
+    }
+
+    public function test_room_creator_can_send_message_even_when_marked_muted()
+    {
+        Event::fake();
+
+        ChatRoomUser::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->user->id,
+            'is_online' => true,
+            'is_muted' => true,
+            'muted_until' => now()->addHour(),
+        ]);
+
+        $response = $this->postJson("/api/chat/rooms/{$this->room->id}/messages", [
+            'message' => 'Moderator override message',
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonFragment([
+                'message' => 'Message sent successfully',
+            ]);
+
+        $this->assertDatabaseHas('chat_messages', [
+            'room_id' => $this->room->id,
+            'user_id' => $this->user->id,
+            'message' => 'Moderator override message',
+        ]);
     }
 
     public function test_delete_message_by_author()
@@ -444,6 +536,42 @@ class ChatControllerTest extends TestCase
         ]);
     }
 
+    public function test_update_user_status_returns_not_found_when_service_fails()
+    {
+        $this->mock(ChatService::class, function ($mock) {
+            $mock->shouldReceive('processHeartbeat')
+                ->once()
+                ->andReturn([
+                    'success' => false,
+                    'errors' => ['User not found in room'],
+                ]);
+        });
+
+        $response = $this->postJson("/api/chat/rooms/{$this->room->id}/status");
+
+        $response->assertStatus(404)
+            ->assertJsonPath('message', 'Failed to update status')
+            ->assertJsonPath('0', 'User not found in room');
+    }
+
+    public function test_cleanup_disconnected_users_returns_error_when_service_fails()
+    {
+        $this->mock(ChatService::class, function ($mock) {
+            $mock->shouldReceive('cleanupInactiveUsers')
+                ->once()
+                ->andReturn([
+                    'success' => false,
+                    'errors' => ['Cleanup crashed'],
+                ]);
+        });
+
+        $response = $this->postJson('/api/chat/cleanup-disconnected');
+
+        $response->assertStatus(500)
+            ->assertJsonPath('message', 'Failed to cleanup disconnected users')
+            ->assertJsonPath('0', 'Cleanup crashed');
+    }
+
     public function test_get_user_presence_status_when_not_in_room()
     {
         $response = $this->getJson("/api/chat/rooms/{$this->room->id}/my-status");
@@ -479,8 +607,13 @@ class ChatControllerTest extends TestCase
 
     public function test_unauthenticated_requests_are_rejected()
     {
-        // Skip this test for now as it's complex to test without breaking other tests
-        $this->markTestSkipped('Authentication test requires separate test setup');
+        auth('sanctum')->forgetUser();
+        $this->app['auth']->forgetGuards();
+
+        $response = $this->getJson('/api/chat/rooms');
+
+        $response->assertStatus(401)
+            ->assertJsonPath('message', 'Unauthenticated.');
     }
 
     public function test_create_room_with_is_private_true()
@@ -605,5 +738,244 @@ class ChatControllerTest extends TestCase
             'name' => 'Updated Room Name',
             'is_private' => true,
         ]);
+    }
+
+    public function test_get_rooms_returns_server_error_when_service_throws()
+    {
+        $this->mock(ChatService::class, function ($mock) {
+            $mock->shouldReceive('getActiveRooms')
+                ->once()
+                ->with($this->user->id)
+                ->andThrow(new \RuntimeException('rooms failed'));
+        });
+
+        $response = $this->getJson('/api/chat/rooms');
+
+        $response->assertStatus(500)
+            ->assertJsonPath('message', 'Failed to retrieve rooms');
+    }
+
+    public function test_create_room_returns_error_payload_when_service_rejects_creation()
+    {
+        $this->mock(ChatService::class, function ($mock) {
+            $mock->shouldReceive('createRoom')
+                ->once()
+                ->with([
+                    'name' => 'Rejected Room',
+                    'description' => 'Nope',
+                    'is_private' => false,
+                ], $this->user->id)
+                ->andReturn([
+                    'success' => false,
+                    'errors' => ['Room name already exists'],
+                ]);
+        });
+
+        $response = $this->postJson('/api/chat/rooms', [
+            'name' => 'Rejected Room',
+            'description' => 'Nope',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Failed to create room')
+            ->assertJsonPath('0', 'Room name already exists');
+    }
+
+    public function test_create_room_returns_server_error_when_service_throws()
+    {
+        $this->mock(ChatService::class, function ($mock) {
+            $mock->shouldReceive('createRoom')
+                ->once()
+                ->andThrow(new \RuntimeException('creation failed'));
+        });
+
+        $response = $this->postJson('/api/chat/rooms', [
+            'name' => 'Exception Room',
+            'description' => 'Fails loudly',
+        ]);
+
+        $response->assertStatus(500)
+            ->assertJsonPath('message', 'Failed to create room');
+    }
+
+    public function test_update_room_returns_error_payload_when_service_rejects_update()
+    {
+        $this->mock(ChatService::class, function ($mock) {
+            $mock->shouldReceive('updateRoom')
+                ->once()
+                ->with($this->room->id, [
+                    'name' => 'Rejected Update',
+                    'description' => 'Still nope',
+                    'is_private' => true,
+                ], $this->user->id)
+                ->andReturn([
+                    'success' => false,
+                    'errors' => ['Room update was rejected'],
+                ]);
+        });
+
+        $response = $this->putJson("/api/chat/rooms/{$this->room->id}", [
+            'name' => 'Rejected Update',
+            'description' => 'Still nope',
+            'is_private' => true,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Failed to update room')
+            ->assertJsonPath('0', 'Room update was rejected');
+    }
+
+    public function test_update_room_returns_server_error_when_service_throws()
+    {
+        $this->mock(ChatService::class, function ($mock) {
+            $mock->shouldReceive('updateRoom')
+                ->once()
+                ->andThrow(new \RuntimeException('update exploded'));
+        });
+
+        $response = $this->putJson("/api/chat/rooms/{$this->room->id}", [
+            'name' => 'Exploding Update',
+            'description' => 'Boom',
+        ]);
+
+        $response->assertStatus(500)
+            ->assertJsonPath('message', 'Failed to update room');
+    }
+
+    public function test_join_room_returns_server_error_when_service_throws()
+    {
+        $this->mock(ChatService::class, function ($mock) {
+            $mock->shouldReceive('joinRoom')
+                ->once()
+                ->with($this->room->id, $this->user->id)
+                ->andThrow(new \RuntimeException('join failed'));
+        });
+
+        $response = $this->postJson("/api/chat/rooms/{$this->room->id}/join");
+
+        $response->assertStatus(500)
+            ->assertJsonPath('message', 'Failed to join room');
+    }
+
+    public function test_leave_room_returns_error_payload_when_service_rejects_leave()
+    {
+        $this->mock(ChatService::class, function ($mock) {
+            $mock->shouldReceive('leaveRoom')
+                ->once()
+                ->with($this->room->id, $this->user->id)
+                ->andReturn([
+                    'success' => false,
+                    'errors' => ['User is not a member of this room'],
+                ]);
+        });
+
+        $response = $this->postJson("/api/chat/rooms/{$this->room->id}/leave");
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Failed to leave room')
+            ->assertJsonPath('0', 'User is not a member of this room');
+    }
+
+    public function test_delete_room_returns_422_for_non_permission_service_error()
+    {
+        $this->mock(ChatService::class, function ($mock) {
+            $mock->shouldReceive('deleteRoom')
+                ->once()
+                ->with($this->room->id, $this->user->id)
+                ->andReturn([
+                    'success' => false,
+                    'errors' => ['Cannot delete room with active users. Please wait for all users to leave.'],
+                ]);
+        });
+
+        $response = $this->deleteJson("/api/chat/rooms/{$this->room->id}");
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Failed to delete room')
+            ->assertJsonPath('0', 'Cannot delete room with active users. Please wait for all users to leave.');
+    }
+
+    public function test_get_messages_returns_server_error_when_room_is_missing()
+    {
+        $response = $this->getJson('/api/chat/rooms/999999/messages');
+
+        $response->assertStatus(500)
+            ->assertJsonPath('message', 'Failed to retrieve messages');
+    }
+
+    public function test_send_message_returns_generic_error_when_service_fails_without_specific_errors()
+    {
+        $this->mock(ChatCacheService::class, function ($mock) {
+            $mock->shouldReceive('checkRateLimit')
+                ->once()
+                ->andReturn(['allowed' => true]);
+        });
+
+        $this->mock(ChatService::class, function ($mock) {
+            $mock->shouldReceive('processMessage')
+                ->once()
+                ->with($this->room->id, $this->user->id, 'This will fail', ChatMessage::TYPE_TEXT)
+                ->andReturn(['success' => false]);
+        });
+
+        ChatRoomUser::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->user->id,
+            'is_online' => true,
+        ]);
+
+        $response = $this->postJson("/api/chat/rooms/{$this->room->id}/messages", [
+            'message' => 'This will fail',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Failed to send message')
+            ->assertJsonPath('errors', []);
+    }
+
+    public function test_delete_message_returns_server_error_when_message_is_missing()
+    {
+        $response = $this->deleteJson("/api/chat/rooms/{$this->room->id}/messages/999999");
+
+        $response->assertStatus(500)
+            ->assertJsonPath('message', 'Failed to delete message');
+    }
+
+    public function test_get_online_users_returns_server_error_when_room_is_missing()
+    {
+        $response = $this->getJson('/api/chat/rooms/999999/users');
+
+        $response->assertStatus(500)
+            ->assertJsonPath('message', 'Failed to retrieve online users');
+    }
+
+    public function test_update_user_status_returns_server_error_when_room_is_missing()
+    {
+        $response = $this->postJson('/api/chat/rooms/999999/status');
+
+        $response->assertStatus(500)
+            ->assertJsonPath('message', 'Failed to update status');
+    }
+
+    public function test_cleanup_disconnected_users_returns_server_error_when_service_throws()
+    {
+        $this->mock(ChatService::class, function ($mock) {
+            $mock->shouldReceive('cleanupInactiveUsers')
+                ->once()
+                ->andThrow(new \RuntimeException('cleanup exploded'));
+        });
+
+        $response = $this->postJson('/api/chat/cleanup-disconnected');
+
+        $response->assertStatus(500)
+            ->assertJsonPath('message', 'Failed to cleanup disconnected users');
+    }
+
+    public function test_get_user_presence_status_returns_server_error_when_room_is_missing()
+    {
+        $response = $this->getJson('/api/chat/rooms/999999/my-status');
+
+        $response->assertStatus(500)
+            ->assertJsonPath('message', 'Failed to get user presence status');
     }
 }

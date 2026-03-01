@@ -201,4 +201,23 @@ class ImageProcessingServiceTest extends TestCase
         unlink($pngCompressedPath);
         unlink(str_replace('-origin.', '-thumb.', $pngImagePath));
     }
+
+    public function test_get_image_info_returns_dimensions_size_and_mime_type()
+    {
+        $result = $this->imageProcessingService->getImageInfo($this->testImagePath);
+
+        $this->assertTrue($result['success']);
+        $this->assertSame(1, $result['width']);
+        $this->assertSame(1, $result['height']);
+        $this->assertGreaterThan(0, $result['size']);
+        $this->assertSame('image/jpeg', $result['mime_type']);
+    }
+
+    public function test_get_image_info_returns_error_when_file_is_missing()
+    {
+        $result = $this->imageProcessingService->getImageInfo(storage_path('app/public/test/missing.jpg'));
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('Image file not found', $result['message']);
+    }
 }

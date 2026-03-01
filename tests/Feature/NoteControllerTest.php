@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Note\Note;
 use App\Models\Note\NoteCategory;
+use App\Models\Note\NoteLink;
 use App\Models\Note\NoteTag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -502,5 +503,306 @@ class NoteControllerTest extends TestCase
         $response = $this->deleteJson("/api/notes/{$note->id}");
 
         $response->assertStatus(404);
+    }
+
+    public function test_index_with_graph_view_returns_filtered_nodes_and_links(): void
+    {
+        $userTag = NoteTag::factory()->create([
+            'user_id' => $this->user->id,
+            'name' => 'knowledge',
+        ]);
+
+        $userNote = Note::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'My Note',
+            'slug' => 'my-note',
+            'summary' => 'User summary',
+        ]);
+        $userNote->tags()->attach($userTag);
+
+        $wikiNote = Note::factory()->create([
+            'user_id' => User::factory()->create()->id,
+            'title' => 'Wiki Note',
+            'slug' => 'wiki-note',
+            'summary' => 'Wiki summary',
+            'is_wiki' => true,
+        ]);
+
+        $otherPrivateNote = Note::factory()->create([
+            'user_id' => User::factory()->create()->id,
+            'title' => 'Hidden Note',
+            'slug' => 'hidden-note',
+            'is_wiki' => false,
+        ]);
+
+        $deletedNote = Note::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Deleted Node',
+            'slug' => 'deleted-node',
+        ]);
+
+        NoteLink::create([
+            'source_id' => $userNote->id,
+            'target_id' => $wikiNote->id,
+            'type' => 'related',
+        ]);
+
+        NoteLink::create([
+            'source_id' => $userNote->id,
+            'target_id' => $deletedNote->id,
+            'type' => 'stale',
+        ]);
+
+        $deletedNote->delete();
+
+        $response = $this->getJson('/api/notes?view=graph');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Graph retrieved successfully')
+            ->assertJsonCount(2, 'nodes')
+            ->assertJsonCount(1, 'links')
+            ->assertJsonPath('nodes.0.tags.0', 'knowledge')
+            ->assertJsonPath('links.0.type', 'related');
+
+        $nodeIds = collect($response->json('nodes'))->pluck('id')->all();
+        $this->assertContains($userNote->id, $nodeIds);
+        $this->assertContains($wikiNote->id, $nodeIds);
+        $this->assertNotContains($otherPrivateNote->id, $nodeIds);
+    }
+
+    public function test_get_article_by_slug_returns_article_content(): void
+    {
+        $note = Note::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Slug Article',
+            'slug' => 'slug-article',
+            'content' => '<p>Rendered HTML</p>',
+            'content_markdown' => '# Slug Article',
+        ]);
+
+        $response = $this->getJson("/api/notes/article/{$note->slug}");
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Article retrieved successfully',
+                'title' => 'Slug Article',
+                'slug' => 'slug-article',
+                'content' => '<p>Rendered HTML</p>',
+                'content_markdown' => '# Slug Article',
+                'html' => '<p>Rendered HTML</p>',
+            ]);
+    }
+
+    public function test_get_article_by_slug_returns_404_when_missing(): void
+    {
+        $response = $this->getJson('/api/notes/article/missing-article');
+
+        $response->assertStatus(404)
+            ->assertJson([
+                'message' => 'Article not found',
+            ]);
+    }
+
+    public function test_get_all_wiki_articles_returns_only_wiki_notes(): void
+    {
+        Note::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Wiki One',
+            'slug' => 'wiki-one',
+            'content' => 'Wiki content',
+            'content_markdown' => '# Wiki One',
+            'is_wiki' => true,
+        ]);
+
+        Note::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Regular Note',
+            'slug' => 'regular-note',
+            'content' => 'Regular content',
+            'content_markdown' => '# Regular Note',
+            'is_wiki' => false,
+        ]);
+
+        $response = $this->getJson('/api/notes/wiki/articles');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'All wiki articles retrieved successfully')
+            ->assertJsonCount(1, 'articles')
+            ->assertJsonPath('articles.0.slug', 'wiki-one');
+    }
+
+    public function test_store_handles_tags_and_json_content(): void
+    {
+        $jsonContent = json_encode([
+            'type' => 'doc',
+            'content' => [
+                [
+                    'type' => 'paragraph',
+                    'content' => [
+                        ['type' => 'text', 'text' => 'Alpha'],
+                    ],
+                ],
+                [
+                    'type' => 'paragraph',
+                    'content' => [
+                        ['type' => 'text', 'text' => 'Beta'],
+                    ],
+                ],
+            ],
+        ]);
+
+        $response = $this->postJson('/api/notes', [
+            'title' => 'JSON Note',
+            'content' => $jsonContent,
+            'tags' => [' alpha ', 'beta', 'alpha'],
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('title', 'JSON Note')
+            ->assertJsonPath('content_markdown', "Alpha\nBeta");
+
+        $note = Note::findOrFail($response->json('id'));
+        $this->assertSame(['alpha', 'beta'], $note->tags()->orderBy('name')->pluck('name')->all());
+    }
+
+    public function test_show_allows_access_to_other_users_wiki_note(): void
+    {
+        $wikiNote = Note::factory()->create([
+            'user_id' => User::factory()->create()->id,
+            'title' => 'Shared Wiki',
+            'is_wiki' => true,
+        ]);
+
+        $response = $this->getJson("/api/notes/{$wikiNote->id}");
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'id' => $wikiNote->id,
+                'title' => 'Shared Wiki',
+                'is_wiki' => true,
+            ]);
+    }
+
+    public function test_update_generates_unique_slug_for_wiki_note(): void
+    {
+        Note::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Knowledge Base',
+            'slug' => 'knowledge-base',
+            'is_wiki' => true,
+        ]);
+
+        $note = Note::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Draft Note',
+            'slug' => null,
+            'is_wiki' => false,
+        ]);
+
+        $response = $this->putJson("/api/notes/{$note->id}", [
+            'title' => 'Knowledge Base',
+            'is_wiki' => true,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('slug', 'knowledge-base-1')
+            ->assertJsonPath('is_wiki', true);
+    }
+
+    public function test_update_allows_modifying_other_users_wiki_note(): void
+    {
+        $wikiNote = Note::factory()->create([
+            'user_id' => User::factory()->create()->id,
+            'title' => 'Team Wiki',
+            'slug' => 'team-wiki',
+            'is_wiki' => true,
+            'content' => 'Old content',
+            'content_markdown' => 'Old content',
+        ]);
+
+        $response = $this->putJson("/api/notes/{$wikiNote->id}", [
+            'content' => 'Updated shared wiki',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('content', 'Updated shared wiki')
+            ->assertJsonPath('content_markdown', 'Updated shared wiki');
+    }
+
+    public function test_store_link_creates_new_link(): void
+    {
+        $source = Note::factory()->create(['user_id' => $this->user->id]);
+        $target = Note::factory()->create(['user_id' => $this->user->id]);
+
+        $response = $this->postJson('/api/notes/links', [
+            'source_id' => $source->id,
+            'target_id' => $target->id,
+            'type' => 'reference',
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('message', 'Link created successfully')
+            ->assertJsonPath('link.source', $source->id)
+            ->assertJsonPath('link.target', $target->id)
+            ->assertJsonPath('link.type', 'reference');
+    }
+
+    public function test_store_link_rejects_duplicate_link(): void
+    {
+        $source = Note::factory()->create(['user_id' => $this->user->id]);
+        $target = Note::factory()->create(['user_id' => $this->user->id]);
+
+        NoteLink::create([
+            'source_id' => $source->id,
+            'target_id' => $target->id,
+            'type' => 'reference',
+        ]);
+
+        $response = $this->postJson('/api/notes/links', [
+            'source_id' => $source->id,
+            'target_id' => $target->id,
+            'type' => 'reference',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'Link already exists',
+            ]);
+    }
+
+    public function test_store_link_validates_source_and_target_difference(): void
+    {
+        $source = Note::factory()->create(['user_id' => $this->user->id]);
+
+        $response = $this->postJson('/api/notes/links', [
+            'source_id' => $source->id,
+            'target_id' => $source->id,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['target_id']);
+    }
+
+    public function test_destroy_link_deletes_existing_link(): void
+    {
+        $source = Note::factory()->create(['user_id' => $this->user->id]);
+        $target = Note::factory()->create(['user_id' => $this->user->id]);
+
+        $link = NoteLink::create([
+            'source_id' => $source->id,
+            'target_id' => $target->id,
+            'type' => 'reference',
+        ]);
+
+        $response = $this->deleteJson("/api/notes/links/{$link->id}");
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Link deleted successfully',
+            ]);
+
+        $this->assertDatabaseMissing('note_links', [
+            'id' => $link->id,
+        ]);
     }
 }

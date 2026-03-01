@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(XDEBUG_MODE=coverage php artisan test:*)",
+      "Bash(php artisan test:*)",
+      "Bash(php artisan:*)",
+      "Bash(php:*)",
+      "Bash(composer dump-autoload:*)",
+      "Bash(composer install:*)",
+      "Bash(git checkout:*)",
+      "Bash(XDEBUG_MODE=coverage php:*)",
+      "Bash(sort:*)"
+    ]
+  }
+}

@@ -98,6 +98,12 @@ class GameMonsterDefinition extends Model
     {
         $loot = [];
         $dropTable = $this->drop_table ?? [];
+        // if the drop table is completely empty we should not generate any
+        // default loot. this keeps behavior predictable for tests and
+        // game designers who intend "no drops".
+        if (empty($dropTable)) {
+            return [];
+        }
 
         // 药水掉落
         $potionDropChance = $dropTable['potion_chance'] ?? 0.1;

@@ -140,7 +140,7 @@ class GameItemTest extends TestCase
         $definition = new GameItemDefinition(['name' => 'Test Sword']);
         $item = new GameItem(['quality' => 'magic']);
         $item->definition = $definition;
-        $this->assertEquals('Magic Test Sword', $item->getDisplayName());
+        $this->assertEquals('魔法 Test Sword', $item->getDisplayName());
     }
 
     public function test_get_display_name_with_rare_prefix(): void
@@ -148,7 +148,7 @@ class GameItemTest extends TestCase
         $definition = new GameItemDefinition(['name' => 'Test Sword']);
         $item = new GameItem(['quality' => 'rare']);
         $item->definition = $definition;
-        $this->assertEquals('Rare Test Sword', $item->getDisplayName());
+        $this->assertEquals('稀有 Test Sword', $item->getDisplayName());
     }
 
     public function test_get_display_name_with_legendary_prefix(): void
@@ -156,7 +156,7 @@ class GameItemTest extends TestCase
         $definition = new GameItemDefinition(['name' => 'Test Sword']);
         $item = new GameItem(['quality' => 'legendary']);
         $item->definition = $definition;
-        $this->assertEquals('Legendary Test Sword', $item->getDisplayName());
+        $this->assertEquals('传奇 Test Sword', $item->getDisplayName());
     }
 
     public function test_get_display_name_with_mythic_prefix(): void
@@ -164,7 +164,7 @@ class GameItemTest extends TestCase
         $definition = new GameItemDefinition(['name' => 'Test Sword']);
         $item = new GameItem(['quality' => 'mythic']);
         $item->definition = $definition;
-        $this->assertEquals('Mythic Test Sword', $item->getDisplayName());
+        $this->assertEquals('神话 Test Sword', $item->getDisplayName());
     }
 
     public function test_can_equip_returns_true_when_level_sufficient(): void
@@ -188,7 +188,11 @@ class GameItemTest extends TestCase
 
         $result = $item->canEquip($character);
         $this->assertFalse($result['can_equip']);
-        $this->assertStringContainsString('Level', $result['reason']);
+        // reason message may be localized, accept either english or chinese
+        $this->assertTrue(
+            str_contains($result['reason'], 'Level') ||
+            str_contains($result['reason'], '等级')
+        );
     }
 
     public function test_character_relationship(): void

@@ -77,12 +77,12 @@ class FileControllerTest extends TestCase
     }
 
     /**
-     * Test the private deleteFolder method using reflection
+     * Test the private deleteFolderIteratively method using reflection
      */
     public function test_delete_folder_method()
     {
         $reflection = new ReflectionClass($this->controller);
-        $method = $reflection->getMethod('deleteFolder');
+        $method = $reflection->getMethod('deleteFolderIteratively');
         $method->setAccessible(true);
 
         // Create a folder with children

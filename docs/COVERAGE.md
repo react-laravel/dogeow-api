@@ -11,6 +11,9 @@ php -m | grep xdebug
 
 ## 快速开始
 
+> **注意**: 测试套件启动需要较多内存。如果遇到 `Allowed memory size exhausted` 错误，请确保通过脚本使用 `-d memory_limit=-1` 或在 `phpunit.xml` 中设置无限制内存。
+
+
 ### 1. 运行测试并生成覆盖率报告
 
 ```bash

@@ -3,6 +3,7 @@
 namespace App\Services\Game;
 
 use App\Models\Game\GameCharacter;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -176,8 +177,15 @@ class GameCharacterService
             ->where('user_id', $userId)
             ->firstOrFail();
 
+        $sanitizedStats = [
+            'strength' => max(0, (int) ($stats['strength'] ?? 0)),
+            'dexterity' => max(0, (int) ($stats['dexterity'] ?? 0)),
+            'vitality' => max(0, (int) ($stats['vitality'] ?? 0)),
+            'energy' => max(0, (int) ($stats['energy'] ?? 0)),
+        ];
+
         // 验证并计算总分配点数
-        $totalPoints = $this->calculateTotalStatPoints($stats);
+        $totalPoints = $this->calculateTotalStatPoints($sanitizedStats);
 
         // 验证是否有足够的属性点
         if ($totalPoints > $character->stat_points) {
@@ -186,10 +194,10 @@ class GameCharacterService
 
         // 更新属性
         $character->fill([
-            'strength' => $character->strength + ($stats['strength'] ?? 0),
-            'dexterity' => $character->dexterity + ($stats['dexterity'] ?? 0),
-            'vitality' => $character->vitality + ($stats['vitality'] ?? 0),
-            'energy' => $character->energy + ($stats['energy'] ?? 0),
+            'strength' => $character->strength + $sanitizedStats['strength'],
+            'dexterity' => $character->dexterity + $sanitizedStats['dexterity'],
+            'vitality' => $character->vitality + $sanitizedStats['vitality'],
+            'energy' => $character->energy + $sanitizedStats['energy'],
             'stat_points' => $character->stat_points - $totalPoints,
         ]);
         $character->save();
@@ -284,14 +292,21 @@ class GameCharacterService
      */
     public function checkOfflineRewards(GameCharacter $character): array
     {
+        /** @var Carbon|null $lastOnline */
         $lastOnline = $character->last_online;
+        /** @var Carbon|null $lastClaimedAt */
+        $lastClaimedAt = $character->claimed_offline_at;
+        $rewardStartTime = $lastClaimedAt && (! $lastOnline || $lastClaimedAt->greaterThan($lastOnline))
+            ? $lastClaimedAt
+            : $lastOnline;
 
-        if (! $lastOnline) {
+        if (! $rewardStartTime) {
             return $this->formatOfflineRewards(0, false);
         }
 
+        /** @var Carbon $rewardStartTime */
         $now = now();
-        $offlineSeconds = $now->diffInSeconds($lastOnline);
+        $offlineSeconds = $rewardStartTime->diffInSeconds($now);
 
         // 最小60秒才发放离线奖励
         if ($offlineSeconds < 60) {

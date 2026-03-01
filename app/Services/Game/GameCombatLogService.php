@@ -108,9 +108,9 @@ class GameCombatLogService
             'monster_level' => $roundResult['monster']['level'] ?? $monster->level ?? null,
             'monster_hp' => $roundResult['monster']['hp'] ?? null,
             'monster_max_hp' => $roundResult['monster']['max_hp'] ?? null,
-            'monster_attack' => $roundResult['monster']['attack'] ?? $monster->base_attack ?? null,
-            'monster_defense' => $roundResult['monster']['defense'] ?? $monster->base_defense ?? null,
-            'monster_experience' => $monster->experience ?? null,
+            'monster_attack' => $roundResult['monster']['attack'] ?? $monster->attack_base ?? null,
+            'monster_defense' => $roundResult['monster']['defense'] ?? $monster->defense_base ?? null,
+            'monster_experience' => $roundResult['monster']['experience'] ?? $monster->experience_base ?? null,
             // 战斗详情
             'round_number' => $currentRound,
             // 难度相关

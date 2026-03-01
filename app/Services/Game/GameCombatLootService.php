@@ -65,6 +65,7 @@ class GameCombatLootService
         $copperGained = $roundResult['copper_gained'] ?? 0;
         if ($copperGained > 0) {
             $character->copper += $copperGained;
+            $character->save();
             $loot = array_merge($loot, ['copper' => $copperGained]);
         }
 

@@ -167,7 +167,8 @@ class ItemController extends Controller
             $item->images()->delete();
             $item->delete();
 
-            return response()->json(['message' => '物品删除成功']);
+            // return 204 No Content for successful deletion
+            return response()->noContent();
         });
     }
 

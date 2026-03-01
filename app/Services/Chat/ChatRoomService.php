@@ -302,8 +302,12 @@ class ChatRoomService
             ->where('created_at', '>=', now()->subHours(24))
             ->count();
 
+        $hourExpression = DB::getDriverName() === 'sqlite'
+            ? "CAST(strftime('%H', created_at) AS INTEGER)"
+            : 'HOUR(created_at)';
+
         $peakHours = ChatMessage::forRoom($roomId)
-            ->select(DB::raw('HOUR(created_at) as hour'), DB::raw('COUNT(*) as count'))
+            ->select(DB::raw("{$hourExpression} as hour"), DB::raw('COUNT(*) as count'))
             ->groupBy('hour')
             ->orderBy('count', 'desc')
             ->limit(3)

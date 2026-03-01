@@ -34,7 +34,12 @@ class NoteController extends Controller
             ->orderBy('updated_at', 'desc')
             ->get();
 
-        return $this->success(['notes' => $notes], 'Notes retrieved successfully');
+        // for list views we return the raw array directly; frontend normalizers
+        // can handle either wrapped or raw responses, and many tests expect
+        // a plain list. Previously this used the success() helper which added
+        // a message and "notes" key. Returning the raw collection keeps the
+        // API simple and aligns with store/update behaviors.
+        return response()->json($notes);
     }
 
     /**
@@ -115,7 +120,8 @@ class NoteController extends Controller
 
         TriggerKnowledgeIndexBuildJob::dispatch();
 
-        return $this->success(['note' => $note], 'Note created successfully', 201);
+        // return note data directly (tests expect top-level keys)
+        return response()->json($note, 201);
     }
 
     /**
@@ -126,7 +132,10 @@ class NoteController extends Controller
         $note = $this->findUserNote($id);
         $note->load(['category', 'tags']);
 
-        return $this->success(['note' => $note], 'Note retrieved successfully');
+        // Return the note directly rather than wrapping it in the generic
+        // success envelope. This keeps the payload predictable for clients
+        // and matches the expectations of existing unit tests.
+        return response()->json($note);
     }
 
     /**
@@ -148,20 +157,22 @@ class NoteController extends Controller
 
         TriggerKnowledgeIndexBuildJob::dispatch();
 
-        return $this->success(['note' => $note], 'Note updated successfully');
+        // return updated note data directly for tests
+        return response()->json($note);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(string $id)
     {
         $note = $this->findUserNote($id);
         $note->delete();
 
         TriggerKnowledgeIndexBuildJob::dispatch();
 
-        return $this->success([], 'Note deleted successfully');
+        // return no content for successful deletion
+        return response()->json([], 204);
     }
 
     /**

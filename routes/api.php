@@ -1,9 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\UploadController;
-use App\Http\Controllers\Api\WebPushController;
 use Illuminate\Support\Facades\Route;
 
 // 广播认证路由 - 必须在认证中间件外部，但内部会检查 Sanctum 认证
@@ -17,27 +15,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::put('/user', [AuthController::class, 'update']);
 
-    // Web Push：保存/删除当前用户的推送订阅
-    Route::post('/user/push-subscription', [WebPushController::class, 'updateSubscription']);
-    Route::delete('/user/push-subscription', [WebPushController::class, 'deleteSubscription']);
-
-    // 未读通知（含打开时补发汇总推送）
-    Route::get('/notifications/unread', [NotificationController::class, 'unread']);
-    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
-    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
-
-    // WebSocket authentication test route
-    Route::middleware('websocket.auth')->get('/websocket-test', function () {
-        return response()->json([
-            'message' => 'WebSocket authentication successful',
-            'user' => auth()->user()->only(['id', 'name', 'email']),
-        ]);
-    });
-
     // 批量上传图片
     Route::post('/upload/images', [UploadController::class, 'uploadBatchImages']);
 
     // 引入各个项目的路由文件
+    require base_path('routes/api/notification.php'); // Web Push + 通知
+    require base_path('routes/api/websocket.php'); // WebSocket
     require base_path('routes/api/chat.php'); // 聊天室
     require base_path('routes/api/game.php'); // 游戏
     require base_path('routes/api/item.php'); // 物品

@@ -17,9 +17,8 @@ class GithubController extends Controller
     public function redirect(): JsonResponse
     {
         return $this->success([
-            // @phpstan-ignore-next-line
             'url' => Socialite::driver('github')
-                ->stateless()
+                ->stateless() // @phpstan-ignore method.notFound
                 ->scopes(['read:user', 'user:email'])
                 ->redirect()
                 ->getTargetUrl(),

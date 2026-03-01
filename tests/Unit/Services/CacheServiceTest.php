@@ -186,4 +186,81 @@ class CacheServiceTest extends TestCase
         $this->assertArrayHasKey('meta', $result);
         $this->assertEquals('value', $result['meta']['nested']['level1']['level2']);
     }
+
+    public function test_forget_removes_cached_data(): void
+    {
+        $key = 'test-key';
+        $data = ['value' => 123];
+        $this->cacheService->put($key, $data);
+
+        $this->assertEquals($data, $this->cacheService->get($key));
+
+        $this->cacheService->forget($key);
+
+        $this->assertNull($this->cacheService->get($key));
+    }
+
+    public function test_forget_with_prefix(): void
+    {
+        $key = 'mykey';
+        $this->cacheService->put($key, 'data', 3600, 'myprefix');
+
+        $this->assertEquals('data', $this->cacheService->get($key, 'myprefix'));
+
+        $this->cacheService->forget($key, 'myprefix');
+
+        $this->assertNull($this->cacheService->get($key, 'myprefix'));
+    }
+
+    public function test_remember_caches_callback_result(): void
+    {
+        $key = 'remember-key';
+        $callCount = 0;
+        $callback = function () use (&$callCount) {
+            $callCount++;
+
+            return ['computed' => true];
+        };
+
+        $result1 = $this->cacheService->remember($key, $callback);
+        $result2 = $this->cacheService->remember($key, $callback);
+
+        $this->assertEquals(['computed' => true], $result1);
+        $this->assertEquals($result1, $result2);
+        $this->assertSame(1, $callCount);
+    }
+
+    public function test_remember_with_custom_prefix_and_ttl(): void
+    {
+        $key = 'prefixed-key';
+        $callback = fn () => 'result';
+
+        $result = $this->cacheService->remember($key, $callback, 120, 'custom');
+
+        $this->assertEquals('result', $result);
+        $this->assertEquals('result', $this->cacheService->get($key, 'custom'));
+    }
+
+    public function test_put_and_get_with_default_prefix(): void
+    {
+        $key = 'default-prefix-key';
+        $data = ['a' => 1, 'b' => 2];
+
+        $this->cacheService->put($key, $data);
+
+        $this->assertEquals($data, $this->cacheService->get($key));
+    }
+
+    public function test_put_success_and_put_error_both_store_data(): void
+    {
+        $key1 = 'success-key';
+        $key2 = 'error-key';
+        $data = ['x' => 1];
+
+        $this->cacheService->putSuccess($key1, $data);
+        $this->cacheService->putError($key2, $data);
+
+        $this->assertEquals($data, $this->cacheService->get($key1));
+        $this->assertEquals($data, $this->cacheService->get($key2));
+    }
 }

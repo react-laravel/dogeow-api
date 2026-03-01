@@ -15,12 +15,16 @@ class GameShopService
     /** 强制刷新商店费用（铜币），1 银 = 100 铜 */
     public const REFRESH_COST_COPPER = 100;
 
+    private const SHOP_CACHE_KEY_PREFIX = 'game_shop_';
+
+    private const PURCHASED_CACHE_KEY_PREFIX = 'game_shop_purchased_';
+
     /**
      * 清除当前角色的商店装备缓存（强制下次取列表时重新生成）
      */
     public function clearShopCache(GameCharacter $character): void
     {
-        Cache::forget("rpg:shop:{$character->id}");
+        Cache::forget($this->getShopCacheKey($character));
     }
 
     /**
@@ -55,7 +59,7 @@ class GameShopService
         $fixedPotionItems = $this->buildFixedPotionItems($character);
 
         // 装备列表使用缓存
-        $cacheKey = sprintf('game_shop_%s', $character->id);
+        $cacheKey = $this->getShopCacheKey($character);
         $cached = cache()->get($cacheKey, []);
         $equipmentArray = [];
         if (is_array($cached) && isset($cached['equipment']) && is_array($cached['equipment'])) {
@@ -89,11 +93,6 @@ class GameShopService
 
         $shopItems = $fixedPotionItems->concat($randomEquipmentItems);
 
-        $purchased = [];
-        if (is_array($cached) && isset($cached['purchased']) && is_array($cached['purchased'])) {
-            $purchased = array_map(static fn ($v): int => (int) $v, $cached['purchased']);
-        }
-
         $refreshedAt = time();
         if (is_array($cached) && isset($cached['refreshed_at']) && is_numeric($cached['refreshed_at'])) {
             $refreshedAt = (int) $cached['refreshed_at'];
@@ -103,7 +102,7 @@ class GameShopService
             'items' => $shopItems,
             'player_copper' => (int) $character->copper,
             'next_refresh_at' => $nextRefreshAt,
-            'purchased' => $purchased,
+            'purchased' => $purchasedItemIds,
         ];
     }
 
@@ -114,7 +113,7 @@ class GameShopService
      */
     private function getPurchasedItemIds(GameCharacter $character): array
     {
-        $cacheKey = "rpg:shop:purchased:{$character->id}";
+        $cacheKey = $this->getPurchasedCacheKey($character);
         $purchased = Cache::get($cacheKey);
 
         if (! is_array($purchased)) {
@@ -122,7 +121,7 @@ class GameShopService
         }
 
         // 过滤掉过期记录（超过缓存时间）
-        $shopCacheKey = "rpg:shop:{$character->id}";
+        $shopCacheKey = $this->getShopCacheKey($character);
         $shopCache = Cache::get($shopCacheKey);
 
         if (! is_array($shopCache) || ! isset($shopCache['refreshed_at'])) {
@@ -146,7 +145,7 @@ class GameShopService
      */
     public function recordPurchasedItem(GameCharacter $character, int $definitionId): void
     {
-        $cacheKey = "rpg:shop:purchased:{$character->id}";
+        $cacheKey = $this->getPurchasedCacheKey($character);
         $purchased = Cache::get($cacheKey);
 
         if (! is_array($purchased)) {
@@ -164,8 +163,7 @@ class GameShopService
      */
     private function clearPurchasedItems(GameCharacter $character): void
     {
-        $cacheKey = "rpg:shop:purchased:{$character->id}";
-        Cache::forget($cacheKey);
+        Cache::forget($this->getPurchasedCacheKey($character));
     }
 
     /**
@@ -616,5 +614,15 @@ class GameShopService
         $sellRatio = (float) config('game.shop.sell_ratio', 0.3);
 
         return (int) ($buyPrice * $qualityMultiplier * $sellRatio);
+    }
+
+    private function getShopCacheKey(GameCharacter $character): string
+    {
+        return self::SHOP_CACHE_KEY_PREFIX . $character->id;
+    }
+
+    private function getPurchasedCacheKey(GameCharacter $character): string
+    {
+        return self::PURCHASED_CACHE_KEY_PREFIX . $character->id;
     }
 }

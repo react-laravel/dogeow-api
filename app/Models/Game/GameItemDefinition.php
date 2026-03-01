@@ -2,10 +2,13 @@
 
 namespace App\Models\Game;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class GameItemDefinition extends Model
 {
+    use HasFactory;
+
     /**
      * @property int $id
      * @property string $name
@@ -80,7 +83,7 @@ class GameItemDefinition extends Model
             'gloves' => 'gloves',
             'boots' => 'boots',
             'belt' => 'belt',
-            'ring' => 'ring',
+            'ring' => 'ring1',
             'amulet' => 'amulet', // 护符槽位
             default => null,
         };

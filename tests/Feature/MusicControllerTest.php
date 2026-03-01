@@ -47,7 +47,7 @@ class MusicControllerTest extends TestCase
             File::put($musicDir . '/' . $filename, $content);
         }
 
-        $response = $this->getJson('/api/music');
+        $response = $this->getJson('/api/musics');
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -89,7 +89,7 @@ class MusicControllerTest extends TestCase
             File::deleteDirectory($musicDir);
         }
 
-        $response = $this->getJson('/api/music');
+        $response = $this->getJson('/api/musics');
 
         $response->assertStatus(404)
             ->assertJson([
@@ -105,7 +105,7 @@ class MusicControllerTest extends TestCase
             File::makeDirectory($musicDir, 0755, true);
         }
 
-        $response = $this->getJson('/api/music');
+        $response = $this->getJson('/api/musics');
 
         $response->assertStatus(200)
             ->assertJson([]);
@@ -130,7 +130,7 @@ class MusicControllerTest extends TestCase
             File::put($musicDir . '/' . $filename, $content);
         }
 
-        $response = $this->getJson('/api/music');
+        $response = $this->getJson('/api/musics');
 
         $response->assertStatus(200);
 
@@ -167,7 +167,7 @@ class MusicControllerTest extends TestCase
             File::put($musicDir . '/' . $filename, $content);
         }
 
-        $response = $this->getJson('/api/music');
+        $response = $this->getJson('/api/musics');
 
         $response->assertStatus(200);
 
@@ -195,7 +195,7 @@ class MusicControllerTest extends TestCase
             File::put($musicDir . '/' . $filename, $content);
         }
 
-        $response = $this->getJson('/api/music');
+        $response = $this->getJson('/api/musics');
 
         $response->assertStatus(200);
 

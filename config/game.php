@@ -227,7 +227,8 @@ return [
         'gloves',
         'boots',
         'belt',
-        'ring',
+        'ring1',
+        'ring2',
         'amulet',
     ],
 

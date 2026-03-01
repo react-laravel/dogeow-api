@@ -268,17 +268,47 @@ class ChatModerationControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
-            'moderation_actions' => [
+            'data' => [
                 '*' => [
                     'id',
+                    'room_id',
+                    'moderator_id',
+                    'target_user_id',
                     'action_type',
                     'reason',
-                    'moderator',
-                    'target_user',
                     'created_at',
+                    'updated_at',
                 ],
             ],
         ]);
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.action_type', ChatModerationAction::ACTION_DELETE_MESSAGE);
+    }
+
+    public function test_get_moderation_actions_supports_filters()
+    {
+        ChatModerationAction::create([
+            'room_id' => $this->room->id,
+            'moderator_id' => $this->moderator->id,
+            'target_user_id' => $this->regularUser->id,
+            'action_type' => ChatModerationAction::ACTION_MUTE_USER,
+            'reason' => 'Muted for spam',
+        ]);
+
+        ChatModerationAction::create([
+            'room_id' => $this->room->id,
+            'moderator_id' => $this->moderator->id,
+            'target_user_id' => $this->moderator->id,
+            'action_type' => ChatModerationAction::ACTION_BAN_USER,
+            'reason' => 'Should be filtered out',
+        ]);
+
+        $response = $this->getJson("/api/chat/moderation/rooms/{$this->room->id}/actions?action_type=mute_user&target_user_id={$this->regularUser->id}");
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.action_type', ChatModerationAction::ACTION_MUTE_USER);
+        $response->assertJsonPath('data.0.target_user_id', $this->regularUser->id);
     }
 
     public function test_get_moderation_actions_unauthorized()
@@ -344,5 +374,37 @@ class ChatModerationControllerTest extends TestCase
         $response = $this->postJson("/api/chat/moderation/rooms/{$this->room->id}/users/999/ban");
 
         $response->assertStatus(404);
+    }
+
+    public function test_mute_user_rejects_self_moderation()
+    {
+        $response = $this->postJson("/api/chat/moderation/rooms/{$this->room->id}/users/{$this->moderator->id}/mute");
+
+        $response->assertStatus(422);
+        $response->assertJsonFragment([
+            'message' => 'You cannot mute yourself',
+        ]);
+    }
+
+    public function test_ban_user_rejects_self_moderation()
+    {
+        $response = $this->postJson("/api/chat/moderation/rooms/{$this->room->id}/users/{$this->moderator->id}/ban");
+
+        $response->assertStatus(422);
+        $response->assertJsonFragment([
+            'message' => 'You cannot ban yourself',
+        ]);
+    }
+
+    public function test_get_user_moderation_status_returns_not_found_when_user_is_not_in_room()
+    {
+        $outsider = User::factory()->create();
+
+        $response = $this->getJson("/api/chat/moderation/rooms/{$this->room->id}/users/{$outsider->id}/status");
+
+        $response->assertStatus(404);
+        $response->assertJsonFragment([
+            'message' => 'User is not in this room',
+        ]);
     }
 }

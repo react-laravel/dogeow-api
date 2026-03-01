@@ -7,6 +7,7 @@ use App\Models\Chat\ChatRoom;
 use App\Models\Chat\ChatRoomUser;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Redis;
 
 class ChatCacheService
@@ -236,53 +237,36 @@ class ChatCacheService
     }
 
     /**
-     * Implement rate limiting with Redis
+     * Implement rate limiting with the configured cache store
      */
     public function checkRateLimit(string $key, int $maxAttempts, int $windowSeconds): array
     {
         $cacheKey = self::PREFIX_RATE_LIMIT . $key;
 
         try {
-            $redis = Redis::connection();
-            $current = $redis->get($cacheKey);
-
-            if ($current === null) {
-                // First request in window
-                $redis->setex($cacheKey, $windowSeconds, 1);
-
-                return [
-                    'allowed' => true,
-                    'attempts' => 1,
-                    'remaining' => $maxAttempts - 1,
-                    'reset_time' => now()->addSeconds($windowSeconds),
-                ];
-            }
-
-            $attempts = (int) $current;
-
-            if ($attempts >= $maxAttempts) {
-                $ttl = $redis->ttl($cacheKey);
+            if (RateLimiter::tooManyAttempts($cacheKey, $maxAttempts)) {
+                $availableIn = RateLimiter::availableIn($cacheKey);
 
                 return [
                     'allowed' => false,
-                    'attempts' => $attempts,
+                    'attempts' => RateLimiter::attempts($cacheKey),
                     'remaining' => 0,
-                    'reset_time' => now()->addSeconds($ttl > 0 ? $ttl : $windowSeconds),
+                    'reset_time' => now()->addSeconds($availableIn > 0 ? $availableIn : $windowSeconds),
                 ];
             }
 
-            // Increment counter
-            $newAttempts = $redis->incr($cacheKey);
+            $attempts = RateLimiter::hit($cacheKey, $windowSeconds);
+            $availableIn = RateLimiter::availableIn($cacheKey);
 
             return [
                 'allowed' => true,
-                'attempts' => $newAttempts,
-                'remaining' => max(0, $maxAttempts - $newAttempts),
-                'reset_time' => now()->addSeconds($redis->ttl($cacheKey)),
+                'attempts' => $attempts,
+                'remaining' => max(0, $maxAttempts - $attempts),
+                'reset_time' => now()->addSeconds($availableIn > 0 ? $availableIn : $windowSeconds),
             ];
 
-        } catch (\Exception $e) {
-            // Fallback to allowing request if Redis fails
+        } catch (\Throwable $e) {
+            // Fallback to allowing request if the rate limiter backend fails
             return [
                 'allowed' => true,
                 'attempts' => 1,
