@@ -115,7 +115,7 @@ class GameItemDefinitionTest extends TestCase
     public function test_get_equipment_slot_returns_correct_slot_for_ring(): void
     {
         $item = new GameItemDefinition(['type' => 'ring']);
-        $this->assertEquals('ring1', $item->getEquipmentSlot());
+        $this->assertEquals('ring', $item->getEquipmentSlot());
     }
 
     public function test_get_equipment_slot_returns_correct_slot_for_amulet(): void

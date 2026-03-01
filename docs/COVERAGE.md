@@ -11,9 +11,6 @@ php -m | grep xdebug
 
 ## 快速开始
 
-> **注意**: 测试套件启动需要较多内存。如果遇到 `Allowed memory size exhausted` 错误，请确保通过脚本使用 `-d memory_limit=-1` 或在 `phpunit.xml` 中设置无限制内存。
-
-
 ### 1. 运行测试并生成覆盖率报告
 
 ```bash
@@ -91,15 +88,6 @@ open coverage/html/index.html
 ```bash
 # 运行所有测试
 composer run test
-
-# 运行测试并生成覆盖率报告
-composer run test:coverage
-
-# 检查覆盖率要求
-composer run test:coverage-check
-
-# 运行测试并检查覆盖率
-composer run test:coverage-full
 
 # 只运行单元测试
 vendor/bin/phpunit --testsuite=Unit

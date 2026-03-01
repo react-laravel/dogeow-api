@@ -584,19 +584,13 @@ class GameInventoryService
      */
     private function findAvailableRingSlot(GameCharacter $character): string
     {
-        /** @var \App\Models\Game\GameEquipment|null $ring1 */
-        $ring1 = $character->equipment()->where('slot', 'ring1')->first();
-        if ($ring1 && ! $ring1->item_id) {
-            return 'ring1';
+        /** @var \App\Models\Game\GameEquipment|null $ring */
+        $ring = $character->equipment()->where('slot', 'ring')->first();
+        if ($ring && ! $ring->item_id) {
+            return 'ring';
         }
 
-        /** @var \App\Models\Game\GameEquipment|null $ring2 */
-        $ring2 = $character->equipment()->where('slot', 'ring2')->first();
-        if ($ring2 && ! $ring2->item_id) {
-            return 'ring2';
-        }
-
-        return 'ring1';
+        return 'ring';
     }
 
     /**

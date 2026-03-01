@@ -74,7 +74,7 @@ return new class extends Migration
             $table->string('name', 64)->comment('物品名称');
             $table->enum('type', [
                 'weapon', 'helmet', 'armor', 'gloves', 'boots',
-                'belt', 'ring', 'ring1', 'ring2', 'amulet', 'potion', 'gem',
+                'belt', 'ring', 'amulet', 'potion', 'gem',
             ])->comment('物品类型');
             $table->enum('sub_type', [
                 'sword', 'axe', 'mace', 'staff', 'bow', 'dagger',
@@ -114,7 +114,7 @@ return new class extends Migration
             $table->unsignedBigInteger('character_id')->index()->comment('所属角色ID');
             $table->enum('slot', [
                 'weapon', 'helmet', 'armor', 'gloves', 'boots',
-                'belt', 'ring1', 'ring2', 'amulet',
+                'belt', 'ring', 'amulet',
             ])->comment('装备槽位');
             $table->unsignedBigInteger('item_id')->nullable()->index()->comment('装备的物品ID');
             $table->timestamps();

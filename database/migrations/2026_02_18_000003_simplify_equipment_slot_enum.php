@@ -19,7 +19,7 @@ return new class extends Migration
             return;
         }
 
-        // 修改 enum 值：ring1, ring2, amulet -> ring
+        // 修改 enum 值：amulet -> ring
         DB::statement("ALTER TABLE game_equipment MODIFY COLUMN slot ENUM('weapon', 'helmet', 'armor', 'gloves', 'boots', 'belt', 'ring') NOT NULL COMMENT '装备槽位'");
     }
 
@@ -30,6 +30,6 @@ return new class extends Migration
         }
 
         // 恢复原来的 enum 值
-        DB::statement("ALTER TABLE game_equipment MODIFY COLUMN slot ENUM('weapon', 'helmet', 'armor', 'gloves', 'boots', 'belt', 'ring1', 'ring2', 'amulet') NOT NULL COMMENT '装备槽位'");
+        DB::statement("ALTER TABLE game_equipment MODIFY COLUMN slot ENUM('weapon', 'helmet', 'armor', 'gloves', 'boots', 'belt', 'ring', 'amulet') NOT NULL COMMENT '装备槽位'");
     }
 };

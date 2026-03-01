@@ -86,7 +86,7 @@ class GameInventoryServiceTest extends TestCase
             'is_in_storage' => true,
             'slot_index' => 1,
         ]);
-        $equippedRing = $this->createEquippedItem($character, $ringDefinition, 'ring1');
+        $equippedRing = $this->createEquippedItem($character, $ringDefinition, 'ring');
 
         $result = $this->service->getInventoryForBroadcast($character);
 
@@ -95,7 +95,7 @@ class GameInventoryServiceTest extends TestCase
         $this->assertIsArray($result['equipment']);
         $this->assertSame($inventoryItem->id, $result['inventory'][0]['id']);
         $this->assertSame($storageItem->id, $result['storage'][0]['id']);
-        $this->assertSame($equippedRing->id, $result['equipment']['ring1']['id']);
+        $this->assertSame($equippedRing->id, $result['equipment']['ring']['id']);
         $this->assertNull($result['equipment']['weapon']);
     }
 
@@ -124,7 +124,7 @@ class GameInventoryServiceTest extends TestCase
         $this->assertArrayHasKey('attack', $result['stats_breakdown']);
     }
 
-    public function test_equip_item_uses_second_ring_slot_when_first_ring_is_occupied(): void
+    public function test_equip_item_replaces_existing_ring_when_ring_slot_is_occupied(): void
     {
         $character = $this->createCharacter();
         $ringDefinition = $this->createItemDefinition([
@@ -134,14 +134,14 @@ class GameInventoryServiceTest extends TestCase
             'base_stats' => ['crit_rate' => 0.01],
         ]);
 
-        $firstRing = $this->createEquippedItem($character, $ringDefinition, 'ring1');
+        $firstRing = $this->createEquippedItem($character, $ringDefinition, 'ring');
         $secondRing = $this->createItem($character, $ringDefinition, ['slot_index' => 3]);
 
         $result = $this->service->equipItem($character, $secondRing->id);
 
-        $this->assertSame('ring2', $result['equipped_slot']);
-        $this->assertSame($firstRing->id, $character->equipment()->where('slot', 'ring1')->first()->item_id);
-        $this->assertSame($secondRing->id, $character->equipment()->where('slot', 'ring2')->first()->item_id);
+        $this->assertSame('ring', $result['equipped_slot']);
+        // The second ring should replace the first ring in the slot
+        $this->assertSame($secondRing->id, $character->equipment()->where('slot', 'ring')->first()->item_id);
     }
 
     public function test_equip_item_rejects_items_that_fail_level_requirement(): void

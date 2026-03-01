@@ -385,7 +385,8 @@ class GameShopServiceTest extends TestCase
             'discovered_monsters' => [],
         ], $attributes));
 
-        foreach (config('game.slots') as $slot) {
+        $slots = ['weapon', 'helmet', 'armor', 'gloves', 'boots', 'belt', 'ring', 'amulet'];
+        foreach ($slots as $slot) {
             GameEquipment::create([
                 'character_id' => $character->id,
                 'slot' => $slot,

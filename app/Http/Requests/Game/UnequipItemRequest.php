@@ -14,7 +14,7 @@ class UnequipItemRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'slot' => 'required|in:weapon,helmet,armor,gloves,boots,belt,ring1,ring2,amulet',
+            'slot' => 'required|in:weapon,helmet,armor,gloves,boots,belt,ring,amulet',
         ];
     }
 

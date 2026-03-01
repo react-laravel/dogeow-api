@@ -92,7 +92,7 @@ class GameCharacter extends Model
     public static function getSlots(): array
     {
         return config('game.slots', [
-            'weapon', 'helmet', 'armor', 'gloves', 'boots', 'belt', 'ring1', 'ring2', 'amulet',
+            'weapon', 'helmet', 'armor', 'gloves', 'boots', 'belt', 'ring', 'amulet',
         ]);
     }
 
