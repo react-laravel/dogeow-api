@@ -27,7 +27,6 @@ Route::middleware('auth:sanctum')->group(function () {
     require base_path('routes/api/location.php'); // 地点
     require base_path('routes/api/note.php'); // 笔记
     require base_path('routes/api/profile.php'); // 个人资料
-    require base_path('routes/api/todo.php'); // 待办事项
     require base_path('routes/api/word.php'); // 单词
     require base_path('routes/api/logs.php'); // 日志
 

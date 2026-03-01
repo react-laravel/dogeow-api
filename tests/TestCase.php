@@ -15,14 +15,35 @@ abstract class TestCase extends BaseTestCase
         // Skip legacy controller tests or other unstable specs that are outside
         // the current focus; this prevents a cascade of failures while we fix
         // the core API behavior required for coverage reporting.
+        // Game controller tests are now allowed to run for coverage
         $reflect = new \ReflectionClass($this);
         $file = $reflect->getFileName();
-        if (str_contains($file, '/tests/Feature/Controllers/') ||
-            str_ends_with($file, 'MusicControllerTest.php') ||
+        $skipPatterns = [
+            // Skip Thing, Nav, Chat, Note controllers
+            '/tests/Feature/Controllers/Thing/',
+            '/tests/Feature/Controllers/Nav/',
+            '/tests/Feature/Controllers/Chat/',
+            '/tests/Feature/Controllers/Note/',
+            // Skip unstable legacy tests
+            '/tests/Feature/Controllers/DebugControllerTest.php',
+            '/tests/Feature/Controllers/ItemControllerTest.php',
+        ];
+        $shouldSkip = false;
+        foreach ($skipPatterns as $pattern) {
+            if (str_contains($file, $pattern) || str_ends_with($file, $pattern)) {
+                $shouldSkip = true;
+                break;
+            }
+        }
+        // Also skip legacy tests
+        if (str_ends_with($file, 'MusicControllerTest.php') ||
             str_ends_with($file, 'UploadControllerTest.php') ||
             str_ends_with($file, 'NoteTagControllerTest.php') ||
             str_ends_with($file, 'AuthControllerTest.php')
         ) {
+            $shouldSkip = true;
+        }
+        if ($shouldSkip) {
             $this->markTestSkipped('Skipping legacy controller test');
 
             return;
