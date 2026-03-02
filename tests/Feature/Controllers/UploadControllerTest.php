@@ -8,6 +8,7 @@ use App\Services\File\ImageProcessingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class UploadControllerTest extends TestCase
@@ -20,7 +21,7 @@ class UploadControllerTest extends TestCase
         Storage::fake('public');
     }
 
-    /** @test */
+    #[Test]
     public function it_can_upload_batch_images()
     {
         $user = User::factory()->create();
@@ -44,7 +45,7 @@ class UploadControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_image_files()
     {
         $user = User::factory()->create();
@@ -52,7 +53,7 @@ class UploadControllerTest extends TestCase
         $textFile = UploadedFile::fake()->create('test.txt', 100);
 
         $response = $this->actingAs($user)
-            ->post('/api/upload/images', [
+            ->postJson('/api/upload/images', [
                 'images' => [$textFile],
             ]);
 
@@ -60,7 +61,7 @@ class UploadControllerTest extends TestCase
         $response->assertJsonValidationErrors(['images.0']);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_image_size()
     {
         $user = User::factory()->create();
@@ -69,7 +70,7 @@ class UploadControllerTest extends TestCase
         $largeImage = UploadedFile::fake()->create('large.jpg', 25000); // 25MB
 
         $response = $this->actingAs($user)
-            ->post('/api/upload/images', [
+            ->postJson('/api/upload/images', [
                 'images' => [$largeImage],
             ]);
 
@@ -77,7 +78,7 @@ class UploadControllerTest extends TestCase
         $response->assertJsonValidationErrors(['images.0']);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_error_when_no_images_provided()
     {
         $user = User::factory()->create();
@@ -91,7 +92,7 @@ class UploadControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_invalid_uploaded_files()
     {
         $user = User::factory()->create();
@@ -109,15 +110,16 @@ class UploadControllerTest extends TestCase
         );
 
         $response = $this->actingAs($user)
-            ->post('/api/upload/images', [
+            ->postJson('/api/upload/images', [
                 'images' => [$invalidImage],
             ]);
 
-        // 应该返回成功，但处理过程中会跳过无效文件
-        $response->assertStatus(200);
+        // 上传错误返回 422 验证错误
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['images.0']);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_mixed_valid_and_invalid_files()
     {
         $user = User::factory()->create();
@@ -126,7 +128,7 @@ class UploadControllerTest extends TestCase
         $textFile = UploadedFile::fake()->create('invalid.txt', 100);
 
         $response = $this->actingAs($user)
-            ->post('/api/upload/images', [
+            ->postJson('/api/upload/images', [
                 'images' => [$validImage, $textFile],
             ]);
 
@@ -134,7 +136,7 @@ class UploadControllerTest extends TestCase
         $response->assertJsonValidationErrors(['images.1']);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_user_directory_structure()
     {
         $user = User::factory()->create();
@@ -150,7 +152,7 @@ class UploadControllerTest extends TestCase
         $this->assertTrue(Storage::disk('public')->exists('uploads/' . $user->id));
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_proper_error_message_for_upload_failures()
     {
         $user = User::factory()->create();
@@ -173,7 +175,7 @@ class UploadControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_image_processing_failures()
     {
         $user = User::factory()->create();

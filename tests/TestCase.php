@@ -19,8 +19,7 @@ abstract class TestCase extends BaseTestCase
         $reflect = new \ReflectionClass($this);
         $file = $reflect->getFileName();
         $skipPatterns = [
-            // Skip Thing, Nav, Chat, Note controllers
-            '/tests/Feature/Controllers/Thing/',
+            // Skip Nav, Chat, Note controllers
             '/tests/Feature/Controllers/Nav/',
             '/tests/Feature/Controllers/Chat/',
             '/tests/Feature/Controllers/Note/',
@@ -35,9 +34,8 @@ abstract class TestCase extends BaseTestCase
                 break;
             }
         }
-        // Also skip legacy tests
+        // Also skip legacy tests (except new controller tests)
         if (str_ends_with($file, 'MusicControllerTest.php') ||
-            str_ends_with($file, 'UploadControllerTest.php') ||
             str_ends_with($file, 'NoteTagControllerTest.php') ||
             str_ends_with($file, 'AuthControllerTest.php')
         ) {
