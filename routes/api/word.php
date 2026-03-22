@@ -28,7 +28,7 @@ Route::prefix('word')->name('word.')->group(function () {
     Route::patch('{id}', [LearningController::class, 'updateWord']);
 
     // 打卡
-    Route::post('check-in', [CheckInController::class, 'checkIn']);
+    Route::post('check-in', [CheckInController::class, 'checkIn'])->middleware('idempotency');
     // 整年日历
     Route::get('calendar/year/{year}', [CheckInController::class, 'getCalendarYear']);
     // 最近 365 天

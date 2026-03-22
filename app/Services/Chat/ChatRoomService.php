@@ -33,10 +33,10 @@ class ChatRoomService
     const MAX_ROOM_DESCRIPTION_LENGTH = 500;
 
     /**
-     * Validate room creation/update data
+     * Validate room creation/update data (format validation only, not existence check)
      *
      * @param  array<string, mixed>  $data
-     * @param  int|null  $excludeRoomId  When updating, exclude this room id from unique name check
+     * @param  int|null  $excludeRoomId  When updating, exclude this room id from unique name check (unused, kept for API compatibility)
      */
     public function validateRoomData(array $data, ?int $excludeRoomId = null): array
     {
@@ -62,15 +62,7 @@ class ChatRoomService
             if (CharLength::exceedsMax($name, self::MAX_ROOM_NAME_LENGTH)) {
                 $errors[] = '房间名称不能超过' . self::MAX_ROOM_NAME_LENGTH . '个字符(中文/emoji 算 2 个字符，数字/字母算 1 个字符)';
             }
-
-            // Check for duplicate room names
-            $nameQuery = ChatRoom::where('name', $name)->where('is_active', true);
-            if ($excludeRoomId !== null) {
-                $nameQuery->where('id', '!=', $excludeRoomId);
-            }
-            if ($nameQuery->exists()) {
-                $errors[] = '该房间名称已存在';
-            }
+            // Note: Duplicate name check moved to inside transaction in createRoom/updateRoom
         }
 
         // Validate description if provided
@@ -107,6 +99,15 @@ class ChatRoomService
 
         try {
             $room = DB::transaction(function () use ($validation, $createdBy) {
+                // Check for duplicate room name inside transaction to prevent race conditions
+                $nameExists = ChatRoom::where('name', $validation['sanitized_data']['name'])
+                    ->where('is_active', true)
+                    ->exists();
+
+                if ($nameExists) {
+                    throw new \InvalidArgumentException('该房间名称已存在');
+                }
+
                 $room = ChatRoom::create([
                     'name' => $validation['sanitized_data']['name'],
                     'description' => $validation['sanitized_data']['description'],
@@ -134,6 +135,11 @@ class ChatRoomService
                 'room' => $room->load('creator:id,name,email'),
             ];
 
+        } catch (\InvalidArgumentException $e) {
+            return [
+                'success' => false,
+                'errors' => [$e->getMessage()],
+            ];
         } catch (\Exception $e) {
             return [
                 'success' => false,
@@ -243,7 +249,7 @@ class ChatRoomService
 
         $room = ChatRoom::find($roomId);
 
-        // Validate new data (exclude current room from unique name check)
+        // Validate new data (format validation only, duplicate check moved to inside transaction)
         $validation = $this->validateRoomData($data, $roomId);
 
         if (! $validation['valid']) {
@@ -254,27 +260,43 @@ class ChatRoomService
         }
 
         try {
-            $oldName = $room->name;
+            return DB::transaction(function () use ($room, $roomId, $validation, $userId) {
+                // Check for duplicate room name inside transaction (excluding current room)
+                $nameExists = ChatRoom::where('name', $validation['sanitized_data']['name'])
+                    ->where('is_active', true)
+                    ->where('id', '!=', $roomId)
+                    ->exists();
 
-            $update = [
-                'name' => $validation['sanitized_data']['name'],
-                'description' => $validation['sanitized_data']['description'],
-            ];
-            if (array_key_exists('is_private', $data)) {
-                $update['is_private'] = $validation['sanitized_data']['is_private'];
-            }
-            $room->update($update);
+                if ($nameExists) {
+                    throw new \InvalidArgumentException('该房间名称已存在');
+                }
 
-            // Create system message if name changed
-            if ($oldName !== $room->name) {
-                $this->messageService->createSystemMessage($roomId, "Room renamed from '{$oldName}' to '{$room->name}'", $userId);
-            }
+                $oldName = $room->name;
 
+                $update = [
+                    'name' => $validation['sanitized_data']['name'],
+                    'description' => $validation['sanitized_data']['description'],
+                ];
+                if (array_key_exists('is_private', $validation['sanitized_data'])) {
+                    $update['is_private'] = $validation['sanitized_data']['is_private'];
+                }
+                $room->update($update);
+
+                // Create system message if name changed
+                if ($oldName !== $room->name) {
+                    $this->messageService->createSystemMessage($roomId, "Room renamed from '{$oldName}' to '{$room->name}'", $userId);
+                }
+
+                return [
+                    'success' => true,
+                    'room' => $room->fresh(),
+                ];
+            });
+        } catch (\InvalidArgumentException $e) {
             return [
-                'success' => true,
-                'room' => $room->fresh(),
+                'success' => false,
+                'errors' => [$e->getMessage()],
             ];
-
         } catch (\Exception $e) {
             return [
                 'success' => false,

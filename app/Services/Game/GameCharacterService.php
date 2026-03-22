@@ -100,18 +100,18 @@ class GameCharacterService
      */
     public function createCharacter(int $userId, string $name, string $class, string $gender = 'male'): GameCharacter
     {
-        // 验证角色名
+        // 验证角色名格式
         $this->validateCharacterName($name);
-
-        // 检查角色名是否已存在
-        if ($this->isCharacterNameTaken($name)) {
-            throw new \InvalidArgumentException('角色名已被使用');
-        }
 
         // 获取职业配置
         $classStats = $this->getClassBaseStats($class);
 
         return DB::transaction(function () use ($userId, $name, $class, $gender, $classStats) {
+            // Check if name is taken inside transaction to prevent race conditions
+            if ($this->isCharacterNameTaken($name)) {
+                throw new \InvalidArgumentException('角色名已被使用');
+            }
+
             // 创建角色
             $character = GameCharacter::create([
                 'user_id' => $userId,

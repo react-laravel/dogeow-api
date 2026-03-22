@@ -12,15 +12,15 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('chat')->group(function () {
     // Room management endpoints
     Route::get('/rooms', [ChatRoomController::class, 'index']);
-    Route::post('/rooms', [ChatRoomController::class, 'store']);
+    Route::post('/rooms', [ChatRoomController::class, 'store'])->middleware('idempotency');
     Route::put('/rooms/{roomId}', [ChatRoomController::class, 'update']);
-    Route::post('/rooms/{roomId}/join', [ChatRoomController::class, 'join']);
-    Route::post('/rooms/{roomId}/leave', [ChatRoomController::class, 'leave']);
+    Route::post('/rooms/{roomId}/join', [ChatRoomController::class, 'join'])->middleware('idempotency');
+    Route::post('/rooms/{roomId}/leave', [ChatRoomController::class, 'leave'])->middleware('idempotency');
     Route::delete('/rooms/{roomId}', [ChatRoomController::class, 'destroy']);
 
     // Message handling endpoints
     Route::get('/rooms/{roomId}/messages', [ChatMessageController::class, 'index']);
-    Route::post('/rooms/{roomId}/messages', [ChatMessageController::class, 'store']);
+    Route::post('/rooms/{roomId}/messages', [ChatMessageController::class, 'store'])->middleware('idempotency');
     Route::delete('/rooms/{roomId}/messages/{messageId}', [ChatMessageController::class, 'destroy']);
 
     // User presence management endpoints

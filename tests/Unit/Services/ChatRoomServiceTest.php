@@ -33,8 +33,10 @@ class ChatRoomServiceTest extends TestCase
         );
     }
 
-    public function test_validate_room_data_rejects_duplicate_active_room_name(): void
+    public function test_validate_room_data_only_validates_format_not_duplicates(): void
     {
+        // validateRoomData no longer checks for duplicate names - that check
+        // is now done inside the transaction in createRoom/updateRoom
         ChatRoom::factory()->create([
             'name' => 'Existing Room',
             'is_active' => true,
@@ -45,7 +47,24 @@ class ChatRoomServiceTest extends TestCase
             'description' => 'Another room',
         ]);
 
-        $this->assertFalse($result['valid']);
+        // Should pass format validation but createRoom will reject the duplicate
+        $this->assertTrue($result['valid']);
+    }
+
+    public function test_create_room_rejects_duplicate_active_room_name(): void
+    {
+        $creator = User::factory()->create();
+        ChatRoom::factory()->create([
+            'name' => 'Existing Room',
+            'is_active' => true,
+        ]);
+
+        $result = $this->service->createRoom([
+            'name' => 'Existing Room',
+            'description' => 'Another room',
+        ], $creator->id);
+
+        $this->assertFalse($result['success']);
         $this->assertContains('该房间名称已存在', $result['errors']);
     }
 
