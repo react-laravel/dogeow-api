@@ -36,9 +36,7 @@ class ChatPresenceService
     public function updateUserStatus(int $roomId, int $userId, bool $isOnline = true): array
     {
         try {
-            $roomUser = ChatRoomUser::where('room_id', $roomId)
-                ->where('user_id', $userId)
-                ->first();
+            $roomUser = ChatRoomUser::inRoom($roomId)->forUser($userId)->first();
 
             if (! $roomUser) {
                 // User not in room, create entry if coming online
@@ -93,9 +91,7 @@ class ChatPresenceService
         }
 
         // Check if user is already a member (needed for private room check and re-join)
-        $existingRoomUser = ChatRoomUser::where('room_id', $roomId)
-            ->where('user_id', $userId)
-            ->first();
+        $existingRoomUser = ChatRoomUser::inRoom($roomId)->forUser($userId)->first();
 
         if ($room->is_private && ! $existingRoomUser) {
             return [
@@ -133,9 +129,7 @@ class ChatPresenceService
             $this->messageService->createSystemMessage($roomId, "{$user->name} joined the room", $userId);
 
             // Get current online count
-            $onlineCount = ChatRoomUser::where('room_id', $roomId)
-                ->where('is_online', true)
-                ->count();
+            $onlineCount = ChatRoomUser::inRoom($roomId)->online()->count();
 
             // Broadcast user join event
             broadcast(new \App\Events\Chat\UserJoined($user, $roomId));
@@ -168,9 +162,7 @@ class ChatPresenceService
     {
         try {
             // Check if user is a member
-            $roomUser = ChatRoomUser::where('room_id', $roomId)
-                ->where('user_id', $userId)
-                ->first();
+            $roomUser = ChatRoomUser::inRoom($roomId)->forUser($userId)->first();
 
             if (! $roomUser) {
                 return [
@@ -195,9 +187,7 @@ class ChatPresenceService
             $this->messageService->createSystemMessage($roomId, "{$user->name} left the room", $userId);
 
             // Get current online count
-            $onlineCount = ChatRoomUser::where('room_id', $roomId)
-                ->where('is_online', true)
-                ->count();
+            $onlineCount = ChatRoomUser::inRoom($roomId)->online()->count();
 
             // Broadcast user leave event
             broadcast(new \App\Events\Chat\UserLeft($user, $roomId));
@@ -236,9 +226,7 @@ class ChatPresenceService
     public function processHeartbeat(int $roomId, int $userId): array
     {
         try {
-            $roomUser = ChatRoomUser::where('room_id', $roomId)
-                ->where('user_id', $userId)
-                ->first();
+            $roomUser = ChatRoomUser::inRoom($roomId)->forUser($userId)->first();
 
             if (! $roomUser) {
                 return [
@@ -273,7 +261,7 @@ class ChatPresenceService
         try {
             $timeoutThreshold = now()->subMinutes(self::PRESENCE_TIMEOUT_MINUTES);
 
-            $inactiveUsers = ChatRoomUser::where('is_online', true)
+            $inactiveUsers = ChatRoomUser::online()
                 ->where('last_seen_at', '<', $timeoutThreshold)
                 ->get();
 

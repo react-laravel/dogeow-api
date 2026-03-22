@@ -24,7 +24,7 @@ class ChatActivityService
         $since = now()->subHours($hours);
 
         // Get active users in the time period
-        $activeUsers = ChatRoomUser::where('room_id', $roomId)
+        $activeUsers = ChatRoomUser::inRoom($roomId)
             ->where('last_seen_at', '>=', $since)
             ->with('user:id,name,email')
             ->get();
@@ -71,8 +71,8 @@ class ChatActivityService
      */
     public function getPresenceStats(): array
     {
-        $totalOnlineUsers = ChatRoomUser::where('is_online', true)->count();
-        $totalRoomsWithUsers = ChatRoomUser::where('is_online', true)
+        $totalOnlineUsers = ChatRoomUser::online()->count();
+        $totalRoomsWithUsers = ChatRoomUser::online()
             ->distinct('room_id')
             ->count();
 

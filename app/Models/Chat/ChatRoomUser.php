@@ -89,15 +89,47 @@ class ChatRoomUser extends Model
     /**
      * Scope to get users in a specific room.
      */
-    public function scopeInRoom($query, $roomId)
+    public function scopeInRoom($query, int $roomId)
     {
         return $query->where('room_id', $roomId);
     }
 
     /**
+     * Scope to get users in a specific room for a specific user.
+     */
+    public function scopeForUser($query, int $userId)
+    {
+        return $query->where('user_id', $userId);
+    }
+
+    /**
+     * Scope to get users in a specific room for a specific user.
+     */
+    public function scopeInRoomForUser($query, int $roomId, int $userId)
+    {
+        return $query->where('room_id', $roomId)->where('user_id', $userId);
+    }
+
+    /**
+     * Scope to get muted users.
+     */
+    public function scopeMuted($query)
+    {
+        return $query->where('is_muted', true);
+    }
+
+    /**
+     * Scope to get banned users.
+     */
+    public function scopeBanned($query)
+    {
+        return $query->where('is_banned', true);
+    }
+
+    /**
      * Scope to get users who haven't been seen for a specified time.
      */
-    public function scopeInactiveSince($query, $minutes = 5)
+    public function scopeInactiveSince($query, int $minutes = 5)
     {
         return $query->where('last_seen_at', '<', Carbon::now()->subMinutes($minutes));
     }
@@ -260,5 +292,21 @@ class ChatRoomUser extends Model
     public function canSendMessages(): bool
     {
         return ! $this->isMuted() && ! $this->isBanned();
+    }
+
+    /**
+     * Find a room user by room and user ID.
+     */
+    public static function findByRoomAndUser(int $roomId, int $userId): ?self
+    {
+        return self::inRoom($roomId)->forUser($userId)->first();
+    }
+
+    /**
+     * Get online count for a room.
+     */
+    public static function onlineCountInRoom(int $roomId): int
+    {
+        return self::inRoom($roomId)->online()->count();
     }
 }

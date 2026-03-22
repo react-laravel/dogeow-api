@@ -395,9 +395,7 @@ class ContentFilterService
     private function autoMuteUser(int $userId, int $roomId, string $reason, int $durationMinutes = 10): bool
     {
         try {
-            $roomUser = \App\Models\Chat\ChatRoomUser::where('room_id', $roomId)
-                ->where('user_id', $userId)
-                ->first();
+            $roomUser = \App\Models\Chat\ChatRoomUser::inRoom($roomId)->forUser($userId)->first();
 
             if ($roomUser) {
                 $roomUser->update([

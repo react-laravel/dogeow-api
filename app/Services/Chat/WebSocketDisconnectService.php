@@ -25,8 +25,8 @@ class WebSocketDisconnectService
             Log::info("WebSocket disconnect detected for user: {$userId}, connection: {$connectionId}");
 
             // 获取用户当前在线的所有房间
-            $onlineRooms = ChatRoomUser::where('user_id', $userId)
-                ->where('is_online', true)
+            $onlineRooms = ChatRoomUser::forUser($userId)
+                ->online()
                 ->with(['room:id,name'])
                 ->get();
 
@@ -116,9 +116,7 @@ class WebSocketDisconnectService
      */
     public function getRoomOnlineCount(int $roomId): int
     {
-        return ChatRoomUser::where('room_id', $roomId)
-            ->where('is_online', true)
-            ->count();
+        return ChatRoomUser::inRoom($roomId)->online()->count();
     }
 
     /**
@@ -126,9 +124,6 @@ class WebSocketDisconnectService
      */
     public function isUserOnlineInRoom(int $userId, int $roomId): bool
     {
-        return ChatRoomUser::where('user_id', $userId)
-            ->where('room_id', $roomId)
-            ->where('is_online', true)
-            ->exists();
+        return ChatRoomUser::inRoomForUser($roomId, $userId)->online()->exists();
     }
 }

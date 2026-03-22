@@ -62,7 +62,7 @@ class ManageChatModerations extends Command
 
         // 获取被静音的用户
         /** @var \Illuminate\Database\Eloquent\Collection<int, ChatRoomUser> $mutedUsers */
-        $mutedUsers = ChatRoomUser::where('is_muted', true)
+        $mutedUsers = ChatRoomUser::muted()
             ->with(['user:id,name,email', 'room:id,name', 'mutedByUser:id,name'])
             ->get();
 
@@ -90,7 +90,7 @@ class ManageChatModerations extends Command
 
         // 获取被封禁的用户
         /** @var \Illuminate\Database\Eloquent\Collection<int, ChatRoomUser> $bannedUsers */
-        $bannedUsers = ChatRoomUser::where('is_banned', true)
+        $bannedUsers = ChatRoomUser::banned()
             ->with(['user:id,name,email', 'room:id,name', 'bannedByUser:id,name'])
             ->get();
 
@@ -140,7 +140,7 @@ class ManageChatModerations extends Command
         }
 
         if ($all) {
-            $mutedUsers = ChatRoomUser::where('is_muted', true)->get();
+            $mutedUsers = ChatRoomUser::muted()->get();
             $count = $mutedUsers->count();
 
             foreach ($mutedUsers as $roomUser) {
@@ -165,7 +165,7 @@ class ManageChatModerations extends Command
         }
 
         // 查找房间与用户关联关系
-        $roomUser = ChatRoomUser::where('room_id', $room->id)
+        $roomUser = ChatRoomUser::inRoom($room->id)->forUser($user->id)
             ->where('user_id', $user->id)
             ->first();
 
@@ -203,7 +203,7 @@ class ManageChatModerations extends Command
         }
 
         if ($all) {
-            $bannedUsers = ChatRoomUser::where('is_banned', true)->get();
+            $bannedUsers = ChatRoomUser::banned()->get();
             $count = $bannedUsers->count();
 
             foreach ($bannedUsers as $roomUser) {
@@ -228,8 +228,7 @@ class ManageChatModerations extends Command
         }
 
         // 查找房间与用户关联关系
-        $roomUser = ChatRoomUser::where('room_id', $room->id)
-            ->where('user_id', $user->id)
+        $roomUser = ChatRoomUser::inRoom($room->id)->forUser($user->id)
             ->first();
 
         if (! $roomUser) {
@@ -258,7 +257,7 @@ class ManageChatModerations extends Command
         $now = Carbon::now();
 
         // 清理已过期的静音
-        $expiredMutes = ChatRoomUser::where('is_muted', true)
+        $expiredMutes = ChatRoomUser::muted()
             ->where('muted_until', '<', $now)
             ->whereNotNull('muted_until')
             ->get();
@@ -268,7 +267,7 @@ class ManageChatModerations extends Command
         }
 
         // 清理已过期的封禁
-        $expiredBans = ChatRoomUser::where('is_banned', true)
+        $expiredBans = ChatRoomUser::banned()
             ->where('banned_until', '<', $now)
             ->whereNotNull('banned_until')
             ->get();
