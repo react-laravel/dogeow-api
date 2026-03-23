@@ -1090,4 +1090,22 @@ class ChatControllerTest extends TestCase
         $response->assertStatus(500)
             ->assertJsonPath('message', 'Failed to send message');
     }
+
+    public function test_unauthenticated_user_cannot_access_chat_routes(): void
+    {
+        // Refresh the application to clear any authentication state from setUp()
+        $this->refreshApplication();
+
+        $response = $this->getJson('/api/chat/rooms');
+        $response->assertStatus(401);
+
+        $response = $this->postJson('/api/chat/rooms', ['name' => 'Test']);
+        $response->assertStatus(401);
+
+        $response = $this->getJson("/api/chat/rooms/{$this->room->id}/messages");
+        $response->assertStatus(401);
+
+        $response = $this->postJson("/api/chat/rooms/{$this->room->id}/messages", ['message' => 'Test']);
+        $response->assertStatus(401);
+    }
 }

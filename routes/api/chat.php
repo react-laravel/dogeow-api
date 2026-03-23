@@ -9,7 +9,7 @@ use App\Http\Controllers\Api\Chat\ChatRoomController;
 use App\Http\Controllers\Api\Chat\ChatUserModerationController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('chat')->group(function () {
+Route::prefix('chat')->middleware('auth:sanctum')->group(function () {
     // Room management endpoints
     Route::get('/rooms', [ChatRoomController::class, 'index']);
     Route::post('/rooms', [ChatRoomController::class, 'store']);

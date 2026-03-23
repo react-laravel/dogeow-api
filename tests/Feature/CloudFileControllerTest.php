@@ -64,26 +64,37 @@ class CloudFileControllerTest extends TestCase
             ->assertJsonPath('1.id', $secondMatch->id);
     }
 
-    public function test_create_folder_uses_guest_fallback_user_id(): void
+    public function test_create_folder_requires_authentication(): void
     {
+        // Ensure unauthenticated requests are rejected
         Auth::logout();
-        Auth::forgetGuards();
 
         $response = $this->postJson('/api/cloud/folders', [
             'name' => 'Guest Folder',
             'description' => 'Created without login',
         ]);
 
+        $response->assertStatus(401);
+    }
+
+    public function test_create_folder_creates_folder_for_authenticated_user(): void
+    {
+        // Authenticated user can create folders
+        $response = $this->postJson('/api/cloud/folders', [
+            'name' => 'My Folder',
+            'description' => 'Created by authenticated user',
+        ]);
+
         $response->assertStatus(201)
             ->assertJson([
-                'name' => 'Guest Folder',
-                'user_id' => 1,
+                'name' => 'My Folder',
+                'user_id' => $this->user->id,
                 'is_folder' => true,
             ]);
 
         $this->assertDatabaseHas('cloud_files', [
-            'name' => 'Guest Folder',
-            'user_id' => 1,
+            'name' => 'My Folder',
+            'user_id' => $this->user->id,
             'is_folder' => true,
         ]);
     }
@@ -582,5 +593,20 @@ class CloudFileControllerTest extends TestCase
         return $stats
             ->mapWithKeys(fn (array $row) => [$row['file_type'] => $row])
             ->all();
+    }
+
+    public function test_unauthenticated_user_cannot_access_cloud_routes(): void
+    {
+        // Explicitly log out the user set up in setUp()
+        Auth::logout();
+
+        $response = $this->getJson('/api/cloud/files');
+        $response->assertStatus(401);
+
+        $response = $this->getJson('/api/cloud/tree');
+        $response->assertStatus(401);
+
+        $response = $this->getJson('/api/cloud/statistics');
+        $response->assertStatus(401);
     }
 }
