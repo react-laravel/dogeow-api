@@ -19,29 +19,129 @@ class CombatDamageCalculatorTest extends TestCase
     #[Test]
     public function apply_character_damage_to_monsters_returns_updated_monsters_and_total_damage(): void
     {
-        // TODO: Implement test
-        $this->markTestSkipped('TODO: Implement test');
+        // Arrange
+        $monsters = [
+            ['hp' => 100, 'defense' => 10, 'position' => 0, 'name' => 'Monster1'],
+            ['hp' => 100, 'defense' => 10, 'position' => 1, 'name' => 'Monster2'],
+        ];
+        $targetMonsters = [['position' => 0]];
+
+        // Act
+        $result = $this->calculator->applyCharacterDamageToMonsters(
+            $monsters,
+            $targetMonsters,
+            charAttack: 50,
+            skillDamage: 0,
+            isCrit: false,
+            charCritDamage: 1.5,
+            useAoe: false
+        );
+
+        // Assert
+        [$updatedMonsters, $totalDamage] = $result;
+        $this->assertIsArray($updatedMonsters);
+        $this->assertIsInt($totalDamage);
+        $this->assertGreaterThan(0, $totalDamage);
+        // First monster should be targeted and have reduced HP
+        $this->assertLessThan(100, $updatedMonsters[0]['hp']);
+        $this->assertTrue($updatedMonsters[0]['was_attacked']);
+        $this->assertEquals(100, $updatedMonsters[1]['hp']); // Second monster not targeted
+        $this->assertFalse($updatedMonsters[1]['was_attacked']);
     }
 
     #[Test]
     public function apply_character_damage_to_monsters_skips_new_monsters(): void
     {
-        // TODO: Implement test
-        $this->markTestSkipped('TODO: Implement test');
+        // Arrange
+        $monsters = [
+            ['hp' => 100, 'defense' => 10, 'position' => 0, 'is_new' => true, 'name' => 'NewMonster'],
+            ['hp' => 100, 'defense' => 10, 'position' => 1, 'name' => 'OldMonster'],
+        ];
+        $targetMonsters = [['position' => 0], ['position' => 1]];
+
+        // Act
+        $result = $this->calculator->applyCharacterDamageToMonsters(
+            $monsters,
+            $targetMonsters,
+            charAttack: 50,
+            skillDamage: 0,
+            isCrit: false,
+            charCritDamage: 1.5,
+            useAoe: false
+        );
+
+        // Assert
+        [$updatedMonsters, $totalDamage] = $result;
+        // New monster should keep original HP (not attacked)
+        $this->assertEquals(100, $updatedMonsters[0]['hp']);
+        // Old monster should have reduced HP
+        $this->assertLessThan(100, $updatedMonsters[1]['hp']);
+        // is_new flag should be cleared after processing
+        $this->assertArrayNotHasKey('is_new', $updatedMonsters[0]);
     }
 
     #[Test]
     public function apply_character_damage_to_monsters_applies_aoe_multiplier_when_use_aoe(): void
     {
-        // TODO: Implement test
-        $this->markTestSkipped('TODO: Implement test');
+        // Arrange
+        $monsters = [
+            ['hp' => 100, 'defense' => 0, 'position' => 0, 'name' => 'Monster1'],
+            ['hp' => 100, 'defense' => 0, 'position' => 1, 'name' => 'Monster2'],
+        ];
+        $targetMonsters = [['position' => 0], ['position' => 1]];
+
+        // Act - with AOE (useAoe: true)
+        [$updatedMonstersAoe, $totalDamageAoe] = $this->calculator->applyCharacterDamageToMonsters(
+            $monsters,
+            $targetMonsters,
+            charAttack: 100,
+            skillDamage: 0,
+            isCrit: false,
+            charCritDamage: 1.5,
+            useAoe: true
+        );
+
+        // Act - without AOE (useAoe: false)
+        [$updatedMonstersNoAoe, $totalDamageNoAoe] = $this->calculator->applyCharacterDamageToMonsters(
+            $monsters,
+            $targetMonsters,
+            charAttack: 100,
+            skillDamage: 0,
+            isCrit: false,
+            charCritDamage: 1.5,
+            useAoe: false
+        );
+
+        // Assert - AOE damage should be less due to multiplier
+        $this->assertLessThan($totalDamageNoAoe, $totalDamageAoe);
+        // AOE multiplier is 0.7 from config
+        $this->assertEquals(70, $totalDamageAoe); // 100 * 0.7 = 70
+        $this->assertEquals(100, $totalDamageNoAoe); // 100 * 1.0 = 100
     }
 
     #[Test]
     public function apply_character_damage_to_monsters_clears_is_new_flag(): void
     {
-        // TODO: Implement test
-        $this->markTestSkipped('TODO: Implement test');
+        // Arrange
+        $monsters = [
+            ['hp' => 100, 'defense' => 10, 'position' => 0, 'is_new' => true, 'name' => 'NewMonster'],
+        ];
+        $targetMonsters = [['position' => 0]];
+
+        // Act
+        $result = $this->calculator->applyCharacterDamageToMonsters(
+            $monsters,
+            $targetMonsters,
+            charAttack: 50,
+            skillDamage: 0,
+            isCrit: false,
+            charCritDamage: 1.5,
+            useAoe: false
+        );
+
+        // Assert
+        [$updatedMonsters, ] = $result;
+        $this->assertArrayNotHasKey('is_new', $updatedMonsters[0]);
     }
 
     #[Test]
@@ -70,22 +170,55 @@ class CombatDamageCalculatorTest extends TestCase
     #[Test]
     public function compute_base_attack_damage_applies_crit_when_is_crit_true(): void
     {
-        // TODO: Implement test
-        $this->markTestSkipped('TODO: Implement test');
+        // Arrange
+        $targets = [['position' => 0, 'defense' => 10]];
+
+        // Act
+        $result = $this->calculator->computeBaseAttackDamage($targets, 0, 100, 1.5, true, 0.5);
+
+        // Assert
+        // Base damage = 100 - 10 * 0.5 = 95
+        // With crit: 95 * 1.5 = 142 (rounded)
+        // Crit bonus: 95 * 0.5 = 47
+        [$damage, $critBonus] = $result;
+        $this->assertEquals(142, $damage);
+        $this->assertEquals(47, $critBonus);
     }
 
     #[Test]
     public function calculate_monster_counter_damage_returns_total_counter_damage(): void
     {
-        // TODO: Implement test
-        $this->markTestSkipped('TODO: Implement test');
+        // Arrange
+        $monsters = [
+            ['hp' => 100, 'attack' => 30, 'position' => 0],
+            ['hp' => 100, 'attack' => 20, 'position' => 1],
+        ];
+
+        // Act
+        $result = $this->calculator->calculateMonsterCounterDamage($monsters, charDefense: 10);
+
+        // Assert
+        // Monster 1: 30 - 10 * 0.3 = 27
+        // Monster 2: 20 - 10 * 0.3 = 17
+        // Total: 44
+        $this->assertEquals(44, $result);
     }
 
     #[Test]
     public function calculate_monster_counter_damage_excludes_dead_monsters(): void
     {
-        // TODO: Implement test
-        $this->markTestSkipped('TODO: Implement test');
+        // Arrange
+        $monsters = [
+            ['hp' => 0, 'attack' => 30, 'position' => 0], // Dead
+            ['hp' => 100, 'attack' => 20, 'position' => 1], // Alive
+        ];
+
+        // Act
+        $result = $this->calculator->calculateMonsterCounterDamage($monsters, charDefense: 10);
+
+        // Assert - only alive monster counts
+        // Monster 2: 20 - 10 * 0.3 = 17
+        $this->assertEquals(17, $result);
     }
 
     #[Test]
@@ -148,15 +281,36 @@ class CombatDamageCalculatorTest extends TestCase
     #[Test]
     public function select_round_targets_returns_single_target_when_not_aoe(): void
     {
-        // TODO: Implement test
-        $this->markTestSkipped('TODO: Implement test');
+        // Arrange
+        $monsters = [
+            ['hp' => 100, 'position' => 0],
+            ['hp' => 100, 'position' => 1],
+        ];
+
+        // Act
+        $result = $this->calculator->selectRoundTargets($monsters, false);
+
+        // Assert - should return single target
+        $this->assertCount(1, $result);
+        $this->assertArrayHasKey('hp', $result[0]);
+        $this->assertEquals(100, $result[0]['hp']);
     }
 
     #[Test]
     public function select_round_targets_returns_all_alive_monsters_when_aoe(): void
     {
-        // TODO: Implement test
-        $this->markTestSkipped('TODO: Implement test');
+        // Arrange
+        $monsters = [
+            ['hp' => 100, 'position' => 0],
+            ['hp' => 0, 'position' => 1], // Dead
+            ['hp' => 100, 'position' => 2],
+        ];
+
+        // Act
+        $result = $this->calculator->selectRoundTargets($monsters, true);
+
+        // Assert - should return all alive monsters
+        $this->assertCount(2, $result);
     }
 
     #[Test]

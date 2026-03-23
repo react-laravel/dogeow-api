@@ -74,7 +74,7 @@ class LearningControllerTest extends TestCase
     {
         $user = User::factory()->create();
         $book = $this->createBook();
-        $word = $this->createWord();
+        $word = $this->createWord(['content' => 'apple']);
         $book->words()->attach($word->id, ['sort_order' => 1]);
         $this->createUserSetting($user, ['current_book_id' => $book->id]);
 
@@ -82,6 +82,10 @@ class LearningControllerTest extends TestCase
             ->getJson('/api/word/daily');
 
         $response->assertStatus(200);
+        $data = $response->json('data');
+        $this->assertIsArray($data);
+        $this->assertNotEmpty($data);
+        $this->assertEquals('apple', $data[0]['content']);
     }
 
     public function test_get_daily_words_returns_empty_when_no_book(): void
@@ -93,6 +97,7 @@ class LearningControllerTest extends TestCase
             ->getJson('/api/word/daily');
 
         $response->assertStatus(200);
+        $response->assertJsonPath('data', []);
     }
 
     public function test_get_daily_words_returns_empty_when_current_book_does_not_exist(): void
@@ -110,12 +115,28 @@ class LearningControllerTest extends TestCase
     public function test_can_get_review_words(): void
     {
         $user = User::factory()->create();
-        $this->createUserSetting($user);
+        $book = $this->createBook();
+        $word = $this->createWord(['content' => 'review']);
+        $this->createUserSetting($user, ['current_book_id' => $book->id]);
+
+        // Create a user word that needs review (status 1-3, next_review_at in past)
+        UserWord::create([
+            'user_id' => $user->id,
+            'word_id' => $word->id,
+            'word_book_id' => $book->id,
+            'status' => 1,
+            'stage' => 1,
+            'ease_factor' => 2.50,
+            'next_review_at' => now()->subDay(),
+            'review_count' => 0,
+        ]);
 
         $response = $this->actingAs($user)
             ->getJson('/api/word/review');
 
         $response->assertStatus(200);
+        $data = $response->json('data');
+        $this->assertIsArray($data);
     }
 
     public function test_can_mark_word_as_remembered(): void
@@ -132,6 +153,13 @@ class LearningControllerTest extends TestCase
             ]);
 
         $response->assertStatus(200);
+        $response->assertJsonPath('message', '单词标记成功');
+
+        $this->assertDatabaseHas('word_user_words', [
+            'user_id' => $user->id,
+            'word_id' => $word->id,
+            'word_book_id' => $book->id,
+        ]);
     }
 
     public function test_can_mark_word_as_not_remembered(): void
@@ -148,6 +176,13 @@ class LearningControllerTest extends TestCase
             ]);
 
         $response->assertStatus(200);
+        $response->assertJsonPath('message', '单词标记成功');
+
+        $userWord = UserWord::where('user_id', $user->id)
+            ->where('word_id', $word->id)
+            ->first();
+        $this->assertNotNull($userWord);
+        $this->assertGreaterThan(0, $userWord->review_count);
     }
 
     public function test_mark_word_initializes_existing_pending_user_word(): void
@@ -206,6 +241,14 @@ class LearningControllerTest extends TestCase
             ->postJson('/api/word/simple/' . $word->id);
 
         $response->assertStatus(200);
+        $response->assertJsonPath('message', '已设为简单词');
+
+        $userWord = UserWord::where('user_id', $user->id)
+            ->where('word_id', $word->id)
+            ->first();
+        $this->assertNotNull($userWord);
+        $this->assertSame(4, $userWord->status);
+        $this->assertNull($userWord->next_review_at);
     }
 
     public function test_mark_word_as_simple_requires_book(): void
@@ -230,6 +273,16 @@ class LearningControllerTest extends TestCase
             ->getJson('/api/word/progress');
 
         $response->assertStatus(200);
+        $response->assertJsonStructure([
+            'data' => [
+                'total_words',
+                'learned_words',
+                'mastered_words',
+                'difficult_words',
+                'simple_words',
+                'progress_percentage',
+            ],
+        ]);
     }
 
     public function test_get_progress_returns_zero_when_no_book(): void
@@ -241,6 +294,9 @@ class LearningControllerTest extends TestCase
             ->getJson('/api/word/progress');
 
         $response->assertStatus(200);
+        $response->assertJsonPath('data.total_words', 0);
+        $response->assertJsonPath('data.learned_words', 0);
+        $response->assertJsonPath('data.progress_percentage', 0);
     }
 
     public function test_get_progress_returns_not_found_when_current_book_is_missing(): void
@@ -278,6 +334,8 @@ class LearningControllerTest extends TestCase
             ->getJson('/api/word/search/hello');
 
         $response->assertStatus(200);
+        $response->assertJsonPath('data.found', true);
+        $response->assertJsonPath('data.word.content', 'hello');
     }
 
     public function test_search_word_returns_not_found(): void
@@ -313,6 +371,8 @@ class LearningControllerTest extends TestCase
             ]);
 
         $response->assertStatus(200);
+        $response->assertJsonPath('message', '单词更新成功');
+        $response->assertJsonPath('data.word.explanation', 'Updated explanation');
     }
 
     public function test_can_create_word_and_attach_books_by_education_level(): void
@@ -379,6 +439,11 @@ class LearningControllerTest extends TestCase
             ->getJson('/api/word/fill-blank');
 
         $response->assertStatus(200);
+        $data = $response->json('data');
+        $this->assertIsArray($data);
+        $this->assertNotEmpty($data);
+        $this->assertArrayHasKey('content', $data[0]);
+        $this->assertArrayHasKey('example_sentences', $data[0]);
     }
 
     public function test_requires_authentication_for_daily_words(): void
