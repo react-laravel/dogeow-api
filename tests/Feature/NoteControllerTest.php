@@ -863,4 +863,125 @@ class NoteControllerTest extends TestCase
             ->assertJsonPath('is_wiki', true)
             ->assertJsonPath('slug', 'auto-generated-slug-wiki');
     }
+
+    // ─── Link Authorization Tests ─────────────────────────────────────────────
+
+    public function test_store_link_allows_user_who_owns_source_note(): void
+    {
+        $source = Note::factory()->create(['user_id' => $this->user->id]);
+        $otherUser = User::factory()->create();
+        $target = Note::factory()->create(['user_id' => $otherUser->id]);
+
+        $response = $this->postJson('/api/notes/links', [
+            'source_id' => $source->id,
+            'target_id' => $target->id,
+            'type' => 'related',
+        ]);
+
+        $response->assertStatus(201);
+    }
+
+    public function test_store_link_allows_user_who_owns_target_note(): void
+    {
+        $otherUser = User::factory()->create();
+        $source = Note::factory()->create(['user_id' => $otherUser->id]);
+        $target = Note::factory()->create(['user_id' => $this->user->id]);
+
+        $response = $this->postJson('/api/notes/links', [
+            'source_id' => $source->id,
+            'target_id' => $target->id,
+            'type' => 'related',
+        ]);
+
+        $response->assertStatus(201);
+    }
+
+    public function test_store_link_denies_user_who_owns_neither_note(): void
+    {
+        $otherUser = User::factory()->create();
+        $source = Note::factory()->create(['user_id' => $otherUser->id]);
+        $target = Note::factory()->create(['user_id' => $otherUser->id]);
+
+        $response = $this->postJson('/api/notes/links', [
+            'source_id' => $source->id,
+            'target_id' => $target->id,
+            'type' => 'related',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJson(['message' => 'You do not have permission to create a link for these notes']);
+    }
+
+    public function test_store_link_allows_admin_regardless_of_ownership(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        Sanctum::actingAs($admin);
+
+        $otherUser = User::factory()->create();
+        $source = Note::factory()->create(['user_id' => $otherUser->id]);
+        $target = Note::factory()->create(['user_id' => $otherUser->id]);
+
+        $response = $this->postJson('/api/notes/links', [
+            'source_id' => $source->id,
+            'target_id' => $target->id,
+            'type' => 'related',
+        ]);
+
+        $response->assertStatus(201);
+    }
+
+    public function test_destroy_link_allows_owner_of_source_note(): void
+    {
+        $source = Note::factory()->create(['user_id' => $this->user->id]);
+        $target = Note::factory()->create(['user_id' => $this->user->id]);
+
+        $link = NoteLink::create([
+            'source_id' => $source->id,
+            'target_id' => $target->id,
+            'type' => 'related',
+        ]);
+
+        $response = $this->deleteJson("/api/notes/links/{$link->id}");
+
+        $response->assertStatus(200);
+        $this->assertDatabaseMissing('note_links', ['id' => $link->id]);
+    }
+
+    public function test_destroy_link_denies_user_who_does_not_own_source_note(): void
+    {
+        $otherUser = User::factory()->create();
+        $source = Note::factory()->create(['user_id' => $otherUser->id]);
+        $target = Note::factory()->create(['user_id' => $this->user->id]);
+
+        $link = NoteLink::create([
+            'source_id' => $source->id,
+            'target_id' => $target->id,
+            'type' => 'related',
+        ]);
+
+        $response = $this->deleteJson("/api/notes/links/{$link->id}");
+
+        $response->assertStatus(403)
+            ->assertJson(['message' => 'You do not have permission to delete this link']);
+    }
+
+    public function test_destroy_link_allows_admin_regardless_of_ownership(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        Sanctum::actingAs($admin);
+
+        $otherUser = User::factory()->create();
+        $source = Note::factory()->create(['user_id' => $otherUser->id]);
+        $target = Note::factory()->create(['user_id' => $otherUser->id]);
+
+        $link = NoteLink::create([
+            'source_id' => $source->id,
+            'target_id' => $target->id,
+            'type' => 'related',
+        ]);
+
+        $response = $this->deleteJson("/api/notes/links/{$link->id}");
+
+        $response->assertStatus(200);
+    }
 }

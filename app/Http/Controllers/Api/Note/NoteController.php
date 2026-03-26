@@ -355,6 +355,21 @@ class NoteController extends Controller
             'type' => 'nullable|string|max:255',
         ]);
 
+        $userId = $this->getCurrentUserId();
+        $user = \Illuminate\Support\Facades\Auth::user();
+
+        $sourceNote = \App\Models\Note\Note::find($validated['source_id']);
+        $targetNote = \App\Models\Note\Note::find($validated['target_id']);
+
+        // Authorization: user must own at least one of the notes (or be admin) to create a link between them
+        $canCreateLink = $user->isAdmin()
+            || $sourceNote->user_id === $userId
+            || $targetNote->user_id === $userId;
+
+        if (! $canCreateLink) {
+            return $this->error('You do not have permission to create a link for these notes', [], 403);
+        }
+
         // 检查是否已存在相同的链接
         $existingLink = NoteLink::where('source_id', $validated['source_id'])
             ->where('target_id', $validated['target_id'])
@@ -381,7 +396,15 @@ class NoteController extends Controller
      */
     public function destroyLink(int $id): JsonResponse
     {
-        $link = NoteLink::findOrFail($id);
+        $link = NoteLink::with('sourceNote')->findOrFail($id);
+        $userId = $this->getCurrentUserId();
+        $user = \Illuminate\Support\Facades\Auth::user();
+
+        // Authorization: only the owner of the source note (or admin) can delete the link
+        if (! $user->isAdmin() && $link->sourceNote?->user_id !== $userId) {
+            return $this->error('You do not have permission to delete this link', [], 403);
+        }
+
         $link->delete();
 
         return $this->success([], 'Link deleted successfully');
