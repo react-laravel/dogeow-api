@@ -98,10 +98,10 @@ class ItemControllerTest extends TestCase
         $response = $this->postJson('/api/things/items', $itemData);
 
         $response->assertStatus(201);
-        $response->assertJsonPath('item.name', 'Test Item');
-        $response->assertJsonPath('item.description', 'Test Description');
-        $response->assertJsonPath('item.status', 'active');
-        $response->assertJsonPath('item.user_id', $this->user->id);
+        $response->assertJsonPath('data.name', 'Test Item');
+        $response->assertJsonPath('data.description', 'Test Description');
+        $response->assertJsonPath('data.status', 'active');
+        $response->assertJsonPath('data.user_id', $this->user->id);
 
         $this->assertDatabaseHas('thing_items', [
             'name' => 'Test Item',
@@ -168,7 +168,7 @@ class ItemControllerTest extends TestCase
         ]);
 
         $response->assertStatus(201)
-            ->assertJsonPath('item.name', 'Item With Tags Field');
+            ->assertJsonPath('data.name', 'Item With Tags Field');
 
         $item = Item::where('name', 'Item With Tags Field')->firstOrFail();
         $this->assertEqualsCanonicalizing(
@@ -418,8 +418,10 @@ class ItemControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJson([
-            'id' => $item->id,
-            'name' => $item->name,
+            'data' => [
+                'id' => $item->id,
+                'name' => $item->name,
+            ],
         ]);
     }
 
@@ -451,9 +453,9 @@ class ItemControllerTest extends TestCase
         $response = $this->putJson("/api/things/items/{$item->id}", $updateData);
 
         $response->assertStatus(200);
-        $response->assertJsonPath('item.name', 'Updated Item Name');
-        $response->assertJsonPath('item.description', 'Updated Description');
-        $response->assertJsonPath('item.status', 'inactive');
+        $response->assertJsonPath('data.name', 'Updated Item Name');
+        $response->assertJsonPath('data.description', 'Updated Description');
+        $response->assertJsonPath('data.status', 'inactive');
 
         $this->assertDatabaseHas('thing_items', [
             'id' => $item->id,
@@ -558,7 +560,7 @@ class ItemControllerTest extends TestCase
         $response = $this->getJson('/api/things/items/categories');
 
         $response->assertStatus(200);
-        $categories = $response->json();
+        $categories = $response->json('data');
         $this->assertGreaterThanOrEqual(5, count($categories));
     }
 
@@ -679,10 +681,12 @@ class ItemControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
-            'related_items',
-            'relating_items',
+            'data' => [
+                'related_items',
+                'relating_items',
+            ],
         ]);
-        $this->assertCount(1, $response->json('related_items'));
+        $this->assertCount(1, $response->json('data.related_items'));
     }
 
     public function test_add_relation_creates_relationship()
@@ -811,8 +815,10 @@ class ItemControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
-            'related_items',
-            'relating_items',
+            'data' => [
+                'related_items',
+                'relating_items',
+            ],
         ]);
     }
 
@@ -912,8 +918,8 @@ class ItemControllerTest extends TestCase
         ]);
 
         $response->assertStatus(200);
-        $response->assertJsonPath('success_count', 1);
-        $this->assertNotEmpty($response->json('errors'));
+        $response->assertJsonPath('data.success_count', 1);
+        $this->assertNotEmpty($response->json('data.errors'));
     }
 
     public function test_index_with_status_filter_all_returns_all_statuses(): void
@@ -949,7 +955,7 @@ class ItemControllerTest extends TestCase
         $response = $this->getJson('/api/things/items/categories');
 
         $response->assertStatus(200);
-        $categories = $response->json();
+        $categories = $response->json('data');
         $this->assertGreaterThanOrEqual(1, count($categories));
         foreach ($categories as $cat) {
             $this->assertEquals($this->user->id, $cat['user_id']);

@@ -45,7 +45,7 @@ class CategoryControllerTest extends TestCase
         $response = $this->getJson('/api/things/categories');
 
         $response->assertStatus(200)
-            ->assertJsonCount(1)
+            ->assertJsonCount(1, 'data')
             ->assertJsonFragment(['id' => $userCategory->id])
             ->assertJsonMissing(['id' => $otherUserCategory->id]);
     }
@@ -65,12 +65,14 @@ class CategoryControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonStructure([
-                '*' => [
-                    'id',
-                    'name',
-                    'parent',
-                    'children',
-                    'items_count',
+                'data' => [
+                    '*' => [
+                        'id',
+                        'name',
+                        'parent',
+                        'children',
+                        'items_count',
+                    ],
                 ],
             ]);
     }
@@ -80,7 +82,7 @@ class CategoryControllerTest extends TestCase
         $response = $this->getJson('/api/things/categories');
 
         $response->assertStatus(200)
-            ->assertJson([]);
+            ->assertJsonPath('data', []);
     }
 
     public function test_index_orders_by_parent_id_then_name()
@@ -104,7 +106,7 @@ class CategoryControllerTest extends TestCase
         $response = $this->getJson('/api/things/categories');
 
         $response->assertStatus(200);
-        $categories = $response->json();
+        $categories = $response->json('data');
 
         // Should be ordered by parent_id (null first), then by name
         $this->assertEquals($categoryA->id, $categories[0]['id']);
@@ -123,7 +125,7 @@ class CategoryControllerTest extends TestCase
         $response->assertStatus(201)
             ->assertJson([
                 'message' => '分类创建成功',
-                'category' => [
+                'data' => [
                     'name' => 'Test Category',
                     'user_id' => $this->user->id,
                 ],
@@ -152,7 +154,7 @@ class CategoryControllerTest extends TestCase
         $response->assertStatus(201)
             ->assertJson([
                 'message' => '分类创建成功',
-                'category' => [
+                'data' => [
                     'name' => 'Child Category',
                     'parent_id' => $parentCategory->id,
                     'user_id' => $this->user->id,
@@ -288,8 +290,10 @@ class CategoryControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'id' => $category->id,
-                'name' => $category->name,
+                'data' => [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                ],
             ]);
     }
 
@@ -315,12 +319,14 @@ class CategoryControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonStructure([
-                'id',
-                'name',
-                'items' => [
-                    '*' => [
-                        'id',
-                        'name',
+                'data' => [
+                    'id',
+                    'name',
+                    'items' => [
+                        '*' => [
+                            'id',
+                            'name',
+                        ],
                     ],
                 ],
             ]);
@@ -341,12 +347,14 @@ class CategoryControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonStructure([
-                'id',
-                'name',
-                'items',
+                'data' => [
+                    'id',
+                    'name',
+                    'items',
+                ],
             ]);
 
-        $this->assertEmpty($response->json('items'));
+        $this->assertEmpty($response->json('data.items'));
     }
 
     // ==================== Update Tests ====================
@@ -361,7 +369,7 @@ class CategoryControllerTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'message' => '分类更新成功',
-                'category' => [
+                'data' => [
                     'id' => $category->id,
                     'name' => 'Updated Category',
                 ],
@@ -603,7 +611,7 @@ class CategoryControllerTest extends TestCase
         $response = $this->getJson('/api/things/categories');
 
         $response->assertStatus(200);
-        $categories = $response->json();
+        $categories = $response->json('data');
         $parentInResponse = collect($categories)->firstWhere('id', $parent->id);
         $childInResponse = collect($categories)->firstWhere('id', $child->id);
         $this->assertNotNull($parentInResponse);

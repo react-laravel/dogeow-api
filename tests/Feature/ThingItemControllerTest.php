@@ -69,9 +69,9 @@ class ThingItemControllerTest extends TestCase
 
         $response->assertStatus(201)
             ->assertJsonPath('message', '物品创建成功')
-            ->assertJsonPath('item.name', 'Mechanical Keyboard')
-            ->assertJsonPath('item.user_id', $this->user->id)
-            ->assertJsonPath('item.quantity', 1);
+            ->assertJsonPath('data.name', 'Mechanical Keyboard')
+            ->assertJsonPath('data.user_id', $this->user->id)
+            ->assertJsonPath('data.quantity', 1);
 
         $item = Item::where('name', 'Mechanical Keyboard')->firstOrFail();
         $this->assertSame($tags->pluck('id')->sort()->values()->all(), $item->tags()->pluck('thing_tags.id')->sort()->values()->all());
@@ -209,10 +209,10 @@ class ThingItemControllerTest extends TestCase
         $response = $this->getJson("/api/things/items/{$item->id}/relations");
 
         $response->assertStatus(200)
-            ->assertJsonCount(1, 'related_items')
-            ->assertJsonCount(1, 'relating_items')
-            ->assertJsonPath('related_items.0.id', $relatedItem->id)
-            ->assertJsonPath('relating_items.0.id', $relatingItem->id);
+            ->assertJsonCount(1, 'data.related_items')
+            ->assertJsonCount(1, 'data.relating_items')
+            ->assertJsonPath('data.related_items.0.id', $relatedItem->id)
+            ->assertJsonPath('data.relating_items.0.id', $relatingItem->id);
     }
 
     public function test_add_relation_validates_self_and_visibility_rules(): void
@@ -270,7 +270,7 @@ class ThingItemControllerTest extends TestCase
 
         $addResponse->assertStatus(201)
             ->assertJsonPath('message', '关联添加成功')
-            ->assertJsonCount(1, 'relations');
+            ->assertJsonCount(1, 'data.relations');
 
         $batchResponse = $this->postJson("/api/things/items/{$item->id}/relations/batch", [
             'relations' => [
@@ -288,15 +288,15 @@ class ThingItemControllerTest extends TestCase
         ]);
 
         $batchResponse->assertStatus(200)
-            ->assertJsonPath('success_count', 1)
-            ->assertJsonCount(1, 'errors')
-            ->assertJsonCount(2, 'relations');
+            ->assertJsonPath('data.success_count', 1)
+            ->assertJsonCount(1, 'data.errors')
+            ->assertJsonCount(2, 'data.relations');
 
         $removeResponse = $this->deleteJson("/api/things/items/{$item->id}/relations/{$firstRelated->id}");
 
         $removeResponse->assertStatus(200)
             ->assertJsonPath('message', '关联删除成功')
-            ->assertJsonCount(1, 'relations')
-            ->assertJsonPath('relations.0.id', $secondRelated->id);
+            ->assertJsonCount(1, 'data.relations')
+            ->assertJsonPath('data.relations.0.id', $secondRelated->id);
     }
 }

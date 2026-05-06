@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Thing;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Thing\CategoryRequest;
+use App\Http\Resources\ApiResponse;
 use App\Models\Thing\ItemCategory;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Auth;
@@ -33,7 +34,7 @@ class CategoryController extends Controller
             }
         });
 
-        return response()->json($categories);
+        return ApiResponse::success($categories);
     }
 
     /**
@@ -48,12 +49,12 @@ class CategoryController extends Controller
             $parentCategory = ItemCategory::find($validated['parent_id']);
 
             if (! $parentCategory || ! Gate::allows('view', $parentCategory)) {
-                return response()->json(['message' => '指定的父分类不存在或无权访问'], 400);
+                return ApiResponse::error('指定的父分类不存在或无权访问');
             }
 
             // 防止创建三级分类(子分类不能再有子分类)
             if ($parentCategory->parent_id !== null) {
-                return response()->json(['message' => '不能在子分类下创建分类'], 400);
+                return ApiResponse::error('不能在子分类下创建分类');
             }
         }
 
@@ -61,10 +62,7 @@ class CategoryController extends Controller
         $category->user_id = Auth::id();
         $category->save();
 
-        return response()->json([
-            'message' => '分类创建成功',
-            'category' => $category->load(['parent', 'children']),
-        ], 201);
+        return ApiResponse::created($category->load(['parent', 'children']), '分类创建成功');
     }
 
     /**
@@ -75,10 +73,10 @@ class CategoryController extends Controller
         try {
             $this->authorize('view', $category);
         } catch (AuthorizationException $e) {
-            return response()->json(['message' => '无权查看此分类'], 403);
+            return ApiResponse::forbidden('无权查看此分类');
         }
 
-        return response()->json($category->load('items'));
+        return ApiResponse::success($category->load('items'));
     }
 
     /**
@@ -89,15 +87,12 @@ class CategoryController extends Controller
         try {
             $this->authorize('update', $category);
         } catch (AuthorizationException $e) {
-            return response()->json(['message' => '无权更新此分类'], 403);
+            return ApiResponse::forbidden('无权更新此分类');
         }
 
         $category->update($request->validated());
 
-        return response()->json([
-            'message' => '分类更新成功',
-            'category' => $category,
-        ]);
+        return ApiResponse::updated($category, '分类更新成功');
     }
 
     /**
@@ -108,21 +103,21 @@ class CategoryController extends Controller
         try {
             $this->authorize('delete', $category);
         } catch (AuthorizationException $e) {
-            return response()->json(['message' => '无权删除此分类'], 403);
+            return ApiResponse::forbidden('无权删除此分类');
         }
 
         // 检查分类是否有关联的物品
         if ($category->items()->count() > 0) {
-            return response()->json(['message' => '无法删除已有物品的分类'], 400);
+            return ApiResponse::error('无法删除已有物品的分类');
         }
 
         // 检查是否有子分类
         if ($category->children()->count() > 0) {
-            return response()->json(['message' => '无法删除有子分类的分类'], 400);
+            return ApiResponse::error('无法删除有子分类的分类');
         }
 
         $category->delete();
 
-        return response()->json(['message' => '分类删除成功']);
+        return ApiResponse::deleted('分类删除成功');
     }
 }

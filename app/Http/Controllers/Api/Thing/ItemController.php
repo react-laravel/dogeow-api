@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Thing\AddItemRelationRequest;
 use App\Http\Requests\Thing\BatchAddItemRelationsRequest;
 use App\Http\Requests\Thing\ItemRequest;
+use App\Http\Resources\ApiResponse;
 use App\Jobs\TriggerKnowledgeIndexBuildJob;
 use App\Models\Thing\Item;
 use App\Models\Thing\ItemCategory;
@@ -107,10 +108,7 @@ class ItemController extends Controller
 
             TriggerKnowledgeIndexBuildJob::dispatch();
 
-            return response()->json([
-                'message' => '物品创建成功',
-                'item' => $item->load(self::ITEM_RELATIONS),
-            ], 201);
+            return ApiResponse::created($item->load(self::ITEM_RELATIONS), '物品创建成功');
         });
     }
 
@@ -122,10 +120,10 @@ class ItemController extends Controller
         try {
             $this->authorize('view', $item);
         } catch (AuthorizationException $e) {
-            return response()->json(['message' => '无权查看此物品'], 403);
+            return ApiResponse::forbidden('无权查看此物品');
         }
 
-        return response()->json($item->load(self::ITEM_RELATIONS));
+        return ApiResponse::success($item->load(self::ITEM_RELATIONS));
     }
 
     /**
@@ -136,7 +134,7 @@ class ItemController extends Controller
         try {
             $this->authorize('update', $item);
         } catch (AuthorizationException $e) {
-            return response()->json(['message' => '无权更新此物品'], 403);
+            return ApiResponse::forbidden('无权更新此物品');
         }
 
         return DB::transaction(function () use ($request, $item) {
@@ -147,10 +145,7 @@ class ItemController extends Controller
 
             TriggerKnowledgeIndexBuildJob::dispatch();
 
-            return response()->json([
-                'message' => '物品更新成功',
-                'item' => $item->load(self::ITEM_RELATIONS),
-            ]);
+            return ApiResponse::updated($item->load(self::ITEM_RELATIONS), '物品更新成功');
         });
     }
 
@@ -178,7 +173,7 @@ class ItemController extends Controller
         try {
             $this->authorize('view', $item);
         } catch (AuthorizationException $e) {
-            return response()->json(['message' => '无权查看此物品'], 403);
+            return ApiResponse::forbidden('无权查看此物品');
         }
 
         $relations = [
@@ -186,7 +181,7 @@ class ItemController extends Controller
             'relating_items' => $item->relatingItems()->with(self::ITEM_RELATIONS)->get(),
         ];
 
-        return response()->json($relations);
+        return ApiResponse::success($relations);
     }
 
     /**
@@ -200,14 +195,14 @@ class ItemController extends Controller
         $relatedItemId = (int) $validated['related_item_id'];
 
         if ($item->id === $relatedItemId) {
-            return response()->json(['message' => '不能关联自己'], 400);
+            return ApiResponse::error('不能关联自己');
         }
 
         $relatedItem = Item::query()->findOrFail($relatedItemId);
         try {
             $this->authorize('view', $relatedItem);
         } catch (AuthorizationException $e) {
-            return response()->json(['message' => '无权访问关联的物品'], 403);
+            return ApiResponse::forbidden('无权访问关联的物品');
         }
 
         try {
@@ -217,13 +212,12 @@ class ItemController extends Controller
                 $validated['description'] ?? null
             );
 
-            return response()->json([
-                'message' => '关联添加成功',
+            return ApiResponse::created([
                 'relations' => $item->relatedItems()->with(self::ITEM_RELATIONS)->get(),
-            ], 201);
+            ], '关联添加成功');
         } catch (\Throwable $e) {
             if ($this->isDuplicateRelationException($e)) {
-                return response()->json(['message' => '该关联已存在'], 400);
+                return ApiResponse::error('该关联已存在');
             }
 
             Log::error('添加物品关联失败', [
@@ -233,7 +227,7 @@ class ItemController extends Controller
                 'exception' => $e,
             ]);
 
-            return response()->json(['message' => '添加关联失败'], 500);
+            return ApiResponse::serverError('添加关联失败');
         }
     }
 
@@ -246,10 +240,9 @@ class ItemController extends Controller
 
         $item->removeRelation($relatedItemId);
 
-        return response()->json([
-            'message' => '关联删除成功',
+        return ApiResponse::success([
             'relations' => $item->relatedItems()->with(self::ITEM_RELATIONS)->get(),
-        ]);
+        ], '关联删除成功');
     }
 
     /**
@@ -260,7 +253,7 @@ class ItemController extends Controller
         try {
             $this->authorize('update', $item);
         } catch (AuthorizationException $e) {
-            return response()->json(['message' => '无权修改此物品'], 403);
+            return ApiResponse::forbidden('无权修改此物品');
         }
 
         $validated = $request->validated();
@@ -323,12 +316,11 @@ class ItemController extends Controller
             }
         }
 
-        return response()->json([
-            'message' => "成功添加 {$successCount} 个关联",
+        return ApiResponse::success([
             'success_count' => $successCount,
             'errors' => $errors,
             'relations' => $item->relatedItems()->with(self::ITEM_RELATIONS)->get(),
-        ]);
+        ], "成功添加 {$successCount} 个关联");
     }
 
     /**
@@ -336,7 +328,7 @@ class ItemController extends Controller
      */
     public function categories(): JsonResponse
     {
-        return response()->json(ItemCategory::where('user_id', Auth::id())->get());
+        return ApiResponse::success(ItemCategory::where('user_id', Auth::id())->get());
     }
 
     /**
