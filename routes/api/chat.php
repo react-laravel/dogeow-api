@@ -13,7 +13,7 @@ Route::prefix('chat')->middleware('auth:sanctum')->group(function () {
     // Room management endpoints
     Route::get('/rooms', [ChatRoomController::class, 'index']);
     Route::post('/rooms', [ChatRoomController::class, 'store'])->middleware('idempotency');
-    Route::put('/rooms/{roomId}', [ChatRoomController::class, 'update']);
+    Route::match(['put', 'patch'], '/rooms/{roomId}', [ChatRoomController::class, 'update']);
     Route::post('/rooms/{roomId}/join', [ChatRoomController::class, 'join'])->middleware('idempotency');
     Route::post('/rooms/{roomId}/leave', [ChatRoomController::class, 'leave'])->middleware('idempotency');
     Route::delete('/rooms/{roomId}', [ChatRoomController::class, 'destroy']);

@@ -20,12 +20,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('nav')->group(function () {
         // 导航项管理
         Route::post('items', [ItemController::class, 'store'])->name('nav.items.store');
-        Route::put('items/{item}', [ItemController::class, 'update'])->name('nav.items.update');
+        Route::match(['put', 'patch'], 'items/{item}', [ItemController::class, 'update'])->name('nav.items.update');
         Route::delete('items/{item}', [ItemController::class, 'destroy'])->name('nav.items.destroy');
 
         // 分类管理
         Route::post('/categories', [CategoryController::class, 'store']);
-        Route::put('/categories/{category}', [CategoryController::class, 'update']);
+        Route::match(['put', 'patch'], '/categories/{category}', [CategoryController::class, 'update']);
         Route::delete('/categories/{category}', [CategoryController::class, 'destroy']);
     });
 });

@@ -17,8 +17,8 @@ Route::prefix('rpg')->group(function () {
     Route::get('/character', [CharacterController::class, 'show']);
     Route::post('/character', [CharacterController::class, 'store']);
     Route::delete('/character', [CharacterController::class, 'destroy']);
-    Route::put('/character/stats', [CharacterController::class, 'allocateStats']);
-    Route::put('/character/difficulty', [CharacterController::class, 'updateDifficulty']);
+    Route::match(['put', 'patch'], '/character/stats', [CharacterController::class, 'allocateStats']);
+    Route::match(['put', 'patch'], '/character/difficulty', [CharacterController::class, 'updateDifficulty']);
     Route::get('/character/detail', [CharacterController::class, 'detail']);
     Route::post('/character/online', [CharacterController::class, 'online']);
     // 离线奖励(已禁用)

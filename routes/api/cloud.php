@@ -13,7 +13,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/cloud/files/{id}/download', [FileController::class, 'download'])->name('cloud.files.download');
     Route::get('/cloud/files/{id}/preview', [FileController::class, 'preview']);
     Route::delete('/cloud/files/{id}', [FileController::class, 'destroy']);
-    Route::put('/cloud/files/{id}', [FileController::class, 'update']);
+    Route::match(['put', 'patch'], '/cloud/files/{id}', [FileController::class, 'update']);
     Route::post('/cloud/files/move', [FileController::class, 'move']);
 
     // 树形结构和统计

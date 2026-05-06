@@ -30,7 +30,7 @@ Route::prefix('things')->name('things.')->group(function () {
 Route::middleware('auth:sanctum')->prefix('things')->name('things.')->group(function () {
     // 物品写操作
     Route::post('items', [ItemController::class, 'store'])->name('items.store');
-    Route::put('items/{item}', [ItemController::class, 'update'])->name('items.update');
+    Route::match(['put', 'patch'], 'items/{item}', [ItemController::class, 'update'])->name('items.update');
     Route::delete('items/{item}', [ItemController::class, 'destroy'])->name('items.destroy');
 
     // 搜索历史管理
@@ -44,11 +44,11 @@ Route::middleware('auth:sanctum')->prefix('things')->name('things.')->group(func
 
     // 分类写操作
     Route::post('categories', [CategoryController::class, 'store'])->name('categories.store');
-    Route::put('categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
+    Route::match(['put', 'patch'], 'categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
     Route::delete('categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
 
     // 标签写操作
     Route::post('tags', [TagController::class, 'store'])->name('tags.store');
-    Route::put('tags/{tag}', [TagController::class, 'update'])->name('tags.update');
+    Route::match(['put', 'patch'], 'tags/{tag}', [TagController::class, 'update'])->name('tags.update');
     Route::delete('tags/{tag}', [TagController::class, 'destroy'])->name('tags.destroy');
 });

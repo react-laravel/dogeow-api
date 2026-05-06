@@ -14,7 +14,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('areas', [LocationAreaController::class, 'index']);
     Route::post('areas', [LocationAreaController::class, 'store']);
     Route::get('areas/{area}', [LocationAreaController::class, 'show']);
-    Route::put('areas/{area}', [LocationAreaController::class, 'update']);
+    Route::match(['put', 'patch'], 'areas/{area}', [LocationAreaController::class, 'update']);
     Route::delete('areas/{area}', [LocationAreaController::class, 'destroy']);
     Route::get('areas/{area}/rooms', [LocationAreaController::class, 'rooms']);
     Route::post('areas/{area}/set-default', [LocationAreaController::class, 'setDefault']);
@@ -25,7 +25,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('rooms', [LocationRoomController::class, 'index']);
     Route::post('rooms', [LocationRoomController::class, 'store']);
     Route::get('rooms/{room}', [LocationRoomController::class, 'show']);
-    Route::put('rooms/{room}', [LocationRoomController::class, 'update']);
+    Route::match(['put', 'patch'], 'rooms/{room}', [LocationRoomController::class, 'update']);
     Route::delete('rooms/{room}', [LocationRoomController::class, 'destroy']);
     Route::get('rooms/{room}/spots', [LocationRoomController::class, 'spots']);
 });
@@ -35,6 +35,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('spots', [LocationSpotController::class, 'index']);
     Route::post('spots', [LocationSpotController::class, 'store']);
     Route::get('spots/{spot}', [LocationSpotController::class, 'show']);
-    Route::put('spots/{spot}', [LocationSpotController::class, 'update']);
+    Route::match(['put', 'patch'], 'spots/{spot}', [LocationSpotController::class, 'update']);
     Route::delete('spots/{spot}', [LocationSpotController::class, 'destroy']);
 });

@@ -39,5 +39,5 @@ Route::prefix('word')->name('word.')->group(function () {
 
     // 设置
     Route::get('settings', [SettingController::class, 'show']);
-    Route::put('settings', [SettingController::class, 'update']);
+    Route::match(['put', 'patch'], 'settings', [SettingController::class, 'update']);
 });
