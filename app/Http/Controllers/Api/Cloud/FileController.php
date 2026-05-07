@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Response;
 
 class FileController extends Controller
 {
@@ -47,7 +48,7 @@ class FileController extends Controller
 
         $files = $query->get();
 
-        return response()->json($files);
+        return response()->json($this->transformFiles($files));
     }
 
     /**
@@ -130,13 +131,13 @@ class FileController extends Controller
 
         Log::info("文件记录已创建: ID={$file->id}, 类型={$file->type}");
 
-        return response()->json($file, 201);
+        return response()->json($this->transformFile($file), 201);
     }
 
     /**
      * 下载文件
      */
-    public function download($id): \Symfony\Component\HttpFoundation\Response
+    public function download($id): Response
     {
         $userId = $this->getCurrentUserId();
 
@@ -222,7 +223,29 @@ class FileController extends Controller
 
         $file = File::where('user_id', $userId)->findOrFail($id);
 
-        return response()->json($file);
+        return response()->json($this->transformFile($file));
+    }
+
+    /**
+     * 转换文件数据用于 API 返回
+     */
+    private function transformFile(File $file): array
+    {
+        $data = $file->toArray();
+
+        if (! $file->is_folder && isset($data['path'])) {
+            $data['path'] = url('storage/' . $file->path);
+        }
+
+        return $data;
+    }
+
+    /**
+     * 转换多个文件的数据用于 API 返回
+     */
+    private function transformFiles($files): array
+    {
+        return $files->map(fn (File $file) => $this->transformFile($file))->all();
     }
 
     /**
@@ -242,7 +265,7 @@ class FileController extends Controller
         $file->description = $request->description;
         $file->save();
 
-        return response()->json($file);
+        return response()->json($this->transformFile($file));
     }
 
     /**

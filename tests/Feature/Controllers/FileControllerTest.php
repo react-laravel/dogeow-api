@@ -106,6 +106,22 @@ class FileControllerTest extends TestCase
             ->assertJsonCount(1);
     }
 
+    public function test_index_returns_full_url_for_file_path()
+    {
+        $file = File::factory()->create([
+            'user_id' => $this->user->id,
+            'is_folder' => false,
+            'name' => 'image.jpg',
+            'extension' => 'jpg',
+            'path' => 'cloud/' . $this->user->id . '/2026/05/07/test.jpg',
+        ]);
+
+        $response = $this->getJson('/api/cloud/files');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('0.path', url('storage/' . $file->path));
+    }
+
     public function test_index_filters_by_type_folder()
     {
         File::factory()->create([
