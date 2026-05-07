@@ -20,6 +20,9 @@ jobs:
 
       - name: Deploy production
         env:
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          SUPERVISOR_GROUP: ${{ secrets.SUPERVISOR_GROUP }}
+          # self-hosted runner and target app are on the same server; keep the
+          # concrete path here so a stale/missing secret cannot point Deployer at
+          # a non-existent tree and break deploy:lock.
+          DEPLOY_PATH: /var/www/dogeow-api
+          SUPERVISOR_GROUP: dogeow-api
         run: scripts/ensure-deployer.sh deploy production -v
