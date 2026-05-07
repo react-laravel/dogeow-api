@@ -365,6 +365,35 @@ class GameInventoryServiceTest extends TestCase
         $this->service->usePotion($character, $weapon->id);
     }
 
+    public function test_sort_inventory_reorders_items_without_unique_slot_collisions(): void
+    {
+        $character = $this->createCharacter();
+        $definition = $this->createItemDefinition([
+            'name' => 'Collision Sword',
+            'base_stats' => ['attack' => 20],
+        ]);
+
+        $lowPrice = $this->createItem($character, $definition, [
+            'sell_price' => 1,
+            'slot_index' => 0,
+        ]);
+        $highPrice = $this->createItem($character, $definition, [
+            'sell_price' => 10,
+            'slot_index' => 1,
+        ]);
+
+        $this->service->sortInventory($character, 'price');
+
+        $this->assertSame(
+            [$highPrice->id, $lowPrice->id],
+            GameItem::where('character_id', $character->id)
+                ->where('is_in_storage', false)
+                ->orderBy('slot_index')
+                ->pluck('id')
+                ->all()
+        );
+    }
+
     public function test_sort_inventory_supports_price_quality_and_default_ordering(): void
     {
         $character = $this->createCharacter();

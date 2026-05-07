@@ -414,11 +414,18 @@ class GameInventoryService
 
         $items = $this->sortItems($query, $sortBy);
 
-        $slotIndex = 0;
-        foreach ($items as $item) {
-            $item->slot_index = $slotIndex++;
-            $item->save();
-        }
+        DB::transaction(function () use ($items): void {
+            foreach ($items as $item) {
+                $item->slot_index = null;
+                $item->save();
+            }
+
+            $slotIndex = 0;
+            foreach ($items as $item) {
+                $item->slot_index = $slotIndex++;
+                $item->save();
+            }
+        });
 
         $this->clearInventoryCache($character->id);
 
