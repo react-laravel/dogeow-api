@@ -63,19 +63,19 @@ task('supervisor:restart', function () {
     run(<<<BASH
 SUPERVISORCTL_BIN=$supervisorctlBin
 
-if [ -x "$SUPERVISORCTL_BIN" ]; then
-    SUPERVISORCTL_PATH="$SUPERVISORCTL_BIN"
+if [ -x "\$SUPERVISORCTL_BIN" ]; then
+    SUPERVISORCTL_PATH="\$SUPERVISORCTL_BIN"
 else
-    SUPERVISORCTL_PATH="$(command -v "$SUPERVISORCTL_BIN" || true)"
+    SUPERVISORCTL_PATH="\$(command -v "\$SUPERVISORCTL_BIN" || true)"
 fi
 
-if [ -z "$SUPERVISORCTL_PATH" ]; then
+if [ -z "\$SUPERVISORCTL_PATH" ]; then
     echo "未找到 supervisorctl，请安装 Supervisor 或设置 SUPERVISORCTL_BIN" >&2
     exit 1
 fi
 
-sudo -n "$SUPERVISORCTL_PATH" restart {{supervisor_group}}:*
-sudo -n "$SUPERVISORCTL_PATH" status {{supervisor_group}}:*
+sudo -n "\$SUPERVISORCTL_PATH" restart {{supervisor_group}}:*
+sudo -n "\$SUPERVISORCTL_PATH" status {{supervisor_group}}:*
 BASH
     );
 });
