@@ -91,6 +91,19 @@ class ThingItemControllerTest extends TestCase
             ]);
     }
 
+    public function test_show_returns_owned_private_item(): void
+    {
+        $item = Item::factory()->private()->create([
+            'user_id' => (string) $this->user->id,
+        ]);
+
+        $response = $this->getJson("/api/things/items/{$item->id}");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.id', $item->id)
+            ->assertJsonPath('data.user_id', $this->user->id);
+    }
+
     public function test_update_returns_403_for_other_users_item(): void
     {
         $item = Item::factory()->create([
