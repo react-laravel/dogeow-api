@@ -115,14 +115,20 @@ class CloudFileControllerTest extends TestCase
             ->assertJsonPath('description', 'Quarterly report')
             ->assertJsonPath('user_id', $this->user->id);
 
-        $path = $response->json('path');
-        $this->assertNotNull($path);
-        Storage::disk('public')->assertExists($path);
         $this->assertDatabaseHas('cloud_files', [
             'original_name' => 'report.txt',
             'user_id' => $this->user->id,
             'description' => 'Quarterly report',
         ]);
+
+        $storedFile = File::query()
+            ->where('original_name', 'report.txt')
+            ->where('user_id', $this->user->id)
+            ->first();
+
+        $this->assertNotNull($storedFile);
+        $this->assertSame(url('storage/' . $storedFile->path), $response->json('path'));
+        Storage::disk('public')->assertExists($storedFile->path);
     }
 
     public function test_download_returns_error_for_folder(): void
