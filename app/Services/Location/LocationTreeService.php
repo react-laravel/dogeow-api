@@ -25,12 +25,14 @@ class LocationTreeService extends BaseService
 
         // 获取当前用户的所有房间
         $rooms = Room::where('user_id', $userId)
+            ->with('area')
             ->withCount('spots')
             ->orderBy('id')
             ->get();
 
         // 获取当前用户的所有具体位置
         $spots = Spot::where('user_id', $userId)
+            ->with('room.area')
             ->withCount('items')
             ->orderBy('id')
             ->get();
