@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Dashboard;
 
 use App\Http\Controllers\Controller;
 use App\Services\UpyunService;
+use App\Support\DashboardCacheRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Cache;
@@ -12,8 +13,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class MusicController extends Controller
 {
-    private const CACHE_KEY = 'musics:upyun:/music:v2';
-
     public function __construct(private readonly ?UpyunService $upyunService = null) {}
 
     /**
@@ -27,7 +26,11 @@ class MusicController extends Controller
             return response()->json(['error' => '又拍云未配置'], 503);
         }
 
-        $musicList = Cache::remember(self::CACHE_KEY, now()->addMinutes(5), function () use ($upyunService) {
+        $cacheItem = DashboardCacheRegistry::find(DashboardCacheRegistry::MUSIC_UPYUN_LIST);
+        $cacheKey = (string) ($cacheItem['cache_key'] ?? 'musics:upyun:/music:v2');
+        $ttlSeconds = (int) ($cacheItem['ttl_seconds'] ?? 21600);
+
+        $musicList = Cache::remember($cacheKey, now()->addSeconds($ttlSeconds), function () use ($upyunService) {
             $result = $upyunService->listDirectory('/music');
 
             if (! ($result['success'] ?? false)) {

@@ -31,6 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
     require base_path('routes/api/word.php'); // 单词
     require base_path('routes/api/todo.php'); // 待办
     require base_path('routes/api/logs.php'); // 日志
+    require base_path('routes/api/cache.php'); // 缓存管理
     require base_path('routes/api/minimax.php'); // MiniMax
 
 });
