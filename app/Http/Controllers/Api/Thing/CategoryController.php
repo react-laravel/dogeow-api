@@ -18,20 +18,26 @@ class CategoryController extends Controller
     public function index()
     {
         $categories = ItemCategory::where('user_id', Auth::id())
-            ->with(['parent', 'children.items'])
+            ->with([
+                'parent',
+                'children' => fn ($query) => $query->withCount('items'),
+            ])
             ->withCount('items')
             ->orderBy('parent_id', 'asc')
             ->orderBy('name', 'asc')
             ->get();
 
-        // 计算父分类的总物品数量(包括子分类的物品)
-        $categories->each(function ($category) {
-            if ($category->isParent()) {
-                // 计算所有子分类的物品数量总和
-                $totalItems = $category->items_count;
-                $childrenItems = $category->children->sum('items_count');
-                $category->setAttribute('items_count', $totalItems + $childrenItems);
+        // 计算父分类的总物品数量（含子分类；须从扁平列表汇总，嵌套 children 无 withCount）
+        $categories->each(function ($category) use ($categories) {
+            if (! $category->isParent()) {
+                return;
             }
+
+            $childrenItems = $categories
+                ->where('parent_id', $category->id)
+                ->sum(fn (ItemCategory $child) => (int) $child->items_count);
+
+            $category->setAttribute('items_count', (int) $category->items_count + $childrenItems);
         });
 
         return ApiResponse::success($categories);

@@ -616,7 +616,22 @@ class CategoryControllerTest extends TestCase
         $childInResponse = collect($categories)->firstWhere('id', $child->id);
         $this->assertNotNull($parentInResponse);
         $this->assertNotNull($childInResponse);
-        $this->assertGreaterThanOrEqual(1, $parentInResponse['items_count']);
+        $this->assertEquals(3, $parentInResponse['items_count']);
         $this->assertEquals(2, $childInResponse['items_count']);
+    }
+
+    public function test_index_parent_category_items_count_sums_children_when_parent_has_no_direct_items(): void
+    {
+        $parent = ItemCategory::factory()->create(['user_id' => $this->user->id, 'parent_id' => null]);
+        $child = ItemCategory::factory()->create(['user_id' => $this->user->id, 'parent_id' => $parent->id]);
+        Item::factory()->count(2)->create(['user_id' => $this->user->id, 'category_id' => $child->id]);
+
+        $response = $this->getJson('/api/things/categories');
+
+        $response->assertStatus(200);
+        $parentInResponse = collect($response->json('data'))->firstWhere('id', $parent->id);
+
+        $this->assertNotNull($parentInResponse);
+        $this->assertEquals(2, $parentInResponse['items_count']);
     }
 }
