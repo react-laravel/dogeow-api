@@ -25,7 +25,7 @@ class UploadBatchImagesRequestTest extends TestCase
         $rules = $this->request->rules();
 
         $this->assertArrayHasKey('images.*', $rules);
-        $this->assertStringContainsString('image', $rules['images.*']);
+        $this->assertStringContainsString('file', $rules['images.*']);
         $this->assertStringContainsString('max', $rules['images.*']);
     }
 

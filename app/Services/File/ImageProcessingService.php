@@ -3,6 +3,7 @@
 namespace App\Services\File;
 
 use App\Services\BaseService;
+use App\Utils\Constants;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
 
@@ -13,22 +14,22 @@ class ImageProcessingService extends BaseService
     // 图片尺寸配置
     private function getThumbnailSize(): int
     {
-        return \App\Utils\Constants::thumbnailSize();
+        return Constants::thumbnailSize();
     }
 
     private function getCompressedMaxSize(): int
     {
-        return \App\Utils\Constants::compressedMaxSize();
+        return Constants::compressedMaxSize();
     }
 
     private function getQualityCompressed(): int
     {
-        return \App\Utils\Constants::image('quality')['compressed'];
+        return Constants::image('quality')['compressed'];
     }
 
     private function getQualityThumbnail(): int
     {
-        return \App\Utils\Constants::image('quality')['thumbnail'];
+        return Constants::image('quality')['thumbnail'];
     }
 
     public function __construct()
@@ -57,7 +58,7 @@ class ImageProcessingService extends BaseService
             ];
 
             // 生成缩略图
-            $thumbnailResult = $this->createThumbnail($originPath);
+            $thumbnailResult = $this->createThumbnail($originPath, $compressedPath);
             if (! $thumbnailResult['success']) {
                 return $thumbnailResult;
             }
@@ -83,7 +84,7 @@ class ImageProcessingService extends BaseService
     /**
      * 创建缩略图
      */
-    private function createThumbnail(string $originPath): array
+    private function createThumbnail(string $originPath, string $compressedPath): array
     {
         try {
             $thumbnail = $this->manager->read($originPath);
@@ -98,7 +99,7 @@ class ImageProcessingService extends BaseService
                 $thumbnail = $this->resizeImage($thumbnail, $thumbnailSize);
             }
 
-            $thumbnailPath = $this->getThumbnailPath($originPath);
+            $thumbnailPath = $this->getThumbnailPath($compressedPath);
             $thumbnail->save($thumbnailPath, quality: $this->getQualityThumbnail());
 
             return $this->success(['thumbnail_path' => $thumbnailPath]);
@@ -159,9 +160,13 @@ class ImageProcessingService extends BaseService
     /**
      * 获取缩略图路径
      */
-    private function getThumbnailPath(string $originPath): string
+    private function getThumbnailPath(string $compressedPath): string
     {
-        return str_replace('-origin.', '-thumb.', $originPath);
+        $pathInfo = pathinfo($compressedPath);
+
+        return $pathInfo['dirname'] . DIRECTORY_SEPARATOR
+            . $pathInfo['filename'] . '-thumb.'
+            . $pathInfo['extension'];
     }
 
     /**

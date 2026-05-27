@@ -116,6 +116,8 @@ class ConstantsTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertNotEmpty($result);
+        $this->assertContains('heic', $result);
+        $this->assertContains('heif', $result);
     }
 
     public function test_thumbnail_size(): void

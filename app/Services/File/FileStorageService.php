@@ -3,25 +3,28 @@
 namespace App\Services\File;
 
 use App\Services\BaseService;
+use App\Utils\Constants;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class FileStorageService extends BaseService
 {
+    private const HEIC_EXTENSIONS = ['heic', 'heif'];
+
     private function getAllowedExtensions(): array
     {
-        return \App\Utils\Constants::allowedExtensions();
+        return Constants::allowedExtensions();
     }
 
     private function getMaxFileSize(): int
     {
-        return \App\Utils\Constants::maxFileSize();
+        return Constants::maxFileSize();
     }
 
     private function getDefaultExtension(): string
     {
-        return \App\Utils\Constants::upload('default_extension');
+        return Constants::upload('default_extension');
     }
 
     /**
@@ -199,7 +202,29 @@ class FileStorageService extends BaseService
     {
         $imageInfo = @getimagesize($file->getPathname());
 
-        return $imageInfo !== false;
+        if ($imageInfo !== false) {
+            return true;
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension());
+        if (! in_array($extension, self::HEIC_EXTENSIONS, true)) {
+            return false;
+        }
+
+        if (! extension_loaded('imagick')) {
+            return true;
+        }
+
+        try {
+            $imagick = new \Imagick;
+            $isValid = $imagick->pingImage($file->getPathname());
+            $imagick->clear();
+            $imagick->destroy();
+
+            return $isValid;
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /**
@@ -209,12 +234,15 @@ class FileStorageService extends BaseService
     {
         $basename = Str::random(32);
         $extension = strtolower($file->getClientOriginalExtension()) ?: $this->getDefaultExtension();
+        $processedExtension = in_array($extension, self::HEIC_EXTENSIONS, true)
+            ? $this->getDefaultExtension()
+            : $extension;
 
         return [
             'basename' => $basename,
             'extension' => $extension,
-            'compressed_filename' => "{$basename}.{$extension}",
-            'thumbnail_filename' => "{$basename}-thumb.{$extension}",
+            'compressed_filename' => "{$basename}.{$processedExtension}",
+            'thumbnail_filename' => "{$basename}-thumb.{$processedExtension}",
             'origin_filename' => "{$basename}-origin.{$extension}",
             'original_name' => $file->getClientOriginalName(),
             'size' => $file->getSize(),

@@ -38,11 +38,7 @@ class ImageProcessingServiceTest extends TestCase
         // Clean up test files
         $testDir = dirname($this->testImagePath);
         if (file_exists($testDir) && is_dir($testDir)) {
-            foreach (glob($testDir . '/*') as $file) {
-                if (is_file($file)) {
-                    unlink($file);
-                }
-            }
+            $this->deleteDirectoryContents($testDir);
         }
 
         // Remove test directory
@@ -53,6 +49,18 @@ class ImageProcessingServiceTest extends TestCase
         parent::tearDown();
     }
 
+    private function deleteDirectoryContents(string $directory): void
+    {
+        foreach (glob($directory . '/*') as $path) {
+            if (is_dir($path)) {
+                $this->deleteDirectoryContents($path);
+                rmdir($path);
+            } elseif (is_file($path)) {
+                unlink($path);
+            }
+        }
+    }
+
     private function createTestImage(): void
     {
         // Create a simple 1x1 pixel JPEG image
@@ -60,6 +68,15 @@ class ImageProcessingServiceTest extends TestCase
         $white = imagecolorallocate($image, 255, 255, 255);
         imagejpeg($image, $this->testImagePath);
         imagedestroy($image);
+    }
+
+    private function thumbnailPathFor(string $compressedPath): string
+    {
+        $pathInfo = pathinfo($compressedPath);
+
+        return $pathInfo['dirname'] . DIRECTORY_SEPARATOR
+            . $pathInfo['filename'] . '-thumb.'
+            . $pathInfo['extension'];
     }
 
     public function test_process_image_successfully()
@@ -75,7 +92,7 @@ class ImageProcessingServiceTest extends TestCase
 
         // Check that compressed and thumbnail files were created
         $this->assertFileExists($this->testCompressedPath);
-        $this->assertFileExists(str_replace('-origin.', '-thumb.', $this->testImagePath));
+        $this->assertFileExists($this->thumbnailPathFor($this->testCompressedPath));
     }
 
     public function test_process_image_with_nonexistent_file()
@@ -115,7 +132,7 @@ class ImageProcessingServiceTest extends TestCase
         $this->assertTrue($result['success']);
 
         // Check thumbnail was created
-        $thumbnailPath = str_replace('-origin.', '-thumb.', $smallImagePath);
+        $thumbnailPath = $this->thumbnailPathFor($this->testCompressedPath);
         $this->assertFileExists($thumbnailPath);
 
         // Clean up
@@ -137,7 +154,7 @@ class ImageProcessingServiceTest extends TestCase
         $this->assertTrue($result['success']);
 
         // Check thumbnail was created and scaled
-        $thumbnailPath = str_replace('-origin.', '-thumb.', $largeImagePath);
+        $thumbnailPath = $this->thumbnailPathFor($this->testCompressedPath);
         $this->assertFileExists($thumbnailPath);
 
         // Clean up
@@ -199,7 +216,7 @@ class ImageProcessingServiceTest extends TestCase
         // Clean up
         unlink($pngImagePath);
         unlink($pngCompressedPath);
-        unlink(str_replace('-origin.', '-thumb.', $pngImagePath));
+        unlink($this->thumbnailPathFor($pngCompressedPath));
     }
 
     public function test_get_image_info_returns_dimensions_size_and_mime_type()
@@ -237,7 +254,7 @@ class ImageProcessingServiceTest extends TestCase
 
         // Clean up
         unlink($wideImagePath);
-        unlink(str_replace('-origin.', '-thumb.', $wideImagePath));
+        unlink($this->thumbnailPathFor($this->testCompressedPath));
     }
 
     public function test_process_image_with_tall_image()
@@ -256,7 +273,7 @@ class ImageProcessingServiceTest extends TestCase
 
         // Clean up
         unlink($tallImagePath);
-        unlink(str_replace('-origin.', '-thumb.', $tallImagePath));
+        unlink($this->thumbnailPathFor($this->testCompressedPath));
     }
 
     public function test_get_image_info_with_different_formats()
@@ -296,7 +313,7 @@ class ImageProcessingServiceTest extends TestCase
 
         // Clean up
         unlink($aspectImagePath);
-        unlink(str_replace('-origin.', '-thumb.', $aspectImagePath));
+        unlink($this->thumbnailPathFor($this->testCompressedPath));
     }
 
     public function test_process_image_skip_resize_for_tiny_image()
@@ -311,7 +328,7 @@ class ImageProcessingServiceTest extends TestCase
         $result = $this->imageProcessingService->processImage($tinyImagePath, $this->testCompressedPath);
 
         $this->assertTrue($result['success']);
-        $thumbnailPath = str_replace('-origin.', '-thumb.', $tinyImagePath);
+        $thumbnailPath = $this->thumbnailPathFor($this->testCompressedPath);
         $this->assertFileExists($thumbnailPath);
 
         // Clean up
@@ -334,7 +351,8 @@ class ImageProcessingServiceTest extends TestCase
         chmod($readOnlyDir, 0555);
 
         try {
-            $result = $this->imageProcessingService->processImage($originPath, $this->testCompressedPath);
+            $compressedPath = $readOnlyDir . '/thumb-fail.jpg';
+            $result = $this->imageProcessingService->processImage($originPath, $compressedPath);
             $this->assertFalse($result['success']);
             $this->assertSame('Failed to create thumbnail', $result['message']);
         } finally {
@@ -342,7 +360,7 @@ class ImageProcessingServiceTest extends TestCase
             if (file_exists($originPath)) {
                 unlink($originPath);
             }
-            $thumbnailPath = str_replace('-origin.', '-thumb.', $originPath);
+            $thumbnailPath = $this->thumbnailPathFor($compressedPath);
             if (file_exists($thumbnailPath)) {
                 unlink($thumbnailPath);
             }
@@ -359,32 +377,25 @@ class ImageProcessingServiceTest extends TestCase
         imagejpeg($originImage, $originPath);
         imagedestroy($originImage);
 
-        $readOnlyDir = storage_path('app/public/test/readonly-compressed');
-        if (! file_exists($readOnlyDir)) {
-            mkdir($readOnlyDir, 0755, true);
+        $compressedPath = storage_path('app/public/test/compressed-dir.jpg');
+        if (! file_exists($compressedPath)) {
+            mkdir($compressedPath, 0755, true);
         }
-        $compressedPath = $readOnlyDir . '/compress-fail.jpg';
-
-        chmod($readOnlyDir, 0555);
 
         try {
             $result = $this->imageProcessingService->processImage($originPath, $compressedPath);
             $this->assertFalse($result['success']);
             $this->assertSame('Failed to create compressed image', $result['message']);
         } finally {
-            chmod($readOnlyDir, 0755);
             if (file_exists($originPath)) {
                 unlink($originPath);
             }
-            $thumbnailPath = str_replace('-origin.', '-thumb.', $originPath);
+            $thumbnailPath = $this->thumbnailPathFor($compressedPath);
             if (file_exists($thumbnailPath)) {
                 unlink($thumbnailPath);
             }
             if (file_exists($compressedPath)) {
-                unlink($compressedPath);
-            }
-            if (file_exists($readOnlyDir)) {
-                rmdir($readOnlyDir);
+                rmdir($compressedPath);
             }
         }
     }
