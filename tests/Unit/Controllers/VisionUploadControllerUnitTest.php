@@ -23,6 +23,34 @@ class VisionUploadControllerUnitTest extends TestCase
         $this->assertSame($upyunService, $property->getValue($controller));
     }
 
+    public function test_upload_validation_does_not_use_laravel_image_rule_so_heic_can_reach_controller(): void
+    {
+        $upyunService = $this->createMock(UpyunService::class);
+        $controller = new VisionUploadController($upyunService);
+
+        $file = Mockery::mock();
+        $file->shouldReceive('isValid')->once()->andReturn(false);
+
+        $request = Mockery::mock(Request::class);
+        $request->shouldReceive('validate')
+            ->once()
+            ->with(
+                Mockery::on(function (array $rules): bool {
+                    $imageRules = $rules['image'] ?? [];
+                    $imageRules = is_array($imageRules) ? $imageRules : explode('|', $imageRules);
+
+                    return in_array('file', $imageRules, true)
+                        && ! in_array('image', $imageRules, true);
+                }),
+                Mockery::type('array')
+            );
+        $request->shouldReceive('file')->once()->with('image')->andReturn($file);
+
+        $response = $controller->upload($request);
+
+        $this->assertSame(400, $response->getStatusCode());
+    }
+
     public function test_upload_returns_400_when_uploaded_file_is_invalid(): void
     {
         $upyunService = $this->createMock(UpyunService::class);
@@ -108,19 +136,19 @@ class VisionUploadControllerUnitTest extends TestCase
         ], json_decode($response->getContent(), true));
     }
 
-    public function test_upload_uses_default_jpg_extension_for_unknown_mime(): void
+    public function test_upload_uses_heic_extension_for_heic_mime(): void
     {
         $upyunService = $this->createMock(UpyunService::class);
         $upyunService->expects($this->once())
             ->method('upload')
             ->with(
                 $this->isType('string'),
-                $this->callback(fn ($remotePath) => is_string($remotePath) && str_ends_with($remotePath, '.jpg')),
+                $this->callback(fn ($remotePath) => is_string($remotePath) && str_ends_with($remotePath, '.heic')),
                 'image/heic'
             )
             ->willReturn([
                 'success' => true,
-                'url' => 'https://example.com/vision/test.jpg',
+                'url' => 'https://example.com/vision/test.heic',
             ]);
 
         $controller = new VisionUploadController($upyunService);
@@ -139,7 +167,7 @@ class VisionUploadControllerUnitTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame([
             'success' => true,
-            'url' => 'https://example.com/vision/test.jpg',
+            'url' => 'https://example.com/vision/test.heic',
         ], json_decode($response->getContent(), true));
     }
 

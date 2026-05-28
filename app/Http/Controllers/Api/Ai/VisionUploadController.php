@@ -11,6 +11,15 @@ use Illuminate\Support\Str;
 
 class VisionUploadController extends Controller
 {
+    private const HEIC_MIME_TYPES = [
+        'image/heic',
+        'image/heif',
+        'image/heic-sequence',
+        'image/heif-sequence',
+    ];
+
+    private const HEIC_EXTENSIONS = ['heic', 'heif'];
+
     public function __construct(
         private readonly UpyunService $upyunService
     ) {}
@@ -21,10 +30,19 @@ class VisionUploadController extends Controller
     public function upload(Request $request): JsonResponse
     {
         $request->validate([
-            'image' => 'required|image|max:20480',
+            'image' => [
+                'required',
+                'file',
+                'max:20480',
+                function (string $attribute, mixed $value, callable $fail): void {
+                    if (! $this->isSupportedImageUpload($value)) {
+                        $fail('上传文件必须是图片');
+                    }
+                },
+            ],
         ], [
             'image.required' => '请选择要上传的图片',
-            'image.image' => '上传文件必须是图片',
+            'image.file' => '上传文件必须是图片',
             'image.max' => '单张图片不能超过 20MB',
         ]);
 
@@ -37,13 +55,8 @@ class VisionUploadController extends Controller
             ], 400);
         }
 
-        $mime = $file->getMimeType();
-        $extension = match ($mime) {
-            'image/png' => 'png',
-            'image/gif' => 'gif',
-            'image/webp' => 'webp',
-            default => 'jpg',
-        };
+        $mime = $this->getUploadMimeType($file);
+        $extension = $this->getUploadExtension($file, $mime);
 
         $filename = sprintf('vision-%s.%s', Str::uuid(), $extension);
         $remotePath = '/vision/' . $filename;
@@ -75,5 +88,72 @@ class VisionUploadController extends Controller
             'success' => true,
             'url' => $result['url'],
         ]);
+    }
+
+    private function isSupportedImageUpload(mixed $file): bool
+    {
+        if (! $file || ! method_exists($file, 'getPathname')) {
+            return false;
+        }
+
+        $extension = $this->uploadedFileValue($file, 'getClientOriginalExtension');
+        $mime = $this->uploadedFileValue($file, 'getMimeType');
+        $clientMime = $this->uploadedFileValue($file, 'getClientMimeType');
+
+        if ($this->isHeicUpload($extension, $mime, $clientMime)) {
+            return true;
+        }
+
+        return @getimagesize($file->getPathname()) !== false;
+    }
+
+    private function getUploadMimeType(mixed $file): string
+    {
+        $mime = $this->uploadedFileValue($file, 'getMimeType');
+        $clientMime = $this->uploadedFileValue($file, 'getClientMimeType');
+        $extension = $this->uploadedFileValue($file, 'getClientOriginalExtension');
+
+        if ($this->isHeicUpload($extension, $mime, $clientMime)) {
+            return in_array($clientMime, self::HEIC_MIME_TYPES, true)
+                ? $clientMime
+                : ($extension === 'heif' ? 'image/heif' : 'image/heic');
+        }
+
+        return $mime !== '' ? $mime : 'application/octet-stream';
+    }
+
+    private function getUploadExtension(mixed $file, string $mime): string
+    {
+        $extension = $this->uploadedFileValue($file, 'getClientOriginalExtension');
+        $clientMime = $this->uploadedFileValue($file, 'getClientMimeType');
+
+        if ($this->isHeicUpload($extension, $mime, $clientMime)) {
+            return $extension === 'heif' || str_contains($mime, 'heif') || str_contains($clientMime, 'heif')
+                ? 'heif'
+                : 'heic';
+        }
+
+        return match ($mime) {
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+            default => 'jpg',
+        };
+    }
+
+    private function uploadedFileValue(mixed $file, string $method): string
+    {
+        try {
+            return strtolower((string) $file->{$method}());
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    private function isHeicUpload(string $extension, string $mime, string $clientMime): bool
+    {
+        return in_array($extension, self::HEIC_EXTENSIONS, true)
+            || in_array($mime, self::HEIC_MIME_TYPES, true)
+            || in_array($clientMime, self::HEIC_MIME_TYPES, true);
     }
 }

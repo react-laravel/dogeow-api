@@ -128,6 +128,47 @@ class VisionUploadControllerTest extends TestCase
         ]);
     }
 
+    public function test_upload_vision_image_accepts_ios_heic_from_photo_library(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $tmpPath = tempnam(sys_get_temp_dir(), 'ios-heic');
+        file_put_contents($tmpPath, 'heic-binary-content-from-ios-photo-library');
+
+        $image = new UploadedFile(
+            $tmpPath,
+            'IMG_0001.HEIC',
+            'image/heic',
+            null,
+            true
+        );
+
+        $this->mock(UpyunService::class, function ($mock) {
+            $mock->shouldReceive('upload')
+                ->once()
+                ->with(
+                    \Mockery::type('string'),
+                    \Mockery::on(fn ($remotePath) => is_string($remotePath) && str_ends_with($remotePath, '.heic')),
+                    'image/heic'
+                )
+                ->andReturn([
+                    'success' => true,
+                    'url' => 'https://example.com/vision/test.heic',
+                ]);
+        });
+
+        $response = $this->postJson('/api/vision/upload', [
+            'image' => $image,
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success' => true,
+            'url' => 'https://example.com/vision/test.heic',
+        ]);
+    }
+
     public function test_upload_vision_image_is_public(): void
     {
         // Vision upload is a public endpoint (no auth required)
