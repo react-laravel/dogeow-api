@@ -60,6 +60,16 @@ class UploadBatchImagesRequest extends FormRequest
                     continue;
                 }
 
+                // When PHP rejects an upload before Laravel validation (for example
+                // upload_max_filesize/post_max_size), Symfony may expose an
+                // UploadedFile without a readable temporary path. Calling
+                // getMimeType() on that object throws and turns a validation problem
+                // into a 500. Let Laravel's built-in file/max rules report the
+                // upload error instead of probing MIME for invalid files.
+                if (! $image->isValid()) {
+                    continue;
+                }
+
                 $extension = strtolower($image->getClientOriginalExtension());
                 $mimeType = strtolower((string) $image->getMimeType());
 
