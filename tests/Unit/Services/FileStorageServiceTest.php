@@ -173,6 +173,20 @@ class FileStorageServiceTest extends TestCase
         $this->assertContains('File is not a valid image', $result['errors']);
     }
 
+    public function test_store_file_accepts_heic_for_processing_stage_validation()
+    {
+        $file = UploadedFile::fake()->create('iphone.HEIC', 10, 'image/heic');
+        $directory = storage_path('app/public/uploads/1');
+
+        $result = $this->fileStorageService->storeFile($file, $directory);
+
+        $this->assertTrue($result['success']);
+        $this->assertSame('heic', $result['extension']);
+        $this->assertStringEndsWith('.jpg', $result['compressed_filename']);
+        $this->assertStringEndsWith('-thumb.jpg', $result['thumbnail_filename']);
+        $this->assertStringEndsWith('-origin.heic', $result['origin_filename']);
+    }
+
     public function test_delete_file_removes_existing_file()
     {
         $filePath = storage_path('app/public/uploads/1/delete-me.txt');

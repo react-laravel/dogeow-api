@@ -184,8 +184,17 @@ class FileStorageService extends BaseService
             $errors[] = 'File type not allowed. Allowed types: ' . implode(', ', $allowedExtensions);
         }
 
-        // 仅在有明确扩展名且允许的图片扩展名时验证图片内容
-        if ($originalExtension !== '' && in_array($extension, $allowedExtensions) && ! $this->isValidImage($file)) {
+        // 仅在有明确扩展名且允许的图片扩展名时验证图片内容。
+        // getimagesize() does not understand HEIC/HEIF, and Imagick pingImage() can
+        // reject valid iOS HEIC files on some builds even when read/convert works.
+        // For HEIC/HEIF, defer content validation to ImageProcessingService so the
+        // upload is not rejected before conversion has a chance to run.
+        if (
+            $originalExtension !== ''
+            && in_array($extension, $allowedExtensions)
+            && ! in_array($extension, self::HEIC_EXTENSIONS, true)
+            && ! $this->isValidImage($file)
+        ) {
             $errors[] = 'File is not a valid image';
         }
 

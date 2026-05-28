@@ -51,6 +51,10 @@ class ImageProcessingService extends BaseService
                 return $this->error('Original image file not found');
             }
 
+            if ($this->isHeicImage($originPath)) {
+                return $this->processHeicWithPython($originPath, $compressedPath);
+            }
+
             $img = $this->manager->read($originPath);
             $dimensions = [
                 'width' => $img->width(),
@@ -155,6 +159,72 @@ class ImageProcessingService extends BaseService
     private function shouldSkipResize(int $width, int $height, int $targetSize): bool
     {
         return $width <= $targetSize && $height <= $targetSize;
+    }
+
+    private function isHeicImage(string $path): bool
+    {
+        return in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['heic', 'heif'], true);
+    }
+
+    private function processHeicWithPython(string $originPath, string $compressedPath): array
+    {
+        $script = base_path('scripts/heic-convert.py');
+        if (! is_file($script)) {
+            $script = '/opt/dogeow-heic-convert.py';
+        }
+
+        $pythonPath = env('HEIC_CONVERTER_PYTHONPATH', '/opt/dogeow-heic-python');
+        $thumbnailPath = $this->getThumbnailPath($compressedPath);
+
+        if (! is_file($script) || ! is_dir($pythonPath)) {
+            return $this->error('HEIC converter is not installed');
+        }
+
+        $command = sprintf(
+            'PYTHONPATH=%s /usr/bin/python3 %s %s %s %s %d %d %d %d 2>&1',
+            escapeshellarg($pythonPath),
+            escapeshellarg($script),
+            escapeshellarg($originPath),
+            escapeshellarg($compressedPath),
+            escapeshellarg($thumbnailPath),
+            $this->getCompressedMaxSize(),
+            $this->getThumbnailSize(),
+            $this->getQualityCompressed(),
+            $this->getQualityThumbnail()
+        );
+
+        $output = [];
+        $exitCode = 0;
+        exec($command, $output, $exitCode);
+
+        if ($exitCode !== 0) {
+            $this->logError('HEIC conversion failed', [
+                'origin_path' => $originPath,
+                'exit_code' => $exitCode,
+                'output' => implode("\n", $output),
+            ]);
+
+            return $this->error('HEIC conversion failed');
+        }
+
+        $payload = json_decode(end($output) ?: '', true);
+        if (! is_array($payload) || ! isset($payload['width'], $payload['height'])) {
+            return $this->error('HEIC conversion returned invalid output');
+        }
+
+        $dimensions = [
+            'width' => (int) $payload['width'],
+            'height' => (int) $payload['height'],
+        ];
+
+        $this->logInfo('HEIC image processed successfully', [
+            'original_path' => $originPath,
+            'compressed_path' => $compressedPath,
+            'thumbnail_path' => $thumbnailPath,
+            'dimensions' => $dimensions,
+        ]);
+
+        return $this->success($dimensions, 'Image processed successfully');
     }
 
     /**
