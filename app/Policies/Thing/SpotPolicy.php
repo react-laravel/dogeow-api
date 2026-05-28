@@ -24,7 +24,7 @@ class SpotPolicy
      */
     public function view(User $user, Spot $spot): bool
     {
-        return $user->id === $spot->user_id;
+        return (int) $user->id === (int) $spot->user_id;
     }
 
     /**
@@ -40,7 +40,7 @@ class SpotPolicy
      */
     public function update(User $user, Spot $spot): bool
     {
-        return $user->id === $spot->user_id || $user->hasRole('admin');
+        return (int) $user->id === (int) $spot->user_id || $user->hasRole('admin');
     }
 
     /**
@@ -48,7 +48,7 @@ class SpotPolicy
      */
     public function delete(User $user, Spot $spot): bool
     {
-        return $user->id === $spot->user_id || $user->hasRole('admin');
+        return (int) $user->id === (int) $spot->user_id || $user->hasRole('admin');
     }
 
     /**
@@ -56,7 +56,7 @@ class SpotPolicy
      */
     public function createForRoom(User $user, Room $room): bool
     {
-        return $user->id === $room->user_id || $user->hasRole('admin');
+        return (int) $user->id === (int) $room->user_id || $user->hasRole('admin');
     }
 
     /**
@@ -64,6 +64,6 @@ class SpotPolicy
      */
     public function moveToRoom(User $user, Spot $spot, Room $room): bool
     {
-        return ($user->id === $spot->user_id && $user->id === $room->user_id) || $user->hasRole('admin');
+        return ((int) $user->id === (int) $spot->user_id && (int) $user->id === (int) $room->user_id) || $user->hasRole('admin');
     }
 }

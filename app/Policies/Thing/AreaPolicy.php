@@ -23,7 +23,7 @@ class AreaPolicy
      */
     public function view(User $user, Area $area): bool
     {
-        return $user->id === $area->user_id;
+        return (int) $user->id === (int) $area->user_id;
     }
 
     /**
@@ -39,7 +39,7 @@ class AreaPolicy
      */
     public function update(User $user, Area $area): bool
     {
-        return $user->id === $area->user_id || $user->hasRole('admin');
+        return (int) $user->id === (int) $area->user_id || $user->hasRole('admin');
     }
 
     /**
@@ -47,7 +47,7 @@ class AreaPolicy
      */
     public function delete(User $user, Area $area): bool
     {
-        return $user->id === $area->user_id || $user->hasRole('admin');
+        return (int) $user->id === (int) $area->user_id || $user->hasRole('admin');
     }
 
     /**
@@ -55,6 +55,6 @@ class AreaPolicy
      */
     public function setDefault(User $user, Area $area): bool
     {
-        return $user->id === $area->user_id || $user->hasRole('admin');
+        return (int) $user->id === (int) $area->user_id || $user->hasRole('admin');
     }
 }
