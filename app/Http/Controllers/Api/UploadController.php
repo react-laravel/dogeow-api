@@ -92,30 +92,6 @@ class UploadController extends Controller
                     $urls = $this->fileStorageService->getPublicUrls($userId, $fileInfo);
 
                     if (! $processResult['success']) {
-                        $extension = strtolower((string) ($fileInfo['extension'] ?? ''));
-
-                        // Some iOS HEIC files cannot be decoded by the server's ImageMagick/libheif
-                        // build (for example: "Metadata not correctly assigned to image"). Do not
-                        // fail the whole upload in that case; keep the original HEIC so the item can
-                        // still be created and viewed by HEIC-capable clients.
-                        if (in_array($extension, ['heic', 'heif'], true)) {
-                            Log::warning('HEIC 图片处理失败，保留原图作为上传结果', [
-                                'file' => $image->getClientOriginalName(),
-                                'message' => $processResult['message'] ?? 'Image processing failed',
-                            ]);
-
-                            $uploadedImages[] = [
-                                'path' => 'uploads/' . $userId . '/' . $fileInfo['origin_filename'],
-                                'origin_path' => 'uploads/' . $userId . '/' . $fileInfo['origin_filename'],
-                                'url' => $urls['origin_url'],
-                                'origin_url' => $urls['origin_url'],
-                                'thumbnail_url' => $urls['origin_url'],
-                            ];
-
-                            $fileCount++;
-                            continue;
-                        }
-
                         // service returns 'message' on failure
                         throw new \Exception($processResult['message'] ?? 'Image processing failed');
                     }
