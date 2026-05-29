@@ -52,7 +52,7 @@ class ImageProcessingService extends BaseService
             }
 
             if ($this->isHeicImage($originPath)) {
-                return $this->processHeicWithPython($originPath, $compressedPath);
+                return $this->processHeicImage($originPath, $compressedPath);
             }
 
             $img = $this->manager->read($originPath);
@@ -166,65 +166,72 @@ class ImageProcessingService extends BaseService
         return in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['heic', 'heif'], true);
     }
 
-    private function processHeicWithPython(string $originPath, string $compressedPath): array
+    private function processHeicImage(string $originPath, string $compressedPath): array
     {
-        $script = base_path('scripts/heic-convert.py');
-        if (! is_file($script)) {
-            $script = '/opt/dogeow-heic-convert.py';
+        if (! extension_loaded('imagick')) {
+            return $this->error('HEIC conversion requires imagick extension');
         }
 
-        $pythonPath = env('HEIC_CONVERTER_PYTHONPATH', '/opt/dogeow-heic-python');
         $thumbnailPath = $this->getThumbnailPath($compressedPath);
 
-        if (! is_file($script) || ! is_dir($pythonPath)) {
-            return $this->error('HEIC converter is not installed');
-        }
+        try {
+            $image = new \Imagick;
+            $image->readImage($originPath);
+            $image->autoOrient();
+            $image->setImageFormat('jpeg');
 
-        $command = sprintf(
-            'PYTHONPATH=%s /usr/bin/python3 %s %s %s %s %d %d %d %d 2>&1',
-            escapeshellarg($pythonPath),
-            escapeshellarg($script),
-            escapeshellarg($originPath),
-            escapeshellarg($compressedPath),
-            escapeshellarg($thumbnailPath),
-            $this->getCompressedMaxSize(),
-            $this->getThumbnailSize(),
-            $this->getQualityCompressed(),
-            $this->getQualityThumbnail()
-        );
+            $dimensions = [
+                'width' => $image->getImageWidth(),
+                'height' => $image->getImageHeight(),
+            ];
 
-        $output = [];
-        $exitCode = 0;
-        exec($command, $output, $exitCode);
+            $compressed = clone $image;
+            $compressedMaxSize = $this->getCompressedMaxSize();
+            if (
+                $compressed->getImageWidth() > $compressedMaxSize
+                || $compressed->getImageHeight() > $compressedMaxSize
+            ) {
+                $compressed->thumbnailImage($compressedMaxSize, $compressedMaxSize, true, true);
+            }
+            $compressed->setImageCompressionQuality($this->getQualityCompressed());
+            $compressed->writeImage($compressedPath);
 
-        if ($exitCode !== 0) {
-            $this->logError('HEIC conversion failed', [
-                'origin_path' => $originPath,
-                'exit_code' => $exitCode,
-                'output' => implode("\n", $output),
+            $thumbnail = clone $image;
+            $thumbnailSize = $this->getThumbnailSize();
+            if (
+                $thumbnail->getImageWidth() > $thumbnailSize
+                || $thumbnail->getImageHeight() > $thumbnailSize
+            ) {
+                $thumbnail->thumbnailImage($thumbnailSize, $thumbnailSize, true, true);
+            }
+            $thumbnail->setImageCompressionQuality($this->getQualityThumbnail());
+            $thumbnail->writeImage($thumbnailPath);
+
+            $compressed->clear();
+            $compressed->destroy();
+            $thumbnail->clear();
+            $thumbnail->destroy();
+            $image->clear();
+            $image->destroy();
+
+            $this->logInfo('HEIC image processed successfully with imagick', [
+                'original_path' => $originPath,
+                'compressed_path' => $compressedPath,
+                'thumbnail_path' => $thumbnailPath,
+                'dimensions' => $dimensions,
             ]);
 
-            return $this->error('HEIC conversion failed');
+            return $this->success($dimensions, 'Image processed successfully');
+        } catch (\Throwable $e) {
+            $this->logError('HEIC conversion failed', [
+                'origin_path' => $originPath,
+                'compressed_path' => $compressedPath,
+                'thumbnail_path' => $thumbnailPath,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->error('HEIC conversion failed, please install ImageMagick with HEIC support');
         }
-
-        $payload = json_decode(end($output) ?: '', true);
-        if (! is_array($payload) || ! isset($payload['width'], $payload['height'])) {
-            return $this->error('HEIC conversion returned invalid output');
-        }
-
-        $dimensions = [
-            'width' => (int) $payload['width'],
-            'height' => (int) $payload['height'],
-        ];
-
-        $this->logInfo('HEIC image processed successfully', [
-            'original_path' => $originPath,
-            'compressed_path' => $compressedPath,
-            'thumbnail_path' => $thumbnailPath,
-            'dimensions' => $dimensions,
-        ]);
-
-        return $this->success($dimensions, 'Image processed successfully');
     }
 
     /**
