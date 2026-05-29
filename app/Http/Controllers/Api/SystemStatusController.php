@@ -7,7 +7,7 @@ use App\Services\SystemStatus\SystemStatusService;
 use Illuminate\Http\JsonResponse;
 
 /**
- * 公开接口：网站状态(OpenClaw、Reverb、队列)，供 /about/site 使用。
+ * 公开接口：网站状态(Hermes/OpenClaw Gateway、Reverb、队列)，供 /about/site 使用。
  */
 class SystemStatusController extends Controller
 {
