@@ -19,6 +19,9 @@ class UploadControllerTest extends TestCase
     {
         parent::setUp();
         Storage::fake('public');
+        $this->mock(ImageProcessingService::class, function ($mock) {
+            $mock->shouldReceive('processImage')->andReturn(['success' => true]);
+        });
     }
 
     #[Test]
@@ -41,6 +44,7 @@ class UploadControllerTest extends TestCase
                 'origin_path',
                 'url',
                 'origin_url',
+                'thumbnail_url',
             ],
         ]);
     }
@@ -184,7 +188,7 @@ class UploadControllerTest extends TestCase
         $this->mock(ImageProcessingService::class, function ($mock) {
             $mock->shouldReceive('processImage')->andReturn([
                 'success' => false,
-                'error' => 'Image processing failed',
+                'message' => 'Image processing failed',
             ]);
         });
 
@@ -195,9 +199,10 @@ class UploadControllerTest extends TestCase
                 'images' => [$image],
             ]);
 
-        $response->assertStatus(200);
-        // 应该返回空数组，因为处理失败
-        $response->assertJson([]);
+        $response->assertStatus(500);
+        $response->assertJson([
+            'message' => '所有图片上传失败',
+        ]);
     }
 
     #[Test]

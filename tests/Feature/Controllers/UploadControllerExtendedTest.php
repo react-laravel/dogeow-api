@@ -4,6 +4,7 @@ namespace Tests\Feature\Controllers;
 
 use App\Models\User;
 use App\Services\File\FileStorageService;
+use App\Services\File\ImageProcessingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -18,6 +19,9 @@ class UploadControllerExtendedTest extends TestCase
     {
         parent::setUp();
         Storage::fake('public');
+        $this->mock(ImageProcessingService::class, function ($mock) {
+            $mock->shouldReceive('processImage')->andReturn(['success' => true]);
+        });
     }
 
     public function test_upload_when_directory_creation_fails()
@@ -143,6 +147,7 @@ class UploadControllerExtendedTest extends TestCase
                 ->andReturn([
                     'origin_url' => 'https://example.com/origin-second.jpg',
                     'compressed_url' => 'https://example.com/compressed-second.jpg',
+                    'thumbnail_url' => 'https://example.com/thumb-second.jpg',
                 ]);
         });
 
@@ -187,6 +192,7 @@ class UploadControllerExtendedTest extends TestCase
                 ->andReturn([
                     'origin_url' => 'https://example.com/origin.jpg',
                     'compressed_url' => 'https://example.com/compressed.jpg',
+                    'thumbnail_url' => 'https://example.com/thumb.jpg',
                 ]);
         });
 

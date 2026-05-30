@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Services\File\FileStorageService;
+use App\Services\File\ImageProcessingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -18,6 +19,9 @@ class UploadControllerTest extends TestCase
     {
         parent::setUp();
         Storage::fake('public');
+        $this->mock(ImageProcessingService::class, function ($mock) {
+            $mock->shouldReceive('processImage')->andReturn(['success' => true]);
+        });
     }
 
     public function test_upload_batch_images_with_valid_files()
@@ -41,6 +45,7 @@ class UploadControllerTest extends TestCase
                 'origin_path',
                 'url',
                 'origin_url',
+                'thumbnail_url',
             ],
         ]);
 
