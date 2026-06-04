@@ -18,4 +18,11 @@ class Notification extends DatabaseNotification
             }
         });
     }
+
+    protected function casts(): array
+    {
+        return [
+            'notifiable_id' => 'integer',
+        ];
+    }
 }

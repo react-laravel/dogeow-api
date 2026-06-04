@@ -20,6 +20,7 @@ class Area extends Model
 
     protected $casts = [
         'is_default' => 'boolean',
+        'user_id' => 'integer',
     ];
 
     public function rooms()

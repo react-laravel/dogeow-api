@@ -27,6 +27,8 @@ class UserSetting extends Model
             'daily_new_words' => 'integer',
             'review_multiplier' => 'integer',
             'is_auto_pronounce' => 'boolean',
+            'user_id' => 'integer',
+            'current_book_id' => 'integer',
         ];
     }
 

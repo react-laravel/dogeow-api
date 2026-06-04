@@ -36,6 +36,7 @@ class WatchedPackage extends Model
         return [
             'last_checked_at' => 'datetime',
             'metadata' => 'array',
+            'user_id' => 'integer',
         ];
     }
 

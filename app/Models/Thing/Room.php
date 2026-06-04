@@ -34,4 +34,12 @@ class Room extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    protected function casts(): array
+    {
+        return [
+            'area_id' => 'integer',
+            'user_id' => 'integer',
+        ];
+    }
 }

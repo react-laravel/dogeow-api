@@ -43,6 +43,9 @@ class GameItemDefinition extends Model
             'base_stats' => 'array',
             'is_active' => 'boolean',
             'gem_stats' => 'array',
+            'sockets' => 'integer',
+            'required_level' => 'integer',
+            'buy_price' => 'integer',
         ];
     }
 

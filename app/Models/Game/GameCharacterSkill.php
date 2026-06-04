@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property int|null $slot_index
  * @property int|null $level
- * @property \App\Models\Game\GameSkillDefinition|null $skill
+ * @property GameSkillDefinition|null $skill
  */
 class GameCharacterSkill extends Model
 {
@@ -31,5 +31,15 @@ class GameCharacterSkill extends Model
     public function skill(): BelongsTo
     {
         return $this->belongsTo(GameSkillDefinition::class, 'skill_id');
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'character_id' => 'integer',
+            'skill_id' => 'integer',
+            'level' => 'integer',
+            'slot_index' => 'integer',
+        ];
     }
 }

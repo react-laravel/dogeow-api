@@ -2,6 +2,7 @@
 
 namespace App\Models\Game;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -17,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property array<int,array<string,mixed>>|null $affixes
  * @property int|null $sockets
  * @property GameItemDefinition|null $definition
- * @property \Illuminate\Database\Eloquent\Collection|GameItemGem[] $gems
+ * @property Collection|GameItemGem[] $gems
  */
 class GameItem extends GameItemDefinition
 {
@@ -44,6 +45,12 @@ class GameItem extends GameItemDefinition
             'affixes' => 'array',
             'is_in_storage' => 'boolean',
             'is_equipped' => 'boolean',
+            'character_id' => 'integer',
+            'definition_id' => 'integer',
+            'quantity' => 'integer',
+            'slot_index' => 'integer',
+            'sockets' => 'integer',
+            'sell_price' => 'integer',
         ];
     }
 

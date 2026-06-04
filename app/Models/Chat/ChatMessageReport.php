@@ -13,8 +13,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property mixed $room_id
  * @property mixed $user_id
  * @property mixed $status
- * @property \App\Models\Chat\ChatMessage $message
- * @property \App\Models\Chat\ChatRoom $room
+ * @property ChatMessage $message
+ * @property ChatRoom $room
  */
 class ChatMessageReport extends Model
 {
@@ -38,6 +38,10 @@ class ChatMessageReport extends Model
         'reviewed_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'message_id' => 'integer',
+        'reported_by' => 'integer',
+        'room_id' => 'integer',
+        'reviewed_by' => 'integer',
     ];
 
     /**
@@ -75,7 +79,7 @@ class ChatMessageReport extends Model
      */
     public function message(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Chat\ChatMessage::class, 'message_id');
+        return $this->belongsTo(ChatMessage::class, 'message_id');
     }
 
     /**
@@ -91,7 +95,7 @@ class ChatMessageReport extends Model
      */
     public function room(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Chat\ChatRoom::class, 'room_id');
+        return $this->belongsTo(ChatRoom::class, 'room_id');
     }
 
     /**

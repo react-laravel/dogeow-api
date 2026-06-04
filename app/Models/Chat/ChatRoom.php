@@ -26,6 +26,7 @@ class ChatRoom extends Model
         'is_private' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'created_by' => 'integer',
     ];
 
     /**
@@ -41,7 +42,7 @@ class ChatRoom extends Model
      */
     public function messages(): HasMany
     {
-        return $this->hasMany(\App\Models\Chat\ChatMessage::class, 'room_id');
+        return $this->hasMany(ChatMessage::class, 'room_id');
     }
 
     /**
@@ -75,7 +76,7 @@ class ChatRoom extends Model
      */
     public function roomUsers(): HasMany
     {
-        return $this->hasMany(\App\Models\Chat\ChatRoomUser::class, 'room_id');
+        return $this->hasMany(ChatRoomUser::class, 'room_id');
     }
 
     /**
@@ -107,7 +108,7 @@ class ChatRoom extends Model
      */
     public function latestMessage()
     {
-        return $this->hasOne(\App\Models\Chat\ChatMessage::class, 'room_id')->latest();
+        return $this->hasOne(ChatMessage::class, 'room_id')->latest();
     }
 
     /**

@@ -25,6 +25,10 @@ class ChatModerationAction extends Model
         'metadata' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'room_id' => 'integer',
+        'moderator_id' => 'integer',
+        'target_user_id' => 'integer',
+        'message_id' => 'integer',
     ];
 
     /**
@@ -53,7 +57,7 @@ class ChatModerationAction extends Model
      */
     public function room(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Chat\ChatRoom::class, 'room_id');
+        return $this->belongsTo(ChatRoom::class, 'room_id');
     }
 
     /**
@@ -77,7 +81,7 @@ class ChatModerationAction extends Model
      */
     public function message(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Chat\ChatMessage::class, 'message_id');
+        return $this->belongsTo(ChatMessage::class, 'message_id');
     }
 
     /**

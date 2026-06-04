@@ -50,4 +50,11 @@ class NoteCategory extends Model
     {
         return $this->hasMany(Note::class, 'note_category_id');
     }
+
+    protected function casts(): array
+    {
+        return [
+            'user_id' => 'integer',
+        ];
+    }
 }

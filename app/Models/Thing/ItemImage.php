@@ -21,6 +21,8 @@ class ItemImage extends Model
 
     protected $casts = [
         'is_primary' => 'boolean',
+        'item_id' => 'integer',
+        'sort_order' => 'integer',
     ];
 
     protected $appends = [

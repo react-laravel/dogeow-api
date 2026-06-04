@@ -28,6 +28,7 @@ class RepositoryUpdate extends Model
         return [
             'published_at' => 'datetime',
             'metadata' => 'array',
+            'watched_repository_id' => 'integer',
         ];
     }
 

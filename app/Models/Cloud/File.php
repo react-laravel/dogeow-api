@@ -46,6 +46,8 @@ class File extends Model
         'is_folder' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'parent_id' => 'integer',
+        'user_id' => 'integer',
     ];
 
     protected $appends = ['type'];

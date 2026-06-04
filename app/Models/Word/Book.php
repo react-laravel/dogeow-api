@@ -28,6 +28,7 @@ class Book extends Model
             'difficulty' => 'integer',
             'total_words' => 'integer',
             'sort_order' => 'integer',
+            'word_category_id' => 'integer',
         ];
     }
 

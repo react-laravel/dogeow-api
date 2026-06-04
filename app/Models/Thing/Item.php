@@ -46,6 +46,13 @@ class Item extends Model
         'expiry_date' => 'date',
         'purchase_date' => 'date',
         'purchase_price' => 'decimal:2',
+        'user_id' => 'integer',
+        'quantity' => 'integer',
+        'category_id' => 'integer',
+        'area_id' => 'integer',
+        'room_id' => 'integer',
+        'spot_id' => 'integer',
+        'is_public' => 'boolean',
     ];
 
     protected $appends = [

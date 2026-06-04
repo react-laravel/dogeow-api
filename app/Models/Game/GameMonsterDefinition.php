@@ -32,6 +32,15 @@ class GameMonsterDefinition extends Model
         return [
             'drop_table' => 'array',
             'is_active' => 'boolean',
+            'level' => 'integer',
+            'hp_base' => 'integer',
+            'hp_per_level' => 'integer',
+            'attack_base' => 'integer',
+            'attack_per_level' => 'integer',
+            'defense_base' => 'integer',
+            'defense_per_level' => 'integer',
+            'experience_base' => 'integer',
+            'experience_per_level' => 'integer',
         ];
     }
 

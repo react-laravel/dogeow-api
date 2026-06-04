@@ -61,4 +61,12 @@ class ItemCategory extends Model
     {
         return ! is_null($this->parent_id);
     }
+
+    protected function casts(): array
+    {
+        return [
+            'parent_id' => 'integer',
+            'user_id' => 'integer',
+        ];
+    }
 }

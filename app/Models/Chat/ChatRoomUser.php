@@ -36,6 +36,10 @@ class ChatRoomUser extends Model
         'banned_until' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'room_id' => 'integer',
+        'user_id' => 'integer',
+        'muted_by' => 'integer',
+        'banned_by' => 'integer',
     ];
 
     /**
@@ -43,7 +47,7 @@ class ChatRoomUser extends Model
      */
     public function room(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Chat\ChatRoom::class, 'room_id');
+        return $this->belongsTo(ChatRoom::class, 'room_id');
     }
 
     /**

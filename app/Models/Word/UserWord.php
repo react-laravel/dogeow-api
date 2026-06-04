@@ -8,9 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * @property \App\Models\User $user
- * @property \App\Models\Word\Word $word
- * @property \App\Models\Word\Book $book
+ * @property User $user
+ * @property Word $word
+ * @property Book $book
  */
 class UserWord extends Model
 {
@@ -46,6 +46,9 @@ class UserWord extends Model
             'is_favorite' => 'boolean',
             'last_review_at' => 'datetime',
             'next_review_at' => 'datetime',
+            'user_id' => 'integer',
+            'word_id' => 'integer',
+            'word_book_id' => 'integer',
         ];
     }
 

@@ -31,4 +31,12 @@ class NoteLink extends Model
     {
         return $this->belongsTo(Note::class, 'target_id');
     }
+
+    protected function casts(): array
+    {
+        return [
+            'source_id' => 'integer',
+            'target_id' => 'integer',
+        ];
+    }
 }

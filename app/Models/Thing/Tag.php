@@ -53,4 +53,11 @@ class Tag extends Model
         return $this->belongsToMany(Item::class, 'thing_item_tag', 'thing_tag_id', 'item_id')
             ->withTimestamps();
     }
+
+    protected function casts(): array
+    {
+        return [
+            'user_id' => 'integer',
+        ];
+    }
 }

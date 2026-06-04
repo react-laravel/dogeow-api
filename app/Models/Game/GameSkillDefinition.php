@@ -54,6 +54,10 @@ class GameSkillDefinition extends Model
             'base_damage' => 'integer',
             'damage_per_level' => 'integer',
             'mana_cost_per_level' => 'integer',
+            'tier' => 'integer',
+            'prerequisite_skill_id' => 'integer',
+            'mana_cost' => 'integer',
+            'skill_points_cost' => 'integer',
         ];
     }
 

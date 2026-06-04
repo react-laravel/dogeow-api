@@ -11,6 +11,7 @@ use App\Models\Thing\Spot;
 use App\Models\Thing\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Scout\Searchable;
 use Tests\TestCase;
 
 class ItemTest extends TestCase
@@ -59,6 +60,13 @@ class ItemTest extends TestCase
             'expiry_date' => 'date',
             'purchase_date' => 'date',
             'purchase_price' => 'decimal:2',
+            'user_id' => 'integer',
+            'quantity' => 'integer',
+            'category_id' => 'integer',
+            'area_id' => 'integer',
+            'room_id' => 'integer',
+            'spot_id' => 'integer',
+            'is_public' => 'boolean',
         ];
 
         $this->assertEquals($casts, $this->item->getCasts());
@@ -331,6 +339,6 @@ class ItemTest extends TestCase
     public function test_item_uses_searchable_trait(): void
     {
         $traits = class_uses($this->item);
-        $this->assertContains(\Laravel\Scout\Searchable::class, $traits);
+        $this->assertContains(Searchable::class, $traits);
     }
 }

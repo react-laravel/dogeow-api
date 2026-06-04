@@ -45,6 +45,7 @@ class Item extends Model
         'is_new_window' => 'boolean',
         'sort_order' => 'integer',
         'clicks' => 'integer',
+        'nav_category_id' => 'integer',
     ];
 
     /**

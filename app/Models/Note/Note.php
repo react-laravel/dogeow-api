@@ -64,6 +64,8 @@ class Note extends Model
     protected $casts = [
         'is_draft' => 'boolean',
         'is_wiki' => 'boolean',
+        'user_id' => 'integer',
+        'note_category_id' => 'integer',
     ];
 
     /**

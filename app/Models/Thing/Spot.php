@@ -34,4 +34,12 @@ class Spot extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    protected function casts(): array
+    {
+        return [
+            'room_id' => 'integer',
+            'user_id' => 'integer',
+        ];
+    }
 }

@@ -41,6 +41,7 @@ class WatchedRepository extends Model
             'latest_release_published_at' => 'datetime',
             'last_checked_at' => 'datetime',
             'metadata' => 'array',
+            'user_id' => 'integer',
         ];
     }
 

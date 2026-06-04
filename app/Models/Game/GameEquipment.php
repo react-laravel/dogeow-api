@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * @property \App\Models\Game\GameItem|null $item
+ * @property GameItem|null $item
  * @property string $slot
  */
 class GameEquipment extends Model
@@ -43,5 +43,13 @@ class GameEquipment extends Model
     public function item(): BelongsTo
     {
         return $this->belongsTo(GameItem::class, 'item_id');
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'character_id' => 'integer',
+            'item_id' => 'integer',
+        ];
     }
 }

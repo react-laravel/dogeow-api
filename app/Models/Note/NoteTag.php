@@ -51,4 +51,11 @@ class NoteTag extends Model
         return $this->belongsToMany(Note::class, 'note_note_tag', 'note_tag_id', 'note_id')
             ->withTimestamps();
     }
+
+    protected function casts(): array
+    {
+        return [
+            'user_id' => 'integer',
+        ];
+    }
 }

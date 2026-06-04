@@ -31,6 +31,9 @@ class GameMapDefinition extends Model
     protected $casts = [
         'monster_ids' => 'array',
         'is_active' => 'boolean',
+        'act' => 'integer',
+        'min_level' => 'integer',
+        'max_level' => 'integer',
     ];
 
     /**

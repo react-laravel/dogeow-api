@@ -3,6 +3,7 @@
 namespace App\Models\Chat;
 
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,8 +15,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property mixed $user_id
  * @property mixed $message
  * @property mixed $message_type
- * @property \App\Models\User $user
- * @property \Carbon\Carbon|null $deleted_at
+ * @property User $user
+ * @property Carbon|null $deleted_at
  */
 class ChatMessage extends Model
 {
@@ -31,6 +32,8 @@ class ChatMessage extends Model
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'room_id' => 'integer',
+        'user_id' => 'integer',
     ];
 
     /**
@@ -45,7 +48,7 @@ class ChatMessage extends Model
      */
     public function room(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Chat\ChatRoom::class, 'room_id');
+        return $this->belongsTo(ChatRoom::class, 'room_id');
     }
 
     /**

@@ -39,4 +39,13 @@ class GameItemGem extends Model
     {
         return $this->gemDefinition !== null ? ($this->gemDefinition->gem_stats ?? []) : [];
     }
+
+    protected function casts(): array
+    {
+        return [
+            'item_id' => 'integer',
+            'gem_definition_id' => 'integer',
+            'socket_index' => 'integer',
+        ];
+    }
 }

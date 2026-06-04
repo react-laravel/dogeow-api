@@ -28,6 +28,7 @@ class CheckIn extends Model
             'new_words_count' => 'integer',
             'review_words_count' => 'integer',
             'study_duration' => 'integer',
+            'user_id' => 'integer',
         ];
     }
 
