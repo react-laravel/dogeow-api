@@ -21,6 +21,7 @@ class TodoTask extends Model
     protected function casts(): array
     {
         return [
+            'todo_list_id' => 'integer',
             'is_completed' => 'boolean',
             'position' => 'integer',
         ];
