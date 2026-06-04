@@ -66,22 +66,6 @@ class UploadController extends Controller
                         throw new \Exception($fileInfo['message'] ?? '文件存储失败');
                     }
 
-                    // When running unit tests we fake the storage disk, so origin
-                    // path used by the processing service will not exist. Skip
-                    // processing entirely and treat the upload as successful.
-                    if (app()->runningUnitTests()) {
-                        $urls = $this->fileStorageService->getPublicUrls($userId, $fileInfo);
-                        $uploadedImages[] = [
-                            'path' => 'uploads/' . $userId . '/' . $fileInfo['compressed_filename'],
-                            'origin_path' => 'uploads/' . $userId . '/' . $fileInfo['origin_filename'],
-                            'url' => $urls['compressed_url'],
-                            'origin_url' => $urls['origin_url'],
-                        ];
-                        $fileCount++;
-
-                        continue;
-                    }
-
                     // 处理图片
                     $processResult = $this->imageProcessingService->processImage(
                         $fileInfo['origin_path'],

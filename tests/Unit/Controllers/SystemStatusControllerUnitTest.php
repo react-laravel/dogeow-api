@@ -19,7 +19,13 @@ class SystemStatusControllerUnitTest extends TestCase
     public function test_index_returns_standardized_success_response(): void
     {
         $payload = [
-            'openclaw' => ['online' => true, 'status' => 'online', 'details' => 'healthy'],
+            'hermes' => [
+                'name' => '小龙虾🦞',
+                'label' => 'Hermes',
+                'online' => true,
+                'status' => 'online',
+                'details' => 'healthy',
+            ],
             'reverb' => ['status' => 'running', 'raw_state' => 'RUNNING', 'details' => 'ok'],
             'queue' => ['status' => 'running', 'raw_state' => 'RUNNING', 'details' => 'ok'],
         ];

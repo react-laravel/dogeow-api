@@ -5,11 +5,12 @@ namespace Tests\Unit\Services\SystemStatus;
 use App\Services\SystemStatus\CdnStatusChecker;
 use App\Services\SystemStatus\DatabaseStatusChecker;
 use App\Services\SystemStatus\GithubRateLimitChecker;
-use App\Services\SystemStatus\OpenClawStatusChecker;
+use App\Services\SystemStatus\HermesStatusChecker;
 use App\Services\SystemStatus\RedisStatusChecker;
 use App\Services\SystemStatus\SchedulerStatusChecker;
 use App\Services\SystemStatus\SupervisorStatusChecker;
 use App\Services\SystemStatus\SystemStatusService;
+use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
 
 class SystemStatusServiceTest extends TestCase
@@ -23,7 +24,7 @@ class SystemStatusServiceTest extends TestCase
         array $scheduler = ['status' => 'online', 'details' => 'scheduler ok', 'last_run' => '2026-03-09T14:00:00+08:00'],
         array $github = ['status' => 'online', 'details' => '一小时 4314/6000，已用 1686；GraphQL 5000/5000，已用 0']
     ): SystemStatusService {
-        $openclawChecker = $this->createMock(OpenClawStatusChecker::class);
+        $openclawChecker = $this->createMock(HermesStatusChecker::class);
         $openclawChecker->method('check')->willReturn($openclaw);
 
         $supervisorChecker = $this->createMock(SupervisorStatusChecker::class);
@@ -75,19 +76,23 @@ class SystemStatusServiceTest extends TestCase
         $result = $service->getAggregatedStatus();
 
         $this->assertIsArray($result);
-        $this->assertArrayHasKey('openclaw', $result);
+        $this->assertArrayHasKey('hermes', $result);
         $this->assertArrayHasKey('reverb', $result);
         $this->assertArrayHasKey('queue', $result);
         $this->assertArrayHasKey('github', $result);
     }
 
-    public function test_get_aggregated_status_contains_openclaw_info(): void
+    public function test_get_aggregated_status_contains_hermes_info(): void
     {
+        Config::set('services.hermes.display_title', '小龙虾🦞');
+        Config::set('services.hermes.display_name', 'Hermes');
+
         $service = $this->makeService(
             [
                 'online' => true,
                 'status' => 'running',
-                'details' => 'OpenClaw is running',
+                'details' => 'Hermes is running',
+                'response_time' => 8.2,
                 'cpu_percent' => 10.5,
                 'memory_percent' => 25.0,
                 'disk_percent' => 50.0,
@@ -97,9 +102,12 @@ class SystemStatusServiceTest extends TestCase
 
         $result = $service->getAggregatedStatus();
 
-        $this->assertTrue($result['openclaw']['online']);
-        $this->assertEquals('running', $result['openclaw']['status']);
-        $this->assertEquals(10.5, $result['openclaw']['cpu_percent']);
+        $this->assertEquals('小龙虾🦞', $result['hermes']['name']);
+        $this->assertEquals('Hermes', $result['hermes']['label']);
+        $this->assertTrue($result['hermes']['online']);
+        $this->assertEquals('running', $result['hermes']['status']);
+        $this->assertEquals(8.2, $result['hermes']['response_time']);
+        $this->assertEquals(10.5, $result['hermes']['cpu_percent']);
     }
 
     public function test_get_aggregated_status_contains_reverb_info(): void

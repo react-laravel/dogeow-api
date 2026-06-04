@@ -10,7 +10,7 @@ use Illuminate\Support\Arr;
 class SystemStatusService
 {
     public function __construct(
-        private OpenClawStatusChecker $openclawChecker,
+        private HermesStatusChecker $hermesChecker,
         private SupervisorStatusChecker $supervisorChecker,
         private DatabaseStatusChecker $databaseChecker,
         private RedisStatusChecker $redisChecker,
@@ -21,7 +21,7 @@ class SystemStatusService
 
     /**
      * @return array{
-     *   openclaw: array{online: bool, status: string, details: string, cpu_percent?: float, memory_percent?: float, disk_percent?: float},
+     *   hermes: array{name: string, label: string, online: bool, status: string, details: string, response_time?: float, cpu_percent?: float, memory_percent?: float, disk_percent?: float},
      *   reverb: array{status: string, raw_state: string, details: string},
      *   queue: array{status: string, raw_state: string, details: string},
      *   database: array{status: string, details: string, response_time?: float},
@@ -33,7 +33,7 @@ class SystemStatusService
      */
     public function getAggregatedStatus(): array
     {
-        $openclaw = $this->openclawChecker->check();
+        $hermes = $this->hermesChecker->check();
         $reverbProgram = config('services.supervisor.reverb_program', 'reverb');
         $queueProgram = config('services.supervisor.queue_program', 'queue-default');
 
@@ -46,13 +46,16 @@ class SystemStatusService
         $github = $this->githubRateLimitChecker->check();
 
         return [
-            'openclaw' => [
-                'online' => Arr::get($openclaw, 'online', false),
-                'status' => Arr::get($openclaw, 'status', 'error'),
-                'details' => Arr::get($openclaw, 'details', '未知状态'),
-                'cpu_percent' => Arr::get($openclaw, 'cpu_percent'),
-                'memory_percent' => Arr::get($openclaw, 'memory_percent'),
-                'disk_percent' => Arr::get($openclaw, 'disk_percent'),
+            'hermes' => [
+                'name' => (string) config('services.hermes.display_title', '小龙虾🦞'),
+                'label' => (string) config('services.hermes.display_name', 'Hermes'),
+                'online' => Arr::get($hermes, 'online', false),
+                'status' => Arr::get($hermes, 'status', 'error'),
+                'details' => Arr::get($hermes, 'details', '未知状态'),
+                'response_time' => Arr::get($hermes, 'response_time'),
+                'cpu_percent' => Arr::get($hermes, 'cpu_percent'),
+                'memory_percent' => Arr::get($hermes, 'memory_percent'),
+                'disk_percent' => Arr::get($hermes, 'disk_percent'),
             ],
             'reverb' => [
                 'status' => $reverb['status'],

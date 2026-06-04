@@ -42,13 +42,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | System status (OpenClaw + Supervisor)
+    | System status (Hermes / OpenClaw Gateway + Supervisor)
     |--------------------------------------------------------------------------
     */
-    'openclaw' => [
-        'health_url' => env('OPENCLAW_HEALTH_URL'),
-        'timeout_seconds' => (int) env('OPENCLAW_HEALTH_TIMEOUT', 5),
-        'max_redirects' => (int) env('OPENCLAW_HEALTH_MAX_REDIRECTS', 5),
+    'hermes' => [
+        'enabled' => filter_var(env('HERMES_ENABLED', true), FILTER_VALIDATE_BOOL),
+        'host' => env('HERMES_HOST', '127.0.0.1'),
+        'port' => (int) env('HERMES_PORT', 18789),
+        'health_path' => env('HERMES_HEALTH_PATH', '/health'),
+        'health_url' => env('HERMES_HEALTH_URL'),
+        'timeout_seconds' => (int) env('HERMES_TIMEOUT', env('OPENCLAW_HEALTH_TIMEOUT', 5)),
+        'max_redirects' => (int) env('HERMES_MAX_REDIRECTS', env('OPENCLAW_HEALTH_MAX_REDIRECTS', 5)),
+        'probe_pattern' => env('HERMES_PROBE_PATTERN', 'openclaw gateway'),
+        'cli_binary' => env('HERMES_CLI_BINARY', 'openclaw'),
+        'use_host_metrics' => filter_var(env('HERMES_USE_HOST_METRICS', true), FILTER_VALIDATE_BOOL),
+        'display_title' => env('HERMES_DISPLAY_TITLE', '小龙虾🦞'),
+        'display_name' => env('HERMES_DISPLAY_NAME', 'Hermes'),
     ],
 
     'supervisor' => [

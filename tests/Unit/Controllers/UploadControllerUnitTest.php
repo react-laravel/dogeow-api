@@ -6,16 +6,25 @@ use App\Http\Controllers\Api\UploadController;
 use App\Http\Requests\UploadBatchImagesRequest;
 use App\Services\File\FileStorageService;
 use App\Services\File\ImageProcessingService;
+use Illuminate\Http\UploadedFile;
 use Mockery;
 use ReflectionClass;
 use Tests\TestCase;
 
 class UploadControllerUnitTest extends TestCase
 {
+    private function createImageProcessingServiceMock(): ImageProcessingService
+    {
+        $imageService = $this->createMock(ImageProcessingService::class);
+        $imageService->method('processImage')->willReturn(['success' => true]);
+
+        return $imageService;
+    }
+
     public function test_constructor_initializes_dependencies_and_error_messages(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createMock(ImageProcessingService::class);
+        $imageService = $this->createImageProcessingServiceMock();
 
         $controller = new UploadController($storageService, $imageService);
         $reflection = new ReflectionClass($controller);
@@ -41,7 +50,7 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_500_when_directory_creation_fails(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createMock(ImageProcessingService::class);
+        $imageService = $this->createImageProcessingServiceMock();
 
         $storageService->method('createUserDirectory')->willReturn([
             'success' => false,
@@ -64,7 +73,7 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_default_message_when_directory_creation_fails_without_message(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createMock(ImageProcessingService::class);
+        $imageService = $this->createImageProcessingServiceMock();
 
         $storageService->method('createUserDirectory')->willReturn([
             'success' => false,
@@ -86,7 +95,7 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_400_when_no_images_found(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createMock(ImageProcessingService::class);
+        $imageService = $this->createImageProcessingServiceMock();
 
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
@@ -109,7 +118,7 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_500_when_all_images_fail(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createMock(ImageProcessingService::class);
+        $imageService = $this->createImageProcessingServiceMock();
 
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
@@ -137,7 +146,7 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_uploaded_items_when_some_images_succeed(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createMock(ImageProcessingService::class);
+        $imageService = $this->createImageProcessingServiceMock();
 
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
@@ -157,13 +166,14 @@ class UploadControllerUnitTest extends TestCase
         $storageService->expects($this->once())->method('getPublicUrls')->willReturn([
             'origin_url' => 'https://example.com/origin.jpg',
             'compressed_url' => 'https://example.com/compressed.jpg',
+            'thumbnail_url' => 'https://example.com/thumb.jpg',
         ]);
 
         $invalidImage = Mockery::mock();
         $invalidImage->shouldReceive('isValid')->once()->andReturn(false);
         $invalidImage->shouldReceive('getError')->times(2)->andReturn(UPLOAD_ERR_PARTIAL);
 
-        $validImage = Mockery::mock(\Illuminate\Http\UploadedFile::class);
+        $validImage = Mockery::mock(UploadedFile::class);
         $validImage->shouldReceive('isValid')->once()->andReturn(true);
 
         $request = Mockery::mock(UploadBatchImagesRequest::class);
@@ -183,7 +193,7 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_500_when_outer_exception_is_thrown(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createMock(ImageProcessingService::class);
+        $imageService = $this->createImageProcessingServiceMock();
 
         $storageService->method('createUserDirectory')->willThrowException(new \Exception('outer boom'));
 
@@ -202,7 +212,7 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_500_when_store_file_fails_for_all_images(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createMock(ImageProcessingService::class);
+        $imageService = $this->createImageProcessingServiceMock();
 
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
@@ -214,7 +224,7 @@ class UploadControllerUnitTest extends TestCase
             'message' => '存储失败',
         ]);
 
-        $validImage = Mockery::mock(\Illuminate\Http\UploadedFile::class);
+        $validImage = Mockery::mock(UploadedFile::class);
         $validImage->shouldReceive('isValid')->once()->andReturn(true);
         $validImage->shouldReceive('getClientOriginalName')->once()->andReturn('failed.jpg');
 
@@ -235,7 +245,7 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_success_items_when_store_file_partially_fails(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createMock(ImageProcessingService::class);
+        $imageService = $this->createImageProcessingServiceMock();
 
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
@@ -264,13 +274,14 @@ class UploadControllerUnitTest extends TestCase
         $storageService->expects($this->once())->method('getPublicUrls')->willReturn([
             'origin_url' => 'https://example.com/origin-2.jpg',
             'compressed_url' => 'https://example.com/compressed-2.jpg',
+            'thumbnail_url' => 'https://example.com/thumb-2.jpg',
         ]);
 
-        $firstImage = Mockery::mock(\Illuminate\Http\UploadedFile::class);
+        $firstImage = Mockery::mock(UploadedFile::class);
         $firstImage->shouldReceive('isValid')->once()->andReturn(true);
         $firstImage->shouldReceive('getClientOriginalName')->once()->andReturn('first.jpg');
 
-        $secondImage = Mockery::mock(\Illuminate\Http\UploadedFile::class);
+        $secondImage = Mockery::mock(UploadedFile::class);
         $secondImage->shouldReceive('isValid')->once()->andReturn(true);
 
         $request = Mockery::mock(UploadBatchImagesRequest::class);
@@ -290,7 +301,7 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_empty_array_when_images_list_is_empty(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createMock(ImageProcessingService::class);
+        $imageService = $this->createImageProcessingServiceMock();
 
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
@@ -311,7 +322,7 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_continues_when_store_file_throws_for_one_image(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createMock(ImageProcessingService::class);
+        $imageService = $this->createImageProcessingServiceMock();
 
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
@@ -337,13 +348,14 @@ class UploadControllerUnitTest extends TestCase
         $storageService->expects($this->once())->method('getPublicUrls')->willReturn([
             'origin_url' => 'https://example.com/origin-ok.jpg',
             'compressed_url' => 'https://example.com/compressed-ok.jpg',
+            'thumbnail_url' => 'https://example.com/thumb-ok.jpg',
         ]);
 
-        $firstImage = Mockery::mock(\Illuminate\Http\UploadedFile::class);
+        $firstImage = Mockery::mock(UploadedFile::class);
         $firstImage->shouldReceive('isValid')->once()->andReturn(true);
         $firstImage->shouldReceive('getClientOriginalName')->once()->andReturn('boom.jpg');
 
-        $secondImage = Mockery::mock(\Illuminate\Http\UploadedFile::class);
+        $secondImage = Mockery::mock(UploadedFile::class);
         $secondImage->shouldReceive('isValid')->once()->andReturn(true);
 
         $request = Mockery::mock(UploadBatchImagesRequest::class);
@@ -363,7 +375,7 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_500_when_store_file_throws_for_all_images(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createMock(ImageProcessingService::class);
+        $imageService = $this->createImageProcessingServiceMock();
 
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
@@ -373,11 +385,11 @@ class UploadControllerUnitTest extends TestCase
         $storageService->expects($this->exactly(2))->method('storeFile')
             ->willThrowException(new \Exception('store crash'));
 
-        $firstImage = Mockery::mock(\Illuminate\Http\UploadedFile::class);
+        $firstImage = Mockery::mock(UploadedFile::class);
         $firstImage->shouldReceive('isValid')->once()->andReturn(true);
         $firstImage->shouldReceive('getClientOriginalName')->once()->andReturn('a.jpg');
 
-        $secondImage = Mockery::mock(\Illuminate\Http\UploadedFile::class);
+        $secondImage = Mockery::mock(UploadedFile::class);
         $secondImage->shouldReceive('isValid')->once()->andReturn(true);
         $secondImage->shouldReceive('getClientOriginalName')->once()->andReturn('b.jpg');
 
@@ -421,7 +433,7 @@ class UploadControllerUnitTest extends TestCase
             'message' => 'process failed',
         ]);
 
-        $validImage = Mockery::mock(\Illuminate\Http\UploadedFile::class);
+        $validImage = Mockery::mock(UploadedFile::class);
         $validImage->shouldReceive('isValid')->once()->andReturn(true);
         $validImage->shouldReceive('getClientOriginalName')->once()->andReturn('fail.jpg');
 
@@ -430,14 +442,7 @@ class UploadControllerUnitTest extends TestCase
         $request->shouldReceive('file')->once()->with('images')->andReturn([$validImage]);
 
         $controller = new UploadController($storageService, $imageService);
-
-        $originalEnv = $this->app['env'];
-        $this->app['env'] = 'local';
-        try {
-            $response = $controller->uploadBatchImages($request);
-        } finally {
-            $this->app['env'] = $originalEnv;
-        }
+        $response = $controller->uploadBatchImages($request);
 
         $this->assertSame(500, $response->getStatusCode());
         $this->assertSame(
@@ -474,9 +479,10 @@ class UploadControllerUnitTest extends TestCase
         $storageService->expects($this->once())->method('getPublicUrls')->willReturn([
             'origin_url' => 'https://example.com/origin-ok.jpg',
             'compressed_url' => 'https://example.com/compressed-ok.jpg',
+            'thumbnail_url' => 'https://example.com/thumb-ok.jpg',
         ]);
 
-        $validImage = Mockery::mock(\Illuminate\Http\UploadedFile::class);
+        $validImage = Mockery::mock(UploadedFile::class);
         $validImage->shouldReceive('isValid')->once()->andReturn(true);
 
         $request = Mockery::mock(UploadBatchImagesRequest::class);
@@ -484,14 +490,7 @@ class UploadControllerUnitTest extends TestCase
         $request->shouldReceive('file')->once()->with('images')->andReturn([$validImage]);
 
         $controller = new UploadController($storageService, $imageService);
-
-        $originalEnv = $this->app['env'];
-        $this->app['env'] = 'local';
-        try {
-            $response = $controller->uploadBatchImages($request);
-        } finally {
-            $this->app['env'] = $originalEnv;
-        }
+        $response = $controller->uploadBatchImages($request);
 
         $this->assertSame(200, $response->getStatusCode());
         $payload = json_decode($response->getContent(), true);
