@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UploadBatchImagesRequest;
+use App\Jobs\RemoveBackgroundJob;
 use App\Services\File\FileStorageService;
 use App\Services\File\ImageProcessingService;
+use App\Services\File\RmbgStatusService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -26,10 +29,11 @@ class UploadController extends Controller
     /**
      * 批量上传图片(支持多张图片同时上传)
      */
-    public function uploadBatchImages(UploadBatchImagesRequest $request)
+    public function uploadBatchImages(UploadBatchImagesRequest $request, RmbgStatusService $rmbgStatusService)
     {
         try {
             $userId = Auth::id() ?? 0;
+            $removeBg = filter_var($request->input('remove_bg', false), FILTER_VALIDATE_BOOL);
             $directoryResult = $this->fileStorageService->createUserDirectory($userId);
             if (empty($directoryResult['success'])) {
                 return response()->json([
@@ -80,14 +84,26 @@ class UploadController extends Controller
                         throw new \Exception($processResult['message'] ?? 'Image processing failed');
                     }
 
-                    // 添加到上传图片列表
-                    $uploadedImages[] = [
+                    $imageEntry = [
                         'path' => 'uploads/' . $userId . '/' . $fileInfo['compressed_filename'],
                         'origin_path' => 'uploads/' . $userId . '/' . $fileInfo['origin_filename'],
                         'url' => $urls['compressed_url'],
                         'origin_url' => $urls['origin_url'],
                         'thumbnail_url' => $urls['thumbnail_url'],
                     ];
+
+                    if ($removeBg) {
+                        $rmbgStatusService->setPending($imageEntry['path']);
+                        RemoveBackgroundJob::dispatch(
+                            $userId,
+                            $imageEntry['path'],
+                            $imageEntry['origin_path'],
+                            $imageEntry['origin_url'],
+                        );
+                        $imageEntry['rmbg_status'] = 'pending';
+                    }
+
+                    $uploadedImages[] = $imageEntry;
 
                     $fileCount++;
                 } catch (\Exception $e) {
@@ -119,6 +135,33 @@ class UploadController extends Controller
                 'message' => '图片上传失败: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * 查询去背景任务状态
+     */
+    public function rmbgStatus(Request $request, RmbgStatusService $rmbgStatusService)
+    {
+        $path = $request->query('path');
+        if (! is_string($path) || $path === '' || ! str_starts_with($path, 'uploads/')) {
+            return response()->json([
+                'message' => '无效的图片路径',
+            ], 400);
+        }
+
+        $userId = Auth::id();
+        if ($userId === null || ! str_starts_with($path, "uploads/{$userId}/")) {
+            return response()->json([
+                'message' => '无权访问该图片',
+            ], 403);
+        }
+
+        $status = $rmbgStatusService->get($path);
+        if ($status === null) {
+            return response()->json(['status' => 'unknown']);
+        }
+
+        return response()->json($status);
     }
 
     /**

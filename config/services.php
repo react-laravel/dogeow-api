@@ -92,4 +92,9 @@ return [
         'api_base_url' => env('MINIMAX_API_BASE_URL', 'https://api.minimaxi.com'),
     ],
 
+    'rmbg' => [
+        'url' => env('RMBG_API_URL', 'https://rmbg.dogeow.com/api/remove-bg'),
+        'timeout' => (int) env('RMBG_TIMEOUT', 120),
+    ],
+
 ];

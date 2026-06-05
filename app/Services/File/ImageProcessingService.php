@@ -235,6 +235,14 @@ class ImageProcessingService extends BaseService
     }
 
     /**
+     * 从已存在的展示图生成缩略图（用于去背景等后处理场景）
+     */
+    public function createThumbnailFromCompressed(string $compressedPath): array
+    {
+        return $this->createThumbnail($compressedPath, $compressedPath);
+    }
+
+    /**
      * 获取缩略图路径
      */
     private function getThumbnailPath(string $compressedPath): string

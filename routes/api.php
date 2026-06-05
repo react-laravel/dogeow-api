@@ -16,6 +16,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/user', [AuthController::class, 'update']);
 
     // 批量上传图片
+    Route::get('/upload/images/rmbg-status', [UploadController::class, 'rmbgStatus']);
     Route::post('/upload/images', [UploadController::class, 'uploadBatchImages']);
 
     // 引入各个项目的路由文件
