@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\UploadController;
 use App\Http\Requests\UploadBatchImagesRequest;
 use App\Services\File\FileStorageService;
 use App\Services\File\ImageProcessingService;
+use App\Services\File\RmbgStatusService;
 use Illuminate\Http\UploadedFile;
 use Mockery;
 use ReflectionClass;
@@ -19,6 +20,19 @@ class UploadControllerUnitTest extends TestCase
         $imageService->method('processImage')->willReturn(['success' => true]);
 
         return $imageService;
+    }
+
+    private function createRmbgStatusService(): RmbgStatusService
+    {
+        return new RmbgStatusService;
+    }
+
+    private function createUploadRequestMock(): UploadBatchImagesRequest
+    {
+        $request = Mockery::mock(UploadBatchImagesRequest::class);
+        $request->shouldReceive('input')->with('remove_bg', false)->andReturn(false);
+
+        return $request;
     }
 
     public function test_constructor_initializes_dependencies_and_error_messages(): void
@@ -57,11 +71,11 @@ class UploadControllerUnitTest extends TestCase
             'message' => '创建目录失败',
         ]);
 
-        $request = Mockery::mock(UploadBatchImagesRequest::class);
+        $request = $this->createUploadRequestMock();
         $request->shouldNotReceive('hasFile');
 
         $controller = new UploadController($storageService, $imageService);
-        $response = $controller->uploadBatchImages($request);
+        $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(500, $response->getStatusCode());
         $this->assertSame(
@@ -79,11 +93,11 @@ class UploadControllerUnitTest extends TestCase
             'success' => false,
         ]);
 
-        $request = Mockery::mock(UploadBatchImagesRequest::class);
+        $request = $this->createUploadRequestMock();
         $request->shouldNotReceive('hasFile');
 
         $controller = new UploadController($storageService, $imageService);
-        $response = $controller->uploadBatchImages($request);
+        $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(500, $response->getStatusCode());
         $this->assertSame(
@@ -102,11 +116,11 @@ class UploadControllerUnitTest extends TestCase
             'directory_path' => 'uploads/0',
         ]);
 
-        $request = Mockery::mock(UploadBatchImagesRequest::class);
+        $request = $this->createUploadRequestMock();
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(false);
 
         $controller = new UploadController($storageService, $imageService);
-        $response = $controller->uploadBatchImages($request);
+        $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(400, $response->getStatusCode());
         $this->assertSame(
@@ -129,12 +143,12 @@ class UploadControllerUnitTest extends TestCase
         $invalidImage->shouldReceive('isValid')->once()->andReturn(false);
         $invalidImage->shouldReceive('getError')->times(2)->andReturn(UPLOAD_ERR_PARTIAL);
 
-        $request = Mockery::mock(UploadBatchImagesRequest::class);
+        $request = $this->createUploadRequestMock();
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([$invalidImage]);
 
         $controller = new UploadController($storageService, $imageService);
-        $response = $controller->uploadBatchImages($request);
+        $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(500, $response->getStatusCode());
         $this->assertSame(
@@ -176,12 +190,12 @@ class UploadControllerUnitTest extends TestCase
         $validImage = Mockery::mock(UploadedFile::class);
         $validImage->shouldReceive('isValid')->once()->andReturn(true);
 
-        $request = Mockery::mock(UploadBatchImagesRequest::class);
+        $request = $this->createUploadRequestMock();
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([$invalidImage, $validImage]);
 
         $controller = new UploadController($storageService, $imageService);
-        $response = $controller->uploadBatchImages($request);
+        $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(200, $response->getStatusCode());
         $payload = json_decode($response->getContent(), true);
@@ -197,10 +211,10 @@ class UploadControllerUnitTest extends TestCase
 
         $storageService->method('createUserDirectory')->willThrowException(new \Exception('outer boom'));
 
-        $request = Mockery::mock(UploadBatchImagesRequest::class);
+        $request = $this->createUploadRequestMock();
 
         $controller = new UploadController($storageService, $imageService);
-        $response = $controller->uploadBatchImages($request);
+        $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(500, $response->getStatusCode());
         $this->assertSame(
@@ -228,12 +242,12 @@ class UploadControllerUnitTest extends TestCase
         $validImage->shouldReceive('isValid')->once()->andReturn(true);
         $validImage->shouldReceive('getClientOriginalName')->once()->andReturn('failed.jpg');
 
-        $request = Mockery::mock(UploadBatchImagesRequest::class);
+        $request = $this->createUploadRequestMock();
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([$validImage]);
 
         $controller = new UploadController($storageService, $imageService);
-        $response = $controller->uploadBatchImages($request);
+        $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(500, $response->getStatusCode());
         $this->assertSame(
@@ -284,12 +298,12 @@ class UploadControllerUnitTest extends TestCase
         $secondImage = Mockery::mock(UploadedFile::class);
         $secondImage->shouldReceive('isValid')->once()->andReturn(true);
 
-        $request = Mockery::mock(UploadBatchImagesRequest::class);
+        $request = $this->createUploadRequestMock();
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([$firstImage, $secondImage]);
 
         $controller = new UploadController($storageService, $imageService);
-        $response = $controller->uploadBatchImages($request);
+        $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(200, $response->getStatusCode());
         $payload = json_decode($response->getContent(), true);
@@ -308,12 +322,12 @@ class UploadControllerUnitTest extends TestCase
             'directory_path' => 'uploads/0',
         ]);
 
-        $request = Mockery::mock(UploadBatchImagesRequest::class);
+        $request = $this->createUploadRequestMock();
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([]);
 
         $controller = new UploadController($storageService, $imageService);
-        $response = $controller->uploadBatchImages($request);
+        $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame([], json_decode($response->getContent(), true));
@@ -358,12 +372,12 @@ class UploadControllerUnitTest extends TestCase
         $secondImage = Mockery::mock(UploadedFile::class);
         $secondImage->shouldReceive('isValid')->once()->andReturn(true);
 
-        $request = Mockery::mock(UploadBatchImagesRequest::class);
+        $request = $this->createUploadRequestMock();
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([$firstImage, $secondImage]);
 
         $controller = new UploadController($storageService, $imageService);
-        $response = $controller->uploadBatchImages($request);
+        $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(200, $response->getStatusCode());
         $payload = json_decode($response->getContent(), true);
@@ -393,12 +407,12 @@ class UploadControllerUnitTest extends TestCase
         $secondImage->shouldReceive('isValid')->once()->andReturn(true);
         $secondImage->shouldReceive('getClientOriginalName')->once()->andReturn('b.jpg');
 
-        $request = Mockery::mock(UploadBatchImagesRequest::class);
+        $request = $this->createUploadRequestMock();
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([$firstImage, $secondImage]);
 
         $controller = new UploadController($storageService, $imageService);
-        $response = $controller->uploadBatchImages($request);
+        $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(500, $response->getStatusCode());
         $this->assertSame(
@@ -437,12 +451,12 @@ class UploadControllerUnitTest extends TestCase
         $validImage->shouldReceive('isValid')->once()->andReturn(true);
         $validImage->shouldReceive('getClientOriginalName')->once()->andReturn('fail.jpg');
 
-        $request = Mockery::mock(UploadBatchImagesRequest::class);
+        $request = $this->createUploadRequestMock();
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([$validImage]);
 
         $controller = new UploadController($storageService, $imageService);
-        $response = $controller->uploadBatchImages($request);
+        $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(500, $response->getStatusCode());
         $this->assertSame(
@@ -485,12 +499,12 @@ class UploadControllerUnitTest extends TestCase
         $validImage = Mockery::mock(UploadedFile::class);
         $validImage->shouldReceive('isValid')->once()->andReturn(true);
 
-        $request = Mockery::mock(UploadBatchImagesRequest::class);
+        $request = $this->createUploadRequestMock();
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([$validImage]);
 
         $controller = new UploadController($storageService, $imageService);
-        $response = $controller->uploadBatchImages($request);
+        $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(200, $response->getStatusCode());
         $payload = json_decode($response->getContent(), true);
