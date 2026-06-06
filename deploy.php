@@ -111,8 +111,12 @@ bootstrap_cache="{{release_path}}/bootstrap/cache"
 
 [ -d "$storage_dir" ] || exit 0
 
-find "$storage_dir" -type d -exec chmod 2777 {} +
-find "$storage_dir" -type f -exec chmod 0666 {} +
+# shared/storage may contain files created by the PHP-FPM www-data user.
+# The deploy user (nginx) cannot chmod those files without sudo, so do not let
+# permission normalization fail the whole release. Log files use Monolog
+# explicit 0666 permission setting; this hook only fixes paths nginx owns.
+find "$storage_dir" -type d -user "$(id -un)" -exec chmod 2777 {} + || true
+find "$storage_dir" -type f -user "$(id -un)" -exec chmod 0666 {} + || true
 
 if [ -d "$bootstrap_cache" ]; then
   find "$bootstrap_cache" -type d -exec chmod 2775 {} +
