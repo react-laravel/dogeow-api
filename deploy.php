@@ -100,11 +100,36 @@ task('deploy:update_code', function () {
     );
 });
 
+desc('修复 shared storage 权限，避免 PHP-FPM(www-data) 与部署用户(nginx)轮流写日志/上传文件时 500');
+task('deploy:storage_permissions', function () {
+    run(<<<'BASH'
+bash -lc '
+set -euo pipefail
+
+storage_dir="{{deploy_path}}/shared/storage"
+bootstrap_cache="{{release_path}}/bootstrap/cache"
+
+[ -d "$storage_dir" ] || exit 0
+
+find "$storage_dir" -type d -exec chmod 2777 {} +
+find "$storage_dir" -type f -exec chmod 0666 {} +
+
+if [ -d "$bootstrap_cache" ]; then
+  find "$bootstrap_cache" -type d -exec chmod 2775 {} +
+  find "$bootstrap_cache" -type f -exec chmod 0664 {} +
+fi
+'
+BASH);
+});
+
 // =====================
 // Hooks
 // =====================
 // 部署失败自动解锁，避免下次运行报 "Deploy is locked"
 after('deploy:failed', 'deploy:unlock');
+
+// shared/storage 由 PHP-FPM(www-data) 和部署用户(nginx)共同写入，部署后统一修正权限。
+after('deploy:shared', 'deploy:storage_permissions');
 
 // current 切换之后再重启 worker：
 //   queue:restart 让跑中的 job 做完就退出，Supervisor 拉起新进程时加载新代码。
