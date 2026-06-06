@@ -69,3 +69,8 @@ Broadcast::channel('user.{userId}', function ($user, $userId) {
 Broadcast::channel('user.{userId}.notifications', function ($user, $userId) {
     return (int) $user->id === (int) $userId;
 });
+
+// 用户上传/去背景私有频道(如：user.1.uploads)
+Broadcast::channel('user.{userId}.uploads', function ($user, $userId) {
+    return (int) $user->id === (int) $userId;
+});
