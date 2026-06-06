@@ -2,7 +2,9 @@
 
 namespace App\Jobs;
 
+use App\Models\Thing\ItemImage;
 use App\Services\File\ImageProcessingService;
+use App\Services\File\RmbgItemImageLinkerService;
 use App\Services\File\RmbgStatusService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -32,6 +34,7 @@ class RemoveBackgroundJob implements ShouldQueue
     public function handle(
         RmbgStatusService $rmbgStatusService,
         ImageProcessingService $imageProcessingService,
+        RmbgItemImageLinkerService $rmbgItemImageLinker,
     ): void {
         $rmbgStatusService->setProcessing($this->compressedPath);
 
@@ -42,10 +45,13 @@ class RemoveBackgroundJob implements ShouldQueue
             return;
         }
 
+        $linkedItemImageId = $rmbgItemImageLinker->getItemImageIdForUploadPath($this->compressedPath);
+
         try {
+            $originUrl = $this->resolveOriginUrl($linkedItemImageId);
             $response = Http::timeout((int) config('services.rmbg.timeout', 120))
                 ->post($apiUrl, [
-                    'image_url' => $this->originUrl,
+                    'image_url' => $originUrl,
                     'bg' => 'transparent',
                 ]);
 
@@ -61,6 +67,32 @@ class RemoveBackgroundJob implements ShouldQueue
             $pngBytes = $response->body();
             if ($pngBytes === '' || strlen($pngBytes) < 100) {
                 $rmbgStatusService->setFailed($this->compressedPath, '去背景结果无效');
+
+                return;
+            }
+
+            if ($linkedItemImageId !== null) {
+                $result = $this->applyToLinkedItemImage(
+                    $linkedItemImageId,
+                    $pngBytes,
+                    $imageProcessingService,
+                );
+
+                if ($result === null) {
+                    $rmbgStatusService->setFailed($this->compressedPath, '关联的物品图片不存在');
+
+                    return;
+                }
+
+                $rmbgStatusService->setDone($this->compressedPath, array_merge(
+                    ['status' => 'done'],
+                    $result,
+                    [
+                        'origin_path' => $result['origin_path'] ?? $this->originPath,
+                        'origin_url' => $result['origin_url'] ?? $originUrl,
+                    ],
+                ));
+                $rmbgItemImageLinker->unlink($this->compressedPath);
 
                 return;
             }
@@ -109,6 +141,112 @@ class RemoveBackgroundJob implements ShouldQueue
             $this->compressedPath,
             $exception->getMessage()
         );
+    }
+
+    private function resolveOriginUrl(?int $linkedItemImageId): string
+    {
+        if ($linkedItemImageId === null) {
+            return $this->originUrl;
+        }
+
+        $itemImage = ItemImage::query()->find($linkedItemImageId);
+        if ($itemImage === null) {
+            return $this->originUrl;
+        }
+
+        $originPath = $this->findOriginCompanionPath($itemImage->path);
+        if ($originPath !== null) {
+            return url('storage/' . $originPath);
+        }
+
+        if (Storage::disk('public')->exists($itemImage->path)) {
+            return url('storage/' . $itemImage->path);
+        }
+
+        return $this->originUrl;
+    }
+
+    /**
+     * @return array<string, string>|null
+     */
+    private function applyToLinkedItemImage(
+        int $itemImageId,
+        string $pngBytes,
+        ImageProcessingService $imageProcessingService,
+    ): ?array {
+        $itemImage = ItemImage::query()->find($itemImageId);
+        if ($itemImage === null) {
+            return null;
+        }
+
+        $disk = Storage::disk('public');
+        $oldPath = $itemImage->path;
+        $dir = pathinfo($oldPath, PATHINFO_DIRNAME);
+        $base = pathinfo($oldPath, PATHINFO_FILENAME);
+        $newPath = $dir . '/' . $base . '.png';
+
+        $disk->put($newPath, $pngBytes);
+
+        foreach ($this->companionPathsForDeletion($oldPath) as $pathToDelete) {
+            if ($disk->exists($pathToDelete)) {
+                $disk->delete($pathToDelete);
+            }
+        }
+
+        $absolutePath = $disk->path($newPath);
+        $thumbResult = $imageProcessingService->createThumbnailFromCompressed($absolutePath);
+        if (empty($thumbResult['success'])) {
+            Log::warning('去背景后缩略图生成失败', [
+                'path' => $newPath,
+                'message' => $thumbResult['message'] ?? null,
+            ]);
+        }
+
+        $itemImage->update(['path' => $newPath]);
+
+        $originPath = $this->findOriginCompanionPath($newPath);
+        $urls = $this->buildPublicUrls($newPath);
+
+        return [
+            'path' => $newPath,
+            'url' => $urls['url'],
+            'thumbnail_url' => $urls['thumbnail_url'],
+            'thumbnail_path' => $urls['thumbnail_path'],
+            'origin_path' => $originPath ?? $this->originPath,
+            'origin_url' => $originPath !== null ? url('storage/' . $originPath) : $this->originUrl,
+        ];
+    }
+
+    private function findOriginCompanionPath(string $displayPath): ?string
+    {
+        $disk = Storage::disk('public');
+        $dirname = pathinfo($displayPath, PATHINFO_DIRNAME);
+        $filename = pathinfo($displayPath, PATHINFO_FILENAME);
+        $extension = pathinfo($displayPath, PATHINFO_EXTENSION);
+        $originPath = $dirname . '/' . $filename . '-origin.' . $extension;
+
+        if ($disk->exists($originPath)) {
+            return $originPath;
+        }
+
+        return $disk->exists($displayPath) ? $displayPath : null;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function companionPathsForDeletion(string $path): array
+    {
+        $dirname = pathinfo($path, PATHINFO_DIRNAME);
+        $filename = pathinfo($path, PATHINFO_BASENAME);
+        $extension = pathinfo($path, PATHINFO_EXTENSION);
+        $baseName = pathinfo($path, PATHINFO_FILENAME);
+
+        return array_values(array_unique([
+            $path,
+            $dirname . '/' . $baseName . '-thumb.' . $extension,
+            $dirname . '/' . $baseName . '-origin.' . $extension,
+        ]));
     }
 
     private function replaceExtension(string $path, string $extension): string

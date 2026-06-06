@@ -4,6 +4,7 @@ namespace Tests\Unit\Jobs;
 
 use App\Jobs\RemoveBackgroundJob;
 use App\Services\File\ImageProcessingService;
+use App\Services\File\RmbgItemImageLinkerService;
 use App\Services\File\RmbgStatusService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -18,6 +19,7 @@ class RemoveBackgroundJobTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['cache.default' => 'array']);
         Storage::fake('public');
         config([
             'services.rmbg.url' => 'https://rmbg.example.com/api/remove-bg',
@@ -56,7 +58,11 @@ class RemoveBackgroundJobTest extends TestCase
             'https://example.com/storage/' . $originPath,
         );
 
-        $job->handle(app(RmbgStatusService::class), app(ImageProcessingService::class));
+        $job->handle(
+            app(RmbgStatusService::class),
+            app(ImageProcessingService::class),
+            app(RmbgItemImageLinkerService::class),
+        );
 
         $newPath = "uploads/{$userId}/abc.png";
         $this->assertTrue(Storage::disk('public')->exists($newPath));
@@ -83,7 +89,11 @@ class RemoveBackgroundJobTest extends TestCase
             'https://example.com/storage/uploads/1/abc-origin.jpg',
         );
 
-        $job->handle(app(RmbgStatusService::class), app(ImageProcessingService::class));
+        $job->handle(
+            app(RmbgStatusService::class),
+            app(ImageProcessingService::class),
+            app(RmbgItemImageLinkerService::class),
+        );
 
         $status = app(RmbgStatusService::class)->get($compressedPath);
         $this->assertSame('failed', $status['status']);

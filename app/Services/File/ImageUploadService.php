@@ -10,6 +10,11 @@ use Illuminate\Support\Facades\Storage;
 
 class ImageUploadService
 {
+    public function __construct(
+        private readonly RmbgStatusService $rmbgStatusService,
+        private readonly RmbgItemImageLinkerService $rmbgItemImageLinker,
+    ) {}
+
     /**
      * 处理上传的图片，保存并创建缩略图
      *
@@ -119,6 +124,8 @@ class ImageUploadService
                     'sort_order' => $currentMaxSortOrder,
                 ]);
 
+                $this->linkPendingRmbgIfNeeded($originPath, $itemImage->id);
+
                 GenerateThumbnailForItemImageJob::dispatch($itemImage);
 
             } else {
@@ -222,5 +229,17 @@ class ImageUploadService
             'thumb' => $baseName . '-thumb.' . $extension,
             'origin' => $baseName . '-origin.' . $extension,
         ];
+    }
+
+    private function linkPendingRmbgIfNeeded(string $uploadPath, int $itemImageId): void
+    {
+        $status = $this->rmbgStatusService->get($uploadPath);
+        $rmbgStatus = is_array($status) ? ($status['status'] ?? null) : null;
+
+        if (! in_array($rmbgStatus, ['pending', 'processing'], true)) {
+            return;
+        }
+
+        $this->rmbgItemImageLinker->link($uploadPath, $itemImageId);
     }
 }

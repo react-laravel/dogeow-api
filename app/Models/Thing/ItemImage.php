@@ -2,6 +2,8 @@
 
 namespace App\Models\Thing;
 
+use App\Services\File\RmbgItemImageLinkerService;
+use App\Services\File\RmbgStatusService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
@@ -29,6 +31,7 @@ class ItemImage extends Model
         'url',
         'thumbnail_url',
         'thumbnail_path',
+        'rmbg_status',
     ];
 
     public function item()
@@ -75,5 +78,22 @@ class ItemImage extends Model
         $thumbPath = $dirname . '/' . $filename . '-thumb.' . $extension;
 
         return Storage::url($thumbPath);
+    }
+
+    public function getRmbgStatusAttribute(): ?string
+    {
+        $uploadPath = app(RmbgItemImageLinkerService::class)->getUploadPathForItemImage($this->id);
+        if ($uploadPath === null) {
+            return null;
+        }
+
+        $status = app(RmbgStatusService::class)->get($uploadPath);
+        if (! is_array($status)) {
+            return null;
+        }
+
+        $rmbgStatus = $status['status'] ?? null;
+
+        return is_string($rmbgStatus) ? $rmbgStatus : null;
     }
 }

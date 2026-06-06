@@ -23,7 +23,8 @@ class ImageUploadServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->imageUploadService = new ImageUploadService;
+        config(['cache.default' => 'array']);
+        $this->imageUploadService = app(ImageUploadService::class);
         $this->item = Item::factory()->create();
 
         // Fake the queue to avoid actual job processing
