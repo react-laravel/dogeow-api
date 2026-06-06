@@ -25,7 +25,7 @@ require 'recipe/laravel.php';
 // 基本配置
 // =====================
 set('application', 'dogeow-api');
-set('keep_releases', 5);
+set('keep_releases', 2);
 set('git_tty', false); // CI 环境没有 TTY
 set('workspace_root', __DIR__);
 // ECS 镜像默认没有 ACL 工具，改用 chmod 处理 writable 目录。
