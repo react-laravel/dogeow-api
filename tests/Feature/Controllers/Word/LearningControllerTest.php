@@ -144,7 +144,7 @@ class LearningControllerTest extends TestCase
         $this->markTestSkipped('word_user_words table does not exist in test database');
     }
 
-    public function test_can_mark_word_as_not_remembered(): void
+    public function test_mark_word_as_not_remembered_does_not_create_record_for_new_word(): void
     {
         $user = User::factory()->create();
         $book = $this->createBook();
@@ -160,11 +160,110 @@ class LearningControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonPath('message', '单词标记成功');
 
+        $this->assertNull(UserWord::where('user_id', $user->id)
+            ->where('word_id', $word->id)
+            ->first());
+    }
+
+    public function test_mark_word_as_not_remembered_updates_existing_record(): void
+    {
+        $user = User::factory()->create();
+        $book = $this->createBook();
+        $word = $this->createWord();
+        $book->words()->attach($word->id, ['sort_order' => 1]);
+        $this->createUserSetting($user, ['current_book_id' => $book->id]);
+
+        UserWord::create([
+            'user_id' => $user->id,
+            'word_id' => $word->id,
+            'word_book_id' => $book->id,
+            'status' => 1,
+            'stage' => 1,
+            'ease_factor' => 2.50,
+            'next_review_at' => now()->subDay(),
+            'review_count' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/word/mark/' . $word->id, [
+                'remembered' => false,
+            ]);
+
+        $response->assertStatus(200);
+
         $userWord = UserWord::where('user_id', $user->id)
             ->where('word_id', $word->id)
             ->first();
         $this->assertNotNull($userWord);
-        $this->assertGreaterThan(0, $userWord->review_count);
+        $this->assertGreaterThan(1, $userWord->review_count);
+        $this->assertGreaterThan(0, $userWord->wrong_count);
+    }
+
+    public function test_get_daily_words_returns_next_unlearned_batch(): void
+    {
+        $user = User::factory()->create();
+        $book = $this->createBook(['total_words' => 20]);
+        $firstWord = $this->createWord(['content' => 'alpha']);
+        $secondWord = $this->createWord(['content' => 'beta']);
+        $book->words()->attach($firstWord->id, ['sort_order' => 1]);
+        $book->words()->attach($secondWord->id, ['sort_order' => 2]);
+        $this->createUserSetting($user, ['current_book_id' => $book->id, 'daily_new_words' => 1]);
+
+        UserWord::create([
+            'user_id' => $user->id,
+            'word_id' => $firstWord->id,
+            'word_book_id' => $book->id,
+            'status' => 1,
+            'stage' => 0,
+            'ease_factor' => 2.50,
+            'next_review_at' => now()->addDay(),
+            'review_count' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->getJson('/api/word/daily');
+
+        $response->assertStatus(200);
+        $data = $response->json('data');
+        $this->assertCount(1, $data);
+        $this->assertEquals('beta', $data[0]['content']);
+        $this->assertFalse($data[0]['is_review_word']);
+    }
+
+    public function test_get_daily_words_includes_same_day_forgotten_words(): void
+    {
+        $user = User::factory()->create();
+        $book = $this->createBook();
+        $word = $this->createWord(['content' => 'retry']);
+        $book->words()->attach($word->id, ['sort_order' => 1]);
+        $this->createUserSetting($user, ['current_book_id' => $book->id, 'daily_new_words' => 5]);
+
+        UserWord::create([
+            'user_id' => $user->id,
+            'word_id' => $word->id,
+            'word_book_id' => $book->id,
+            'status' => 1,
+            'stage' => 0,
+            'ease_factor' => 2.50,
+            'wrong_count' => 1,
+            'review_count' => 1,
+            'last_review_at' => now(),
+            'next_review_at' => now()->addDay(),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->getJson('/api/word/daily');
+
+        $response->assertStatus(200);
+        $data = $response->json('data');
+        $this->assertNotEmpty($data);
+        $this->assertEquals('retry', $data[0]['content']);
+        $this->assertTrue($data[0]['is_review_word']);
+    }
+
+    public function test_can_mark_word_as_not_remembered(): void
+    {
+        $this->markTestSkipped('Replaced by test_mark_word_as_not_remembered_updates_existing_record');
     }
 
     public function test_mark_word_initializes_existing_pending_user_word(): void

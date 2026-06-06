@@ -46,7 +46,7 @@ class LearningController extends Controller
         $dailyCount = $setting->daily_new_words;
         $reviewCount = $setting->daily_new_words * $setting->review_multiplier;
 
-        // 1. 先获取需要复习的单词(优先，限制在当前单词书)
+        // 1. 到期复习词（限制在当前单词书）
         $reviewUserWords = UserWord::where('user_id', $user->id)
             ->where('word_book_id', $book->id)
             ->whereNotIn('status', [0, 4]) // 已学习且非简单词
@@ -56,25 +56,57 @@ class LearningController extends Controller
             ->limit($reviewCount)
             ->get();
 
-        /** @var Collection<int, Word> $reviewWords */
-        // property 'word' on UserWord is non-nullable, so return type can be Word
-        $reviewWords = $reviewUserWords->map(fn (UserWord $userWord): Word => $userWord->word)->filter();
+        // 2. 今日刚标记「记不住」、尚未到复习时间的词（允许当天继续练）
+        $sameDayRetryUserWords = UserWord::where('user_id', $user->id)
+            ->where('word_book_id', $book->id)
+            ->whereNotIn('status', [0, 4])
+            ->where('wrong_count', '>', 0)
+            ->where('next_review_at', '>', now())
+            ->whereDate('last_review_at', today())
+            ->with(['word.educationLevels'])
+            ->orderBy('last_review_at')
+            ->limit($reviewCount)
+            ->get();
 
-        // 2. 获取用户已学习的单词 ID(该单词书下的)
+        $reviewWordIds = $reviewUserWords->pluck('word_id')
+            ->merge($sameDayRetryUserWords->pluck('word_id'))
+            ->unique();
+
+        /** @var Collection<int, Word> $reviewWords */
+        $reviewWords = $reviewUserWords
+            ->merge($sameDayRetryUserWords)
+            ->unique('word_id')
+            ->map(function (UserWord $userWord): Word {
+                $word = $userWord->word;
+                $word->setAttribute('is_review_word', true);
+
+                return $word;
+            })
+            ->filter()
+            ->take($reviewCount)
+            ->values();
+
+        // 3. 获取用户已学习的单词 ID(该单词书下的)
         $learnedWordIds = UserWord::where('user_id', $user->id)
             ->where('word_book_id', $book->id)
             ->pluck('word_id')
             ->unique();
 
-        // 3. 获取未学习的新单词(排除已学习的，包括复习词)
+        // 4. 获取未学习的新单词(排除已学习的，包括复习词)
         /** @var Collection<int, Word> $newWords */
         $newWords = $book->words()
             ->with('educationLevels')
             ->whereNotIn('words.id', $learnedWordIds)
+            ->whereNotIn('words.id', $reviewWordIds)
+            ->orderBy('word_book_word.sort_order')
             ->limit($dailyCount)
             ->get();
 
-        // 4. 合并：复习词在前，新词在后
+        foreach ($newWords as $newWord) {
+            $newWord->setAttribute('is_review_word', false);
+        }
+
+        // 5. 合并：复习词在前，新词在后
         $allWords = $reviewWords->merge($newWords);
 
         return WordResource::collection($allWords);
@@ -118,29 +150,33 @@ class LearningController extends Controller
         // 从用户设置中获取当前单词书 ID
         $bookId = $setting->current_book_id;
 
-        DB::transaction(function () use ($user, $word, $remembered, $bookId) {
-            // 获取或创建用户单词记录
-            $userWord = UserWord::firstOrCreate(
-                [
-                    'user_id' => $user->id,
-                    'word_id' => $word->id,
-                    'word_book_id' => $bookId,
-                ],
-                [
-                    'status' => 1, // 学习中
-                    'stage' => 0,
-                    'ease_factor' => 2.50,
-                ]
-            );
+        $existingUserWord = UserWord::query()
+            ->where('user_id', $user->id)
+            ->where('word_id', $word->id)
+            ->where('word_book_id', $bookId)
+            ->first();
 
-            // 如果是新单词，设置初始状态
+        // 首次遇见的新词点「记不住」时不写入学习记录，避免从「新词池」被提前移除
+        if (! $remembered && ! $existingUserWord) {
+            return $this->success([], '单词标记成功');
+        }
+
+        DB::transaction(function () use ($user, $word, $remembered, $bookId, $existingUserWord) {
+            $userWord = $existingUserWord ?? UserWord::query()->create([
+                'user_id' => $user->id,
+                'word_id' => $word->id,
+                'word_book_id' => $bookId,
+                'status' => 1,
+                'stage' => 0,
+                'ease_factor' => 2.50,
+            ]);
+
             if ($userWord->status === 0) {
                 $userWord->status = 1;
                 $userWord->stage = 0;
                 $userWord->ease_factor = 2.50;
             }
 
-            // 处理复习结果
             $this->ebbinghausService->processReview($userWord, $remembered);
             $userWord->save();
         });
