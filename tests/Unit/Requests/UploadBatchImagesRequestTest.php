@@ -34,6 +34,7 @@ class UploadBatchImagesRequestTest extends TestCase
         $messages = $this->request->messages();
 
         $this->assertStringContainsString('图片', $messages['images.*.required']);
+        $this->assertStringContainsString('PHP 本地上传限制', $messages['images.*.uploaded']);
         $this->assertStringContainsString('20MB', $messages['images.*.max']);
     }
 

@@ -92,6 +92,7 @@ class UploadBatchImagesRequest extends FormRequest
     {
         return [
             'images.*.required' => '请选择要上传的图片。',
+            'images.*.uploaded' => '图片上传失败，可能超过了 PHP 本地上传限制。请确认 upload_max_filesize 至少为 20M，post_max_size 至少为 25M。',
             'images.*.file' => '上传文件必须是图片。',
             'images.*.max' => '单张图片不能超过 20MB。',
         ];
