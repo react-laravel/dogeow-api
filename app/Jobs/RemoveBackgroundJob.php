@@ -45,9 +45,8 @@ class RemoveBackgroundJob implements ShouldQueue
             return;
         }
 
-        $linkedItemImageId = $rmbgItemImageLinker->getItemImageIdForUploadPath($this->compressedPath);
-
         try {
+            $linkedItemImageId = $rmbgItemImageLinker->getItemImageIdForUploadPath($this->compressedPath);
             $originUrl = $this->resolveOriginUrl($linkedItemImageId);
             $response = Http::timeout((int) config('services.rmbg.timeout', 120))
                 ->post($apiUrl, [
@@ -70,6 +69,9 @@ class RemoveBackgroundJob implements ShouldQueue
 
                 return;
             }
+
+            // 物品可能在排队或请求期间才创建并关联，需再次读取
+            $linkedItemImageId = $rmbgItemImageLinker->getItemImageIdForUploadPath($this->compressedPath);
 
             if ($linkedItemImageId !== null) {
                 $result = $this->applyToLinkedItemImage(
