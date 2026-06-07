@@ -94,7 +94,7 @@ return [
 
     'rmbg' => [
         'url' => env('RMBG_API_URL', 'https://rmbg.dogeow.com/api/remove-bg'),
-        'timeout' => (int) env('RMBG_TIMEOUT', 120),
+        'timeout' => (int) env('RMBG_TIMEOUT', 600),
     ],
 
 ];
