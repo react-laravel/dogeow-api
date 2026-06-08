@@ -18,7 +18,7 @@ class SystemStatusServiceTest extends TestCase
     private function makeService(
         array $openclaw,
         array $supervisor,
-        array $database = ['status' => 'online', 'details' => 'db ok', 'response_time' => 1.2],
+        array $database = ['status' => 'online', 'label' => 'PostgreSQL 数据库', 'driver' => 'pgsql', 'details' => 'db ok', 'response_time' => 1.2],
         array $redis = ['status' => 'online', 'details' => 'redis ok', 'response_time' => 0.8],
         array $cdn = ['status' => 'online', 'details' => 'cdn ok', 'response_time' => 12.4],
         array $scheduler = ['status' => 'online', 'details' => 'scheduler ok', 'last_run' => '2026-03-09T14:00:00+08:00'],

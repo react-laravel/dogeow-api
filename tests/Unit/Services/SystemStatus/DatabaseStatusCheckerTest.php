@@ -21,6 +21,9 @@ class DatabaseStatusCheckerTest extends TestCase
         $result = $this->checker->check();
 
         $this->assertSame('online', $result['status']);
+        $this->assertArrayHasKey('label', $result);
+        $this->assertArrayHasKey('driver', $result);
+        $this->assertNotSame('', $result['label']);
         $this->assertArrayHasKey('response_time', $result);
         $this->assertIsFloat($result['response_time']);
         $this->assertGreaterThanOrEqual(0, $result['response_time']);

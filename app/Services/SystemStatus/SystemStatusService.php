@@ -24,7 +24,7 @@ class SystemStatusService
      *   hermes: array{name: string, label: string, online: bool, status: string, details: string, response_time?: float, cpu_percent?: float, memory_percent?: float, disk_percent?: float},
      *   reverb: array{status: string, raw_state: string, details: string},
      *   queue: array{status: string, raw_state: string, details: string},
-     *   database: array{status: string, details: string, response_time?: float},
+     *   database: array{status: string, label: string, driver: string, details: string, response_time?: float},
      *   redis: array{status: string, details: string, response_time?: float},
      *   cdn: array{status: string, details: string, response_time?: float},
      *   scheduler: array{status: string, details: string, last_run?: string},

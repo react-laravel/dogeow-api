@@ -10,10 +10,13 @@ class DatabaseStatusChecker
     /**
      * 检查数据库连接状态
      *
-     * @return array{status: string, details: string, response_time?: float}
+     * @return array{status: string, label: string, driver: string, details: string, response_time?: float}
      */
     public function check(): array
     {
+        $driver = DB::connection()->getDriverName();
+        $label = $this->driverLabel($driver);
+
         try {
             $start = microtime(true);
             DB::connection()->getPdo();
@@ -21,14 +24,29 @@ class DatabaseStatusChecker
 
             return [
                 'status' => 'online',
+                'label' => $label,
+                'driver' => $driver,
                 'details' => "响应时间: {$responseTime}ms",
                 'response_time' => $responseTime,
             ];
         } catch (Throwable $e) {
             return [
                 'status' => 'error',
+                'label' => $label,
+                'driver' => $driver,
                 'details' => '数据库连接失败: ' . $e->getMessage(),
             ];
         }
+    }
+
+    private function driverLabel(string $driver): string
+    {
+        return match ($driver) {
+            'pgsql' => 'PostgreSQL 数据库',
+            'mysql' => 'MySQL 数据库',
+            'mariadb' => 'MariaDB 数据库',
+            'sqlite' => 'SQLite 数据库',
+            default => '数据库',
+        };
     }
 }
