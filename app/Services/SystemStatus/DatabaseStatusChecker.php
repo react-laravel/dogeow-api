@@ -14,7 +14,7 @@ class DatabaseStatusChecker
      */
     public function check(): array
     {
-        $driver = DB::connection()->getDriverName();
+        $driver = (string) config('database.default', 'mysql');
         $label = $this->driverLabel($driver);
 
         try {
