@@ -7,6 +7,7 @@ use App\Http\Requests\Game\EquipItemRequest;
 use App\Http\Requests\Game\MoveItemRequest;
 use App\Http\Requests\Game\SellItemRequest;
 use App\Http\Requests\Game\UnequipItemRequest;
+use App\Http\Requests\Game\UpdateAutoRecycleSettingsRequest;
 use App\Http\Requests\Game\UsePotionRequest;
 use App\Models\Game\GameCharacter;
 use App\Models\Game\GameItem;
@@ -310,6 +311,23 @@ class InventoryControllerUnitTest extends TestCase
         ]));
 
         $this->assertSame('整理失败', json_decode($response->getContent(), true)['message']);
+    }
+
+    public function test_update_auto_recycle_settings_returns_success_message(): void
+    {
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user);
+
+        $this->inventoryService->shouldReceive('updateAutoRecycleSettings')->once()->with($this->sameCharacter($character), 80)->andReturn([
+            'character' => $character,
+            'recycled' => ['count' => 0, 'total_price' => 0, 'copper' => 100],
+        ]);
+
+        $response = $this->controller->updateAutoRecycleSettings($this->makeFormRequest(UpdateAutoRecycleSettingsRequest::class, $user, $character, [
+            'auto_recycle_max_value' => 80,
+        ]));
+
+        $this->assertSame('自动回收已设为价值 ≤ 80 铜', json_decode($response->getContent(), true)['message']);
     }
 
     public function test_sell_by_quality_returns_success_message(): void

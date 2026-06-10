@@ -203,7 +203,7 @@ class GameInventoryService
     {
         $equipmentSlot = $character->equipment()->where('slot', $slot)->first();
 
-        if (! $equipmentSlot || ! $equipmentSlot->item_id) {
+        if (! $equipmentSlot instanceof GameEquipment || ! $equipmentSlot->item_id) {
             throw new \InvalidArgumentException('该槽位没有装备');
         }
 
@@ -477,6 +477,97 @@ class GameInventoryService
     }
 
     /**
+     * 更新自动回收设置，并按新阈值清理背包中符合条件的物品
+     *
+     * @return array{
+     *     character: GameCharacter,
+     *     recycled: array{count: int, total_price: int, copper: int}
+     * }
+     */
+    public function updateAutoRecycleSettings(GameCharacter $character, ?int $maxValue): array
+    {
+        $normalized = ($maxValue !== null && $maxValue > 0) ? $maxValue : null;
+
+        return DB::transaction(function () use ($character, $normalized) {
+            $character->auto_recycle_max_value = $normalized;
+            $character->save();
+
+            $recycled = $normalized === null
+                ? ['count' => 0, 'total_price' => 0, 'copper' => $character->copper]
+                : $this->sellItemsAtOrBelowValue($character, $normalized);
+
+            return [
+                'character' => $character->fresh(),
+                'recycled' => $recycled,
+            ];
+        });
+    }
+
+    /**
+     * 拾取后尝试自动回收单个物品
+     *
+     * @return array{count: int, total_price: int, copper: int}|null
+     */
+    public function tryAutoRecycleItem(GameCharacter $character, GameItem $item): ?array
+    {
+        $maxValue = $character->auto_recycle_max_value;
+        if ($maxValue === null || $maxValue <= 0) {
+            return null;
+        }
+
+        if (! $this->shouldAutoRecycleItem($character, $item, $maxValue)) {
+            return null;
+        }
+
+        return $this->sellSingleItem($character, $item);
+    }
+
+    /**
+     * 批量出售背包中单价不超过指定价值的可售装备
+     *
+     * @return array{count: int, total_price: int, copper: int}
+     */
+    public function sellItemsAtOrBelowValue(GameCharacter $character, int $maxValue): array
+    {
+        $items = $this->getSellableInventoryItems($character)
+            ->filter(fn (GameItem $item) => $item->calculateSellPrice() <= $maxValue);
+
+        if ($items->isEmpty()) {
+            return [
+                'count' => 0,
+                'total_price' => 0,
+                'copper' => $character->copper,
+            ];
+        }
+
+        return DB::transaction(function () use ($character, $items) {
+            $totalPrice = 0;
+            $count = 0;
+
+            foreach ($items as $item) {
+                if ($this->equipmentHelper->isItemEquipped($character, $item->id)) {
+                    continue;
+                }
+
+                $price = $item->calculateSellPrice() * $item->quantity;
+                $totalPrice += $price;
+                $count++;
+                $item->delete();
+            }
+
+            $character->copper += $totalPrice;
+            $character->save();
+            $this->clearInventoryCache($character->id);
+
+            return [
+                'count' => $count,
+                'total_price' => $totalPrice,
+                'copper' => $character->copper,
+            ];
+        });
+    }
+
+    /**
      * 查找空槽位
      */
     public function findEmptySlot(GameCharacter $character, bool $inStorage): ?int
@@ -580,6 +671,60 @@ class GameInventoryService
             ->get();
 
         return $result;
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, GameItem>
+     */
+    private function getSellableInventoryItems(GameCharacter $character): \Illuminate\Database\Eloquent\Collection
+    {
+        /** @var \Illuminate\Database\Eloquent\Collection<int, GameItem> $result */
+        $result = $character->items()
+            ->where('is_in_storage', false)
+            ->whereHas('definition', fn ($q) => $q->whereNotIn('type', ['potion', 'gem']))
+            ->with('definition')
+            ->get();
+
+        return $result;
+    }
+
+    private function shouldAutoRecycleItem(GameCharacter $character, GameItem $item, int $maxValue): bool
+    {
+        if ($item->is_in_storage || $item->is_equipped) {
+            return false;
+        }
+
+        if ($this->equipmentHelper->isItemEquipped($character, $item->id)) {
+            return false;
+        }
+
+        $type = $item->definition?->type;
+        if (in_array($type, ['potion', 'gem'], true)) {
+            return false;
+        }
+
+        return $item->calculateSellPrice() <= $maxValue;
+    }
+
+    /**
+     * @return array{count: int, total_price: int, copper: int}
+     */
+    private function sellSingleItem(GameCharacter $character, GameItem $item): array
+    {
+        return DB::transaction(function () use ($character, $item) {
+            $price = $item->calculateSellPrice() * $item->quantity;
+            $item->delete();
+
+            $character->copper += $price;
+            $character->save();
+            $this->clearInventoryCache($character->id);
+
+            return [
+                'count' => 1,
+                'total_price' => $price,
+                'copper' => $character->copper,
+            ];
+        });
     }
 
     private function clearInventoryCache(int $characterId): void

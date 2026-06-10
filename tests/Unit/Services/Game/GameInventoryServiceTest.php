@@ -524,6 +524,57 @@ class GameInventoryServiceTest extends TestCase
         $this->assertSame(77, $result['copper']);
     }
 
+    public function test_update_auto_recycle_settings_sells_items_at_or_below_unit_value(): void
+    {
+        $character = $this->createCharacter(['copper' => 10]);
+        $weaponDefinition = $this->createItemDefinition([
+            'base_stats' => ['attack' => 5],
+        ]);
+        $cheapItem = $this->createItem($character, $weaponDefinition, [
+            'slot_index' => 0,
+            'stats' => ['attack' => 5],
+        ]);
+        $expensiveItem = $this->createItem($character, $weaponDefinition, [
+            'slot_index' => 1,
+            'stats' => ['attack' => 50],
+        ]);
+        $cheapPrice = $cheapItem->calculateSellPrice();
+        $expensivePrice = $expensiveItem->calculateSellPrice();
+        $this->assertLessThan($expensivePrice, $cheapPrice);
+
+        $result = $this->service->updateAutoRecycleSettings($character, $cheapPrice);
+
+        $this->assertSame($cheapPrice, $result['character']->auto_recycle_max_value);
+        $this->assertSame(1, $result['recycled']['count']);
+        $this->assertSame($cheapPrice, $result['recycled']['total_price']);
+        $this->assertSame(10 + $cheapPrice, $result['recycled']['copper']);
+        $this->assertNull(GameItem::find($cheapItem->id));
+        $this->assertNotNull(GameItem::find($expensiveItem->id));
+    }
+
+    public function test_try_auto_recycle_item_recycles_low_value_loot_and_skips_when_disabled(): void
+    {
+        $character = $this->createCharacter(['copper' => 0, 'auto_recycle_max_value' => null]);
+        $definition = $this->createItemDefinition(['base_stats' => ['attack' => 5]]);
+        $item = $this->createItem($character, $definition, [
+            'slot_index' => 0,
+            'stats' => ['attack' => 5],
+        ]);
+        $unitPrice = $item->calculateSellPrice();
+
+        $this->assertNull($this->service->tryAutoRecycleItem($character, $item));
+        $this->assertNotNull(GameItem::find($item->id));
+
+        $character->auto_recycle_max_value = $unitPrice;
+        $character->save();
+
+        $recycled = $this->service->tryAutoRecycleItem($character->fresh(), $item->fresh());
+        $this->assertNotNull($recycled);
+        $this->assertSame(1, $recycled['count']);
+        $this->assertSame($unitPrice, $recycled['total_price']);
+        $this->assertNull(GameItem::find($item->id));
+    }
+
     public function test_find_empty_slot_ignores_equipped_items_and_returns_null_when_full(): void
     {
         $character = $this->createCharacter();

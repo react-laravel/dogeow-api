@@ -10,7 +10,9 @@ use App\Http\Requests\Game\LearnSkillRequest;
 use App\Http\Requests\Game\MoveItemRequest;
 use App\Http\Requests\Game\SellItemRequest;
 use App\Http\Requests\Game\SocketGemRequest;
+use App\Http\Requests\Game\UnequipItemRequest;
 use App\Http\Requests\Game\UnsocketGemRequest;
+use App\Http\Requests\Game\UpdateAutoRecycleSettingsRequest;
 use App\Http\Requests\Game\UpdateDifficultyRequest;
 use App\Http\Requests\Game\UpdatePotionSettingsRequest;
 use App\Http\Requests\Game\UsePotionRequest;
@@ -147,13 +149,13 @@ class GameRequestTest extends TestCase
 
     public function test_unequip_item_request_authorize(): void
     {
-        $request = new \App\Http\Requests\Game\UnequipItemRequest;
+        $request = new UnequipItemRequest;
         $this->assertTrue($request->authorize());
     }
 
     public function test_unequip_item_request_rules(): void
     {
-        $request = new \App\Http\Requests\Game\UnequipItemRequest;
+        $request = new UnequipItemRequest;
         $rules = $request->rules();
 
         $this->assertArrayHasKey('slot', $rules);
@@ -185,6 +187,20 @@ class GameRequestTest extends TestCase
         $rules = $request->rules();
 
         $this->assertArrayHasKey('auto_use_hp_potion', $rules);
+    }
+
+    public function test_update_auto_recycle_settings_request_authorize(): void
+    {
+        $request = new UpdateAutoRecycleSettingsRequest;
+        $this->assertTrue($request->authorize());
+    }
+
+    public function test_update_auto_recycle_settings_request_rules(): void
+    {
+        $request = new UpdateAutoRecycleSettingsRequest;
+        $rules = $request->rules();
+
+        $this->assertArrayHasKey('auto_recycle_max_value', $rules);
     }
 
     public function test_use_potion_request_authorize(): void

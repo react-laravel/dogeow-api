@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api\Game;
 
 use App\Events\Game\GameInventoryUpdate;
+use App\Http\Controllers\Concerns\CharacterConcern;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Game\EquipItemRequest;
 use App\Http\Requests\Game\MoveItemRequest;
 use App\Http\Requests\Game\SellItemRequest;
 use App\Http\Requests\Game\UnequipItemRequest;
+use App\Http\Requests\Game\UpdateAutoRecycleSettingsRequest;
 use App\Http\Requests\Game\UsePotionRequest;
 use App\Models\Game\GameCharacter;
 use App\Services\Cache\RedisLockService;
@@ -18,7 +20,7 @@ use Throwable;
 
 class InventoryController extends Controller
 {
-    use \App\Http\Controllers\Concerns\CharacterConcern;
+    use CharacterConcern;
 
     public function __construct(
         private readonly GameInventoryService $inventoryService,
@@ -223,6 +225,47 @@ class InventoryController extends Controller
                 'price' => '按价格整理完成',
                 default => '整理完成',
             };
+
+            return $this->success($result, $message);
+        } catch (Throwable $e) {
+            return $this->error($e->getMessage());
+        }
+    }
+
+    /**
+     * 更新自动回收设置（按物品单价）
+     */
+    public function updateAutoRecycleSettings(UpdateAutoRecycleSettingsRequest $request): JsonResponse
+    {
+        try {
+            $character = $this->getCharacter($request);
+            $maxValue = $request->input('auto_recycle_max_value');
+            $normalized = is_numeric($maxValue) ? (int) $maxValue : null;
+
+            $lockKey = 'inventory_auto_recycle:' . $character->id;
+            $lock = $this->redisLockService->lock($lockKey, 10);
+
+            if ($lock === false) {
+                return $this->error('自动回收设置更新中，请稍后再试');
+            }
+
+            try {
+                $result = $this->inventoryService->updateAutoRecycleSettings($character, $normalized);
+            } finally {
+                $this->redisLockService->release($lockKey, $lock);
+            }
+
+            if (($result['recycled']['count'] ?? 0) > 0) {
+                $this->broadcastInventoryUpdate($character);
+            }
+
+            $message = $normalized === null || $normalized <= 0
+                ? '已关闭自动回收'
+                : "自动回收已设为价值 ≤ {$normalized} 铜";
+
+            if (($result['recycled']['count'] ?? 0) > 0) {
+                $message .= "，已回收 {$result['recycled']['count']} 件，获得 {$result['recycled']['total_price']} 铜";
+            }
 
             return $this->success($result, $message);
         } catch (Throwable $e) {

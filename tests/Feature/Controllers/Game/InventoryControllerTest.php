@@ -114,6 +114,21 @@ class InventoryControllerTest extends TestCase
             ]);
     }
 
+    public function test_can_update_auto_recycle_settings(): void
+    {
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, ['copper' => 0]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/rpg/inventory/auto-recycle-settings?character_id=' . $character->id, [
+                'auto_recycle_max_value' => 50,
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.character.auto_recycle_max_value', 50);
+    }
+
     public function test_requires_authentication(): void
     {
         $response = $this->getJson('/api/rpg/inventory');
