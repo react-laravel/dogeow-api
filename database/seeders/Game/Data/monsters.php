@@ -516,10 +516,43 @@ $prompts = [
     'chaos-king' => 'RPG monster portrait, chaos king, final boss, crown, chaos aura, most imposing figure, highly detailed final boss art, square, dark background',
 ];
 
+$defaultDropTable = static function (array $monster): array {
+    $itemTypes = ['weapon', 'helmet', 'armor', 'gloves', 'boots', 'ring', 'amulet', 'belt'];
+    $type = $monster['type'] ?? 'normal';
+    $level = (int) ($monster['level'] ?? 1);
+
+    if ($level <= 2) {
+        return [
+            'item_chance' => 0.35,
+            'potion_chance' => 0.35,
+            'item_types' => $itemTypes,
+        ];
+    }
+
+    return match ($type) {
+        'boss' => [
+            'item_chance' => 0.5,
+            'potion_chance' => 0.3,
+            'item_types' => $itemTypes,
+        ],
+        'elite' => [
+            'item_chance' => 0.3,
+            'potion_chance' => 0.25,
+            'item_types' => $itemTypes,
+        ],
+        default => [
+            'item_chance' => 0.2,
+            'potion_chance' => 0.2,
+            'item_types' => $itemTypes,
+        ],
+    };
+};
+
 return array_map(
     fn (array $monster, int $index) => array_merge($monster, [
         'asset_key' => $assetKeys[$index],
         'icon_prompt' => $prompts[$assetKeys[$index]],
+        'drop_table' => $monster['drop_table'] ?? $defaultDropTable($monster),
     ]),
     $monsters,
     array_keys($monsters)

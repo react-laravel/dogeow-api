@@ -40,6 +40,17 @@ class GameDefinitionDataTest extends TestCase
             count($monsterIds),
             GameMonsterDefinition::query()->whereIn('id', $monsterIds)->where('is_active', true)->count()
         );
+
+        $newbieMonsters = GameMonsterDefinition::query()
+            ->whereIn('id', $monsterIds)
+            ->get();
+
+        foreach ($newbieMonsters as $monster) {
+            $this->assertIsArray($monster->drop_table, "{$monster->name} should have an RPG drop table");
+            $this->assertGreaterThan(0, $monster->drop_table['item_chance'] ?? 0, "{$monster->name} should be able to drop equipment");
+            $this->assertGreaterThan(0, $monster->drop_table['potion_chance'] ?? 0, "{$monster->name} should be able to drop potions");
+            $this->assertNotEmpty($monster->drop_table['item_types'] ?? [], "{$monster->name} should define equipment types");
+        }
     }
 
     public function test_game_definition_factories_create_valid_related_records(): void
