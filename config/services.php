@@ -97,4 +97,20 @@ return [
         'timeout' => (int) env('RMBG_TIMEOUT', 600),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Deploy notifications
+    |--------------------------------------------------------------------------
+    |
+    | 部署成功后通过 notify:deploy 向这些用户发送站内通知与 Web Push。
+    | 示例：DEPLOY_NOTIFY_USER_IDS=1,2
+    |
+    */
+    'deploy_notify' => [
+        'user_ids' => array_values(array_filter(array_map(
+            static fn (string $id): int => (int) trim($id),
+            explode(',', (string) env('DEPLOY_NOTIFY_USER_IDS', ''))
+        ), static fn (int $id): bool => $id > 0)),
+    ],
+
 ];

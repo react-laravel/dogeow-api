@@ -145,3 +145,9 @@ after('deploy:shared', 'deploy:storage_permissions');
 //   queue:restart 让跑中的 job 做完就退出，Supervisor 拉起新进程时加载新代码。
 after('deploy:symlink', 'artisan:queue:restart');
 after('artisan:queue:restart', 'supervisor:restart');
+
+desc('发送部署完成站内通知');
+task('deploy:notify', function () {
+    run('cd {{current_path}} && {{bin/php}} artisan notify:deploy dogeow-api --no-interaction || true');
+});
+after('deploy:success', 'deploy:notify');

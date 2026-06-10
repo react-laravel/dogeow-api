@@ -205,7 +205,7 @@ server {
 1. 推送 `main` 或手动点 "Run workflow" 触发
 2. Runner checkout 仓库（拿 `deploy.php` 和工作流定义）
 3. 执行 `scripts/ensure-deployer.sh deploy production -v`，自动下载或复用 Deployer
-4. Deployer 依次：同步当前工作区到 release → composer install → shared link → migrate → optimize → 切换 `current` → `queue:restart` → `supervisorctl restart`
+4. Deployer 依次：同步当前工作区到 release → composer install → shared link → migrate → optimize → 切换 `current` → `queue:restart` → `supervisorctl restart` → `notify:deploy`（需配置 `DEPLOY_NOTIFY_USER_IDS`）
 
 全程 `current` 直到最后一刻才切换，因此 HTTP 请求不中断。
 
