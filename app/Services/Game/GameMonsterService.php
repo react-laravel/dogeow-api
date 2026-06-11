@@ -126,7 +126,7 @@ class GameMonsterService
 
         // 随机生成 1-5 个怪物
         $monsterCount = rand(1, 5);
-        $baseMonster = $monsters[array_rand($monsters)];
+        $baseMonster = $this->pickMonsterForSpawn($monsters);
         $baseLevel = max(1, $baseMonster->level + rand(-3, 3));
 
         // 如果是刷新，保留现有怪物的 HP
@@ -299,7 +299,7 @@ class GameMonsterService
         shuffle($fillableSlots);
         $slotsToFill = array_slice($fillableSlots, 0, $addCount);
 
-        $baseMonster = $monsters[array_rand($monsters)];
+        $baseMonster = $this->pickMonsterForSpawn($monsters);
         $baseLevel = max(1, $baseMonster->level + rand(-3, 3));
 
         foreach ($slotsToFill as $slot) {
@@ -333,6 +333,74 @@ class GameMonsterService
         $this->syncRoundResultMonsterHp($roundResult, $currentMonsters);
 
         return $roundResult;
+    }
+
+    /**
+     * 按类型概率从地图怪物池选取一只：普通 95%，剩余 5% 在精英/Boss 间均分。
+     * 若地图无普通怪，则 95% 给较低阶（精英），5% 给 Boss。
+     *
+     * @param  array<int, GameMonsterDefinition>  $monsters
+     */
+    private function pickMonsterForSpawn(array $monsters): GameMonsterDefinition
+    {
+        /** @var array<string, array<int, GameMonsterDefinition>> $byType */
+        $byType = ['normal' => [], 'elite' => [], 'boss' => []];
+        foreach ($monsters as $monster) {
+            if (isset($byType[$monster->type])) {
+                $byType[$monster->type][] = $monster;
+            }
+        }
+
+        $normalChance = (int) config('game.combat.monster_spawn.normal_chance', 95);
+        $normalChance = max(0, min(100, $normalChance));
+        $roll = rand(1, 100);
+
+        if ($byType['normal'] !== []) {
+            if ($roll <= $normalChance) {
+                return $this->pickRandomMonsterFromPool($byType['normal']);
+            }
+
+            return $this->pickSpecialMonsterForSpawn($byType);
+        }
+
+        if ($byType['elite'] !== [] && $byType['boss'] !== []) {
+            if ($roll <= $normalChance) {
+                return $this->pickRandomMonsterFromPool($byType['elite']);
+            }
+
+            return $this->pickRandomMonsterFromPool($byType['boss']);
+        }
+
+        $fallbackPool = $byType['elite'] !== [] ? $byType['elite'] : $byType['boss'];
+
+        return $this->pickRandomMonsterFromPool($fallbackPool);
+    }
+
+    /**
+     * @param  array<string, array<int, GameMonsterDefinition>>  $byType
+     */
+    private function pickSpecialMonsterForSpawn(array $byType): GameMonsterDefinition
+    {
+        $specialTypes = array_values(array_filter(
+            ['elite', 'boss'],
+            fn (string $type): bool => $byType[$type] !== []
+        ));
+
+        if ($specialTypes === []) {
+            return $this->pickRandomMonsterFromPool($byType['normal']);
+        }
+
+        $typeIndex = count($specialTypes) === 1 ? 0 : rand(0, count($specialTypes) - 1);
+
+        return $this->pickRandomMonsterFromPool($byType[$specialTypes[$typeIndex]]);
+    }
+
+    /**
+     * @param  array<int, GameMonsterDefinition>  $pool
+     */
+    private function pickRandomMonsterFromPool(array $pool): GameMonsterDefinition
+    {
+        return $pool[array_rand($pool)];
     }
 
     /**

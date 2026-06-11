@@ -306,6 +306,59 @@ class GameMonsterServiceTest extends TestCase
         $this->assertNull($character->combat_monsters[1]);
     }
 
+    public function test_generate_new_monsters_prefers_normal_type_at_ninety_five_percent(): void
+    {
+        $normal = $this->createMonster(['name' => 'Goblin', 'type' => 'normal', 'level' => 3]);
+        $elite = $this->createMonster(['name' => 'Alpha Wolf', 'type' => 'elite', 'level' => 5]);
+        $map = $this->createMap([$normal->id, $elite->id]);
+        $character = $this->createCharacter();
+        GameMonsterRandomControl::$randQueue = [1, 50, 0, 0, 0];
+
+        $this->service->generateNewMonsters($character, $map, []);
+
+        $this->assertSame('normal', $character->fresh()->combat_monsters[0]['type']);
+    }
+
+    public function test_generate_new_monsters_spawns_elite_from_remaining_five_percent(): void
+    {
+        $normal = $this->createMonster(['name' => 'Goblin', 'type' => 'normal', 'level' => 3]);
+        $elite = $this->createMonster(['name' => 'Alpha Wolf', 'type' => 'elite', 'level' => 5]);
+        $map = $this->createMap([$normal->id, $elite->id]);
+        $character = $this->createCharacter();
+        GameMonsterRandomControl::$randQueue = [1, 96, 0, 0, 0];
+
+        $this->service->generateNewMonsters($character, $map, []);
+
+        $this->assertSame('elite', $character->fresh()->combat_monsters[0]['type']);
+    }
+
+    public function test_generate_new_monsters_splits_special_chance_between_elite_and_boss(): void
+    {
+        $normal = $this->createMonster(['name' => 'Wolf', 'type' => 'normal', 'level' => 2]);
+        $elite = $this->createMonster(['name' => 'Alpha Wolf', 'type' => 'elite', 'level' => 5]);
+        $boss = $this->createMonster(['name' => 'Elder Treant', 'type' => 'boss', 'level' => 8]);
+        $map = $this->createMap([$normal->id, $elite->id, $boss->id]);
+        $character = $this->createCharacter();
+        GameMonsterRandomControl::$randQueue = [1, 96, 1, 0, 0, 0];
+
+        $this->service->generateNewMonsters($character, $map, []);
+
+        $this->assertSame('boss', $character->fresh()->combat_monsters[0]['type']);
+    }
+
+    public function test_generate_new_monsters_without_normal_uses_elite_as_common_pool(): void
+    {
+        $elite = $this->createMonster(['name' => 'Alpha Wolf', 'type' => 'elite', 'level' => 5]);
+        $boss = $this->createMonster(['name' => 'Elder Treant', 'type' => 'boss', 'level' => 8]);
+        $map = $this->createMap([$elite->id, $boss->id]);
+        $character = $this->createCharacter();
+        GameMonsterRandomControl::$randQueue = [1, 50, 0, 0, 0];
+
+        $this->service->generateNewMonsters($character, $map, []);
+
+        $this->assertSame('elite', $character->fresh()->combat_monsters[0]['type']);
+    }
+
     public function test_format_monsters_for_response_returns_fixed_slots_and_default_fallback(): void
     {
         $character = $this->createCharacter([

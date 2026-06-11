@@ -271,6 +271,10 @@ return [
         'defense_reduction' => 0.5,
         'aoe_damage_multiplier' => 0.7,
         'monster_defense_reduction' => 0.3,
+        // 刷怪类型概率：普通 95%，剩余 5% 在地图已有的精英/Boss 类型间均分
+        'monster_spawn' => [
+            'normal_chance' => 95,
+        ],
     ],
 
     /*
