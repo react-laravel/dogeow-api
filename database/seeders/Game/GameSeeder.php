@@ -46,7 +46,6 @@ class GameSeeder extends Seeder
             'skills_warrior.php',
             'skills_mage.php',
             'skills_ranger.php',
-            'skills_common.php',
         ];
         $skills = [];
         foreach ($skillFiles as $file) {
@@ -56,73 +55,27 @@ class GameSeeder extends Seeder
             }
         }
 
-        // 技能派系映射
-        $branchMap = [
-            // 战士
-            '重击' => ['branch' => 'warrior', 'tier' => 1],
-            '战吼' => ['branch' => 'warrior', 'tier' => 1],
-            '铁壁' => ['branch' => 'passive', 'tier' => 1],
-            '冲锋' => ['branch' => 'warrior', 'tier' => 2],
-            '旋风斩' => ['branch' => 'warrior', 'tier' => 2],
-            '狂暴' => ['branch' => 'warrior', 'tier' => 2],
-            '钢铁之躯' => ['branch' => 'passive', 'tier' => 2],
-            '斩杀' => ['branch' => 'warrior', 'tier' => 3],
-            // 法师 - 火系
-            '火球术' => ['branch' => 'fire', 'tier' => 1],
-            '烈焰风暴' => ['branch' => 'fire', 'tier' => 3],
-            // 法师 - 冰系
-            '冰霜新星' => ['branch' => 'ice', 'tier' => 1],
-            '冰箭' => ['branch' => 'ice', 'tier' => 1],
-            '冰河世纪' => ['branch' => 'ice', 'tier' => 3],
-            // 法师 - 雷系
-            '雷击' => ['branch' => 'lightning', 'tier' => 1],
-            '连锁闪电' => ['branch' => 'lightning', 'tier' => 2],
-            '雷霆万钧' => ['branch' => 'lightning', 'tier' => 3],
-            // 法师 - 奥系
-            '魔力涌动' => ['branch' => 'passive', 'tier' => 1],
-            '魔法护盾' => ['branch' => 'arcane', 'tier' => 2],
-            '奥术智慧' => ['branch' => 'passive', 'tier' => 2],
-            '陨石术' => ['branch' => 'fire', 'tier' => 3],
-            // 游侠
-            '穿刺射击' => ['branch' => 'ranger', 'tier' => 1],
-            '多重射击' => ['branch' => 'ranger', 'tier' => 2],
-            '疾风步' => ['branch' => 'ranger', 'tier' => 3],
-            '鹰眼' => ['branch' => 'passive', 'tier' => 1],
-            '毒箭' => ['branch' => 'poison', 'tier' => 2],
-            '闪避' => ['branch' => 'ranger', 'tier' => 2],
-            '致命瞄准' => ['branch' => 'passive', 'tier' => 2],
-            '箭雨' => ['branch' => 'ranger', 'tier' => 3],
-            '暗影步' => ['branch' => 'ranger', 'tier' => 3],
-            // 通用
-            '治疗术' => ['branch' => 'healing', 'tier' => 1],
-            '力量强化' => ['branch' => 'passive', 'tier' => 1],
-            '敏捷强化' => ['branch' => 'passive', 'tier' => 1],
-            '体力强化' => ['branch' => 'passive', 'tier' => 1],
-            '能量强化' => ['branch' => 'passive', 'tier' => 1],
-            '吸血' => ['branch' => 'passive', 'tier' => 2],
-            '回蓝' => ['branch' => 'passive', 'tier' => 2],
-            'HP 强化' => ['branch' => 'passive', 'tier' => 1],
-            'MP 强化' => ['branch' => 'passive', 'tier' => 1],
-        ];
+        $pendingParents = [];
 
-        // 使用 updateOrCreate 根据名称更新或创建技能
         foreach ($skills as $skill) {
-            $isActive = $skill['type'] === 'active';
-            $baseDamage = $isActive ? ($skill['mana_cost'] * 2) : 0;
-            $damagePerLevel = $isActive ? 5 : 0;
-            $manaCostPerLevel = $isActive ? 2 : 0;
+            $parentRef = $skill['parent_ref'] ?? null;
+            unset($skill['parent_ref']);
 
-            $branchData = $branchMap[$skill['name']] ?? ['branch' => null, 'tier' => 1];
+            $isActiveSkill = ($skill['type'] ?? 'active') === 'active';
+            $baseDamage = $isActiveSkill ? max(10, (int) ($skill['mana_cost'] ?? 0) * 2) : 0;
 
-            GameSkillDefinition::updateOrCreate(
-                ['name' => $skill['name']],
-                array_merge($skill, [
-                    'type' => $skill['type'],
+            $record = GameSkillDefinition::updateOrCreate(
+                [
+                    'skill_line' => $skill['skill_line'],
+                    'node_tier' => $skill['node_tier'],
+                    'spec_branch' => $skill['spec_branch'] ?? null,
                     'class_restriction' => $skill['class_restriction'],
-                    'mana_cost' => $skill['mana_cost'],
-                    'cooldown' => $skill['cooldown'],
-                    'description' => $skill['description'],
-                    'effects' => $skill['effects'] ?? null,
+                ],
+                array_merge($skill, [
+                    'prerequisite_skill_id' => null,
+                    'prerequisite_effect_key' => null,
+                    'branch' => $skill['skill_stage'] ?? null,
+                    'tier' => (int) ($skill['node_tier'] ?? 0) + 1,
                     'target_type' => $skill['target_type'] ?? 'single',
                     'icon' => ! empty($skill['effect_key'])
                         ? $skill['effect_key'] . '.png'
@@ -130,13 +83,63 @@ class GameSeeder extends Seeder
                     'is_active' => true,
                     'max_level' => 10,
                     'base_damage' => $baseDamage,
-                    'damage_per_level' => $damagePerLevel,
-                    'mana_cost_per_level' => $manaCostPerLevel,
-                    'branch' => $branchData['branch'],
-                    'tier' => $branchData['tier'],
+                    'damage_per_level' => $isActiveSkill ? 5 : 0,
+                    'mana_cost_per_level' => $isActiveSkill ? 2 : 0,
                 ])
             );
+
+            if ($parentRef !== null) {
+                $pendingParents[] = [
+                    'skill_id' => $record->id,
+                    'parent_ref' => $parentRef,
+                ];
+            }
         }
+
+        $idByRef = GameSkillDefinition::query()
+            ->whereIn('skill_line', array_unique(array_column($skills, 'skill_line')))
+            ->get()
+            ->keyBy(fn (GameSkillDefinition $def) => $this->skillLineKey([
+                'skill_line' => $def->skill_line,
+                'node_tier' => $def->node_tier,
+                'spec_branch' => $def->spec_branch,
+                'class_restriction' => $def->class_restriction,
+            ]));
+
+        foreach ($pendingParents as $pending) {
+            $parentKey = $this->skillLineKey(array_merge(
+                $pending['parent_ref'],
+                ['class_restriction' => GameSkillDefinition::find($pending['skill_id'])?->class_restriction]
+            ));
+            $parent = $idByRef->get($parentKey);
+            if ($parent !== null) {
+                GameSkillDefinition::whereKey($pending['skill_id'])->update([
+                    'prerequisite_skill_id' => $parent->id,
+                ]);
+            }
+        }
+
+        $seededIds = GameSkillDefinition::query()
+            ->whereIn('skill_line', array_unique(array_column($skills, 'skill_line')))
+            ->pluck('id');
+
+        GameSkillDefinition::query()
+            ->whereIn('class_restriction', ['warrior', 'mage', 'ranger'])
+            ->whereNotIn('id', $seededIds)
+            ->update(['is_active' => false]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $skill
+     */
+    private function skillLineKey(array $skill): string
+    {
+        return implode('|', [
+            $skill['class_restriction'] ?? '',
+            $skill['skill_line'] ?? '',
+            (string) ($skill['node_tier'] ?? ''),
+            $skill['spec_branch'] ?? '',
+        ]);
     }
 
     private function seedMonsterDefinitions(): void

@@ -28,10 +28,28 @@ class SkillControllerUnitTest extends TestCase
     {
         $user = User::factory()->create();
         $character = $this->createCharacter($user, ['class' => 'warrior', 'skill_points' => 3]);
-        $sharedSkill = $this->createSkillDefinition(['name' => 'Slash', 'class_restriction' => 'all']);
-        $classSkill = $this->createSkillDefinition(['name' => 'Guard', 'class_restriction' => 'warrior']);
-        $this->createSkillDefinition(['name' => 'Fireball', 'class_restriction' => 'mage']);
-        $this->createSkillDefinition(['name' => 'Disabled', 'class_restriction' => 'all', 'is_active' => false]);
+        $sharedSkill = $this->createSkillDefinition([
+            'name' => 'Slash',
+            'class_restriction' => 'all',
+            'skill_line' => 'shared_slash',
+        ]);
+        $classSkill = $this->createSkillDefinition([
+            'name' => 'Guard',
+            'class_restriction' => 'warrior',
+            'skill_line' => 'warrior_guard',
+        ]);
+        $this->createSkillDefinition([
+            'name' => 'Fireball',
+            'class_restriction' => 'mage',
+            'skill_line' => 'mage_fireball',
+        ]);
+        $this->createSkillDefinition(['name' => 'Legacy', 'class_restriction' => 'warrior']);
+        $this->createSkillDefinition([
+            'name' => 'Disabled',
+            'class_restriction' => 'all',
+            'is_active' => false,
+            'skill_line' => 'disabled_line',
+        ]);
 
         GameCharacterSkill::create([
             'character_id' => $character->id,
@@ -51,6 +69,7 @@ class SkillControllerUnitTest extends TestCase
         $this->assertTrue($skillsById->has($sharedSkill->id));
         $this->assertTrue($skillsById->has($classSkill->id));
         $this->assertFalse($skillsById->has($this->getSkillIdByName($data['skills'], 'Fireball')));
+        $this->assertFalse($skillsById->has($this->getSkillIdByName($data['skills'], 'Legacy')));
         $this->assertFalse($skillsById->has($this->getSkillIdByName($data['skills'], 'Disabled')));
         $this->assertFalse($skillsById[$sharedSkill->id]['is_learned']);
         $this->assertTrue($skillsById[$classSkill->id]['is_learned']);
@@ -160,6 +179,93 @@ class SkillControllerUnitTest extends TestCase
         $this->assertSame('需要先学习前置技能: ' . $requiredSkill->name, $payload['message']);
     }
 
+    public function test_learn_rejects_skill_when_level_is_too_low(): void
+    {
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, ['level' => 4, 'skill_points' => 5]);
+        $skill = $this->createSkillDefinition([
+            'name' => 'Core Strike',
+            'unlock_level' => 5,
+            'skill_stage' => 'core',
+            'skill_line' => 'warrior_test_core',
+            'node_tier' => 0,
+        ]);
+
+        $response = $this->controller->learn($this->makeLearnRequest($user, $character, [
+            'skill_id' => $skill->id,
+        ]));
+
+        $payload = json_decode($response->getContent(), true);
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame('需要达到 5 级才能学习该技能', $payload['message']);
+    }
+
+    public function test_learn_swaps_spec_branch_without_spending_points(): void
+    {
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, ['level' => 20, 'skill_points' => 2]);
+        $base = $this->createSkillDefinition([
+            'name' => 'Test Slash',
+            'skill_line' => 'test_slash',
+            'node_tier' => 0,
+            'skill_stage' => 'basic',
+        ]);
+        $enhanced = $this->createSkillDefinition([
+            'name' => 'Enhanced Slash',
+            'skill_line' => 'test_slash',
+            'node_tier' => 1,
+            'skill_stage' => 'basic',
+            'prerequisite_skill_id' => $base->id,
+            'type' => 'passive',
+        ]);
+        $specA = $this->createSkillDefinition([
+            'name' => 'Spec A',
+            'skill_line' => 'test_slash',
+            'node_tier' => 2,
+            'spec_branch' => 'a',
+            'skill_stage' => 'basic',
+            'prerequisite_skill_id' => $enhanced->id,
+            'type' => 'passive',
+        ]);
+        $specB = $this->createSkillDefinition([
+            'name' => 'Spec B',
+            'skill_line' => 'test_slash',
+            'node_tier' => 2,
+            'spec_branch' => 'b',
+            'skill_stage' => 'basic',
+            'prerequisite_skill_id' => $enhanced->id,
+            'type' => 'passive',
+        ]);
+
+        foreach ([$base, $enhanced, $specA] as $skill) {
+            GameCharacterSkill::create([
+                'character_id' => $character->id,
+                'skill_id' => $skill->id,
+            ]);
+        }
+
+        $response = $this->controller->learn($this->makeLearnRequest($user, $character, [
+            'skill_id' => $specB->id,
+        ]));
+
+        $payload = json_decode($response->getContent(), true);
+        $character->refresh();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('专精切换成功', $payload['message']);
+        $this->assertTrue($payload['data']['respec']);
+        $this->assertSame(2, $character->skill_points);
+        $this->assertDatabaseMissing('game_character_skills', [
+            'character_id' => $character->id,
+            'skill_id' => $specA->id,
+        ]);
+        $this->assertDatabaseHas('game_character_skills', [
+            'character_id' => $character->id,
+            'skill_id' => $specB->id,
+        ]);
+    }
+
     public function test_learn_persists_skill_and_decrements_points_on_success(): void
     {
         $user = User::factory()->create();
@@ -241,6 +347,8 @@ class SkillControllerUnitTest extends TestCase
             'is_active' => true,
             'skill_points_cost' => 1,
             'base_damage' => 10,
+            'unlock_level' => 1,
+            'node_tier' => 0,
         ], $attributes));
 
         if ($extraAttributes !== []) {

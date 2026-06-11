@@ -80,6 +80,8 @@ class ShopController extends Controller
             return $this->success($result, '购买成功');
         } catch (GameException $e) {
             return $this->error($e->getMessage());
+        } catch (\InvalidArgumentException|\RuntimeException $e) {
+            return $this->error($e->getMessage());
         } catch (Throwable $e) {
             Log::error('购买物品失败', ['exception' => $e]);
 
@@ -104,6 +106,8 @@ class ShopController extends Controller
 
             return $this->success($result, '出售成功');
         } catch (GameException $e) {
+            return $this->error($e->getMessage());
+        } catch (\InvalidArgumentException|\RuntimeException $e) {
             return $this->error($e->getMessage());
         } catch (Throwable $e) {
             Log::error('出售物品失败', ['exception' => $e]);

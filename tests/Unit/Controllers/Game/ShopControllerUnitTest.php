@@ -147,7 +147,24 @@ class ShopControllerUnitTest extends TestCase
         $data = json_decode($response->getContent(), true);
 
         $this->assertSame(422, $response->getStatusCode());
-        $this->assertSame('购买失败，请稍后重试', $data['message']);
+        $this->assertSame('购买失败', $data['message']);
+    }
+
+    public function test_buy_returns_inventory_full_message_from_invalid_argument(): void
+    {
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user);
+        $definition = $this->createItemDefinition();
+
+        $this->shopService->shouldReceive('buyItem')->once()->with($this->sameCharacter($character), $definition->id, 1, Mockery::any())->andThrow(new \InvalidArgumentException('背包空间不足'));
+
+        $response = $this->controller->buy($this->makeFormRequest(BuyItemRequest::class, $user, $character, [
+            'item_id' => $definition->id,
+        ]));
+        $data = json_decode($response->getContent(), true);
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame('背包空间不足', $data['message']);
     }
 
     public function test_sell_returns_success_and_broadcasts_inventory(): void
@@ -185,7 +202,7 @@ class ShopControllerUnitTest extends TestCase
         $data = json_decode($response->getContent(), true);
 
         $this->assertSame(422, $response->getStatusCode());
-        $this->assertSame('出售失败，请稍后重试', $data['message']);
+        $this->assertSame('出售失败', $data['message']);
     }
 
     private function createCharacter(User $user, array $attributes = []): GameCharacter
