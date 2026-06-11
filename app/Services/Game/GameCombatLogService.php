@@ -2,6 +2,7 @@
 
 namespace App\Services\Game;
 
+use App\Exceptions\GameException;
 use App\Models\Game\GameCharacter;
 use App\Models\Game\GameCombatLog;
 use App\Models\Game\GameMapDefinition;
@@ -145,10 +146,9 @@ class GameCombatLogService
             ->first();
 
         if (! $log) {
-            return ['error' => '日志不存在'];
+            throw GameException::invalidOperation('日志不存在');
         }
 
-        // 格式化返回数据，包含所有详情
         return [
             'log' => [
                 'id' => $log->id,

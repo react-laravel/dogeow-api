@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Services\Game;
 
+use App\Exceptions\GameException;
 use App\Models\Game\GameCharacter;
 use App\Models\Game\GameCombatLog;
 use App\Models\Game\GameMapDefinition;
@@ -261,10 +262,8 @@ class GameCombatLogServiceTest extends TestCase
             'difficulty_multiplier' => 1.75,
         ]);
 
-        $missing = $this->service->getCombatLogDetail($character, 999999);
         $detail = $this->service->getCombatLogDetail($character, $log->id);
 
-        $this->assertSame(['error' => '日志不存在'], $missing);
         $this->assertSame($log->id, $detail['log']['id']);
         $this->assertSame($map->name, $detail['log']['map']['name']);
         $this->assertSame($monster->name, $detail['log']['monster']['name']);
@@ -272,6 +271,16 @@ class GameCombatLogServiceTest extends TestCase
         $this->assertSame(45, $detail['log']['damage_detail']['total']);
         $this->assertSame(1.75, (float) $detail['log']['difficulty']['multiplier']);
         $this->assertSame($log->created_at->toISOString(), $detail['log']['created_at']);
+    }
+
+    public function test_get_combat_log_detail_throws_when_log_missing(): void
+    {
+        $character = $this->createCharacter();
+
+        $this->expectException(GameException::class);
+        $this->expectExceptionMessage('日志不存在');
+
+        $this->service->getCombatLogDetail($character, 999999);
     }
 
     public function test_get_combat_stats_aggregates_counts_sums_and_looted_items(): void
