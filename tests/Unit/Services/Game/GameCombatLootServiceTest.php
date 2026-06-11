@@ -161,6 +161,31 @@ class GameCombatLootServiceTest extends TestCase
         $this->assertNull($result);
     }
 
+    public function test_create_item_does_not_add_life_stats_to_weapons(): void
+    {
+        $character = $this->createCharacter();
+        $definition = $this->createItemDefinition([
+            'name' => 'Legacy Life Sword',
+            'type' => 'weapon',
+            'sub_type' => 'sword',
+            'base_stats' => ['attack' => 20, 'max_hp' => 999],
+            'required_level' => 1,
+        ]);
+
+        $item = $this->service->createItem($character, [
+            'type' => 'weapon',
+            'quality' => 'mythic',
+            'level' => 5,
+        ]);
+
+        $this->assertInstanceOf(GameItem::class, $item);
+        $this->assertSame($definition->id, $item->definition_id);
+        $this->assertArrayNotHasKey('max_hp', $item->stats ?? []);
+        foreach ($item->affixes ?? [] as $affix) {
+            $this->assertArrayNotHasKey('max_hp', $affix);
+        }
+    }
+
     public function test_create_item_creates_rare_equipment_with_affixes_and_sockets(): void
     {
         $character = $this->createCharacter();

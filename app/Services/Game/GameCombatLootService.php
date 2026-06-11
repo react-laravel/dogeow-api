@@ -135,6 +135,9 @@ class GameCombatLootService
         $stats = [];
         /** @var array<string, mixed> $baseStatsArr */
         $baseStatsArr = $definition->base_stats ?? [];
+        if ($definition->type === 'weapon') {
+            unset($baseStatsArr['max_hp']);
+        }
         foreach ($baseStatsArr as $stat => $value) {
             $statValue = (int) ($value * $qualityMultiplier * (0.8 + rand(0, 40) / 100));
             if ($statValue !== 0) {
@@ -161,6 +164,12 @@ class GameCombatLootService
                 ['max_hp' => rand(20, 100)],
                 ['max_mana' => rand(10, 50)],
             ];
+            if ($definition->type === 'weapon') {
+                $possibleAffixes = array_values(array_filter(
+                    $possibleAffixes,
+                    fn (array $affix): bool => ! array_key_exists('max_hp', $affix)
+                ));
+            }
             shuffle($possibleAffixes);
             $affixes = array_slice($possibleAffixes, 0, $affixCount);
 

@@ -27,6 +27,13 @@ class GameDefinitionDataTest extends TestCase
         $this->assertSame($expectedMaps, GameMapDefinition::query()->count());
         $this->assertSame($expectedMonsters, GameMonsterDefinition::query()->count());
         $this->assertGreaterThan(0, GameSkillDefinition::query()->count());
+        $this->assertFalse(
+            GameItemDefinition::query()
+                ->where('type', 'weapon')
+                ->get()
+                ->contains(fn (GameItemDefinition $item): bool => array_key_exists('max_hp', $item->base_stats ?? [])),
+            'Weapon definitions must not grant max_hp.'
+        );
 
         $map = GameMapDefinition::query()
             ->where('name', '新手营地')
