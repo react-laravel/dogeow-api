@@ -146,7 +146,7 @@ class RpgAssetIconNormalizer
             return self::$skillLegacyFiles;
         }
 
-        $skillsDir = database_path('seeders/Game/Data/skills');
+        $skillsDir = database_path('seeders/Game/Data/Skills');
         $skillFiles = [
             'skills_warrior.php',
             'skills_mage.php',

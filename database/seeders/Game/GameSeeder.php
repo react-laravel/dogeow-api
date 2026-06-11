@@ -41,7 +41,7 @@ class GameSeeder extends Seeder
 
     private function seedSkillDefinitions(): void
     {
-        $skillsDir = __DIR__ . '/Data/skills';
+        $skillsDir = __DIR__ . '/Data/Skills';
         $skillFiles = [
             'skills_warrior.php',
             'skills_mage.php',

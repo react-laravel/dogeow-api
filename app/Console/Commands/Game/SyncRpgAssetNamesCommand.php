@@ -208,7 +208,7 @@ class SyncRpgAssetNamesCommand extends Command
      */
     private function syncSkillDefinitions(bool $dryRun): array
     {
-        $skillsDir = database_path('seeders/Game/Data/skills');
+        $skillsDir = database_path('seeders/Game/Data/Skills');
         $skillFiles = [
             'skills_warrior.php',
             'skills_mage.php',
