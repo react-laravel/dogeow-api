@@ -553,6 +553,58 @@ class GameInventoryServiceTest extends TestCase
         $this->assertNotNull(GameItem::find($expensiveItem->id));
     }
 
+    public function test_sell_cheapest_inventory_item_by_type_sells_lowest_price_match(): void
+    {
+        $character = $this->createCharacter(['copper' => 0]);
+        $weaponDefinition = $this->createItemDefinition([
+            'buy_price' => 0,
+            'base_stats' => ['attack' => 5],
+        ]);
+        $cheapItem = $this->createItem($character, $weaponDefinition, [
+            'slot_index' => 0,
+            'stats' => ['attack' => 5],
+        ]);
+        $expensiveItem = $this->createItem($character, $weaponDefinition, [
+            'slot_index' => 1,
+            'stats' => ['attack' => 50],
+        ]);
+        $bootDefinition = $this->createItemDefinition([
+            'name' => 'Boots',
+            'type' => 'boots',
+            'sub_type' => null,
+            'base_stats' => ['defense' => 1],
+            'buy_price' => 0,
+        ]);
+        $bootItem = $this->createItem($character, $bootDefinition, [
+            'slot_index' => 2,
+            'stats' => ['defense' => 1],
+        ]);
+        $cheapPrice = $cheapItem->calculateSellPrice();
+
+        $result = $this->service->sellCheapestInventoryItemByType($character, 'weapon');
+
+        $this->assertNotNull($result);
+        $this->assertSame($cheapItem->id, $result['sold_item_id']);
+        $this->assertSame($cheapPrice, $result['sold_price']);
+        $this->assertNull(GameItem::find($cheapItem->id));
+        $this->assertNotNull(GameItem::find($expensiveItem->id));
+        $this->assertNotNull(GameItem::find($bootItem->id));
+    }
+
+    public function test_sell_cheapest_inventory_item_by_type_returns_null_when_no_matching_type(): void
+    {
+        $character = $this->createCharacter();
+        $bootDefinition = $this->createItemDefinition([
+            'name' => 'Boots',
+            'type' => 'boots',
+            'sub_type' => null,
+            'base_stats' => ['defense' => 1],
+        ]);
+        $this->createItem($character, $bootDefinition, ['slot_index' => 0]);
+
+        $this->assertNull($this->service->sellCheapestInventoryItemByType($character, 'weapon'));
+    }
+
     public function test_try_auto_recycle_item_recycles_low_value_loot_and_skips_when_disabled(): void
     {
         $character = $this->createCharacter(['copper' => 0, 'auto_recycle_max_value' => null]);

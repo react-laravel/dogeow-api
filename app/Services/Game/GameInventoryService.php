@@ -504,6 +504,70 @@ class GameInventoryService
     }
 
     /**
+     * 背包满时为掉落腾格：自动出售背包中同类型单价最低的可售物品
+     *
+     * @return array{
+     *     sold_item_id: int,
+     *     sold_item_name: string,
+     *     sold_price: int,
+     *     copper: int
+     * }|null
+     */
+    public function sellCheapestInventoryItemByType(
+        GameCharacter $character,
+        string $type,
+        ?string $subType = null,
+    ): ?array {
+        /** @var \Illuminate\Database\Eloquent\Collection<int, GameItem> $items */
+        $items = $character->items()
+            ->where('is_in_storage', false)
+            ->where(function ($query) {
+                $query->where('is_equipped', false)->orWhereNull('is_equipped');
+            })
+            ->whereHas('definition', function ($query) use ($type, $subType) {
+                $query->where('type', $type);
+                if ($subType !== null) {
+                    $query->where('sub_type', $subType);
+                }
+            })
+            ->with('definition')
+            ->get()
+            ->filter(function ($item) use ($character): bool {
+                if (! $item instanceof GameItem) {
+                    return false;
+                }
+
+                return ! $this->equipmentHelper->isItemEquipped($character, $item->id);
+            });
+
+        if ($items->isEmpty()) {
+            return null;
+        }
+
+        $this->ensureItemsSellPrice($items);
+
+        /** @var GameItem|null $cheapest */
+        $cheapest = $items
+            ->sortBy(fn (GameItem $item) => $item->calculateSellPrice())
+            ->first();
+
+        if ($cheapest === null) {
+            return null;
+        }
+
+        $soldName = $cheapest->definition->name ?? '物品';
+        $soldId = $cheapest->id;
+        $recycled = $this->sellSingleItem($character, $cheapest);
+
+        return [
+            'sold_item_id' => $soldId,
+            'sold_item_name' => $soldName,
+            'sold_price' => $recycled['total_price'],
+            'copper' => $recycled['copper'],
+        ];
+    }
+
+    /**
      * 拾取后尝试自动回收单个物品
      *
      * @return array{count: int, total_price: int, copper: int}|null

@@ -142,7 +142,7 @@ class GameCombatLootServiceTest extends TestCase
         $this->assertNull($result);
     }
 
-    public function test_create_item_returns_null_when_inventory_is_full(): void
+    public function test_create_item_sells_cheapest_same_type_item_when_inventory_is_full(): void
     {
         $character = $this->createCharacter();
         $definition = $this->createItemDefinition([
@@ -158,7 +158,30 @@ class GameCombatLootServiceTest extends TestCase
             'level' => 5,
         ]);
 
+        $this->assertInstanceOf(GameItem::class, $result);
+        $this->assertDatabaseCount('game_items', GameInventoryService::INVENTORY_SIZE);
+        $this->assertGreaterThan(0, $character->fresh()->copper);
+    }
+
+    public function test_create_item_returns_null_when_inventory_is_full_without_same_type_item(): void
+    {
+        $character = $this->createCharacter();
+        $bootDefinition = $this->createItemDefinition([
+            'name' => 'Full Inventory Boots',
+            'type' => 'boots',
+            'sub_type' => null,
+            'base_stats' => ['defense' => 5],
+        ]);
+        $this->fillInventory($character, $bootDefinition);
+
+        $result = $this->service->createItem($character, [
+            'type' => 'weapon',
+            'quality' => 'common',
+            'level' => 5,
+        ]);
+
         $this->assertNull($result);
+        $this->assertDatabaseCount('game_items', GameInventoryService::INVENTORY_SIZE);
     }
 
     public function test_create_item_does_not_add_life_stats_to_weapons(): void

@@ -125,11 +125,16 @@ class GameCombatLootService
             return null;
         }
 
+        $inventoryService = $this->getInventoryService();
+
         if ($character->isInventoryFull()) {
-            return null;
+            $freed = $inventoryService->sellCheapestInventoryItemByType($character, $definition->type);
+            if ($freed === null) {
+                return null;
+            }
+            $character->refresh();
         }
 
-        $inventoryService = $this->getInventoryService();
         $quality = $itemData['quality'];
         $qualityMultiplier = GameItem::QUALITY_MULTIPLIERS[$quality] ?? 1.0;
         $stats = [];
@@ -246,11 +251,16 @@ class GameCombatLootService
             return $existingPotion;
         }
 
+        $inventoryService = $this->getInventoryService();
+
         if ($character->isInventoryFull()) {
-            return null;
+            $freed = $inventoryService->sellCheapestInventoryItemByType($character, 'potion', $type);
+            if ($freed === null) {
+                return null;
+            }
+            $character->refresh();
         }
 
-        $inventoryService = $this->getInventoryService();
         $definition = GameItemDefinition::query()
             ->where('type', 'potion')
             ->where('sub_type', $type)
@@ -302,11 +312,15 @@ class GameCombatLootService
         $gemStats = $selectedGem;
         unset($gemStats['name']);
 
-        if ($character->isInventoryFull()) {
-            return null;
-        }
-
         $inventoryService = $this->getInventoryService();
+
+        if ($character->isInventoryFull()) {
+            $freed = $inventoryService->sellCheapestInventoryItemByType($character, 'gem');
+            if ($freed === null) {
+                return null;
+            }
+            $character->refresh();
+        }
 
         // 根据宝石属性计算价格
         $gemValue = 0;
