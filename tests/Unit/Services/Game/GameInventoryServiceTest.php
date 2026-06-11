@@ -528,6 +528,7 @@ class GameInventoryServiceTest extends TestCase
     {
         $character = $this->createCharacter(['copper' => 10]);
         $weaponDefinition = $this->createItemDefinition([
+            'buy_price' => 0,
             'base_stats' => ['attack' => 5],
         ]);
         $cheapItem = $this->createItem($character, $weaponDefinition, [

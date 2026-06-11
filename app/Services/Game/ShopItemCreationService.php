@@ -32,6 +32,7 @@ class ShopItemCreationService
             'is_in_storage' => false,
             'quantity' => $quantity,
         ]);
+        $tempItem->setRelation('definition', $definition);
         $sellPrice = $this->itemCalculator->calculateSellPrice($tempItem);
 
         $inventoryService = new GameInventoryService;
@@ -54,17 +55,23 @@ class ShopItemCreationService
      *
      * @return array<int, GameItem>
      */
-    public function createEquipmentItems(GameCharacter $character, GameItemDefinition $definition, int $quantity, array $randomStats): array
-    {
+    public function createEquipmentItems(
+        GameCharacter $character,
+        GameItemDefinition $definition,
+        int $quantity,
+        array $randomStats,
+        string $quality = 'common',
+    ): array {
         $tempItem = new GameItem([
             'character_id' => $character->id,
             'definition_id' => $definition->id,
-            'quality' => 'common',
+            'quality' => $quality,
             'stats' => $randomStats,
             'affixes' => [],
             'is_in_storage' => false,
             'quantity' => 1,
         ]);
+        $tempItem->setRelation('definition', $definition);
         $sellPrice = $this->itemCalculator->calculateSellPrice($tempItem);
 
         $inventoryService = new GameInventoryService;
@@ -74,7 +81,7 @@ class ShopItemCreationService
             $createdItems[] = GameItem::create([
                 'character_id' => $character->id,
                 'definition_id' => $definition->id,
-                'quality' => 'common',
+                'quality' => $quality,
                 'stats' => $randomStats,
                 'affixes' => [],
                 'is_in_storage' => false,

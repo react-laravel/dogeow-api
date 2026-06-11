@@ -274,6 +274,7 @@ class GameShopService
                 operation: 'buy',
                 idempotencyKey: $idempotencyKey,
                 callback: fn () => $this->performBuy($character, $itemId, $quantity),
+                idempotencyTtlSeconds: self::IDEMPOTENCY_CACHE_TTL_SECONDS,
             );
         }
 
@@ -301,17 +302,28 @@ class GameShopService
             throw new \InvalidArgumentException("需要等级 {$definition->required_level}");
         }
 
-        // 生成随机属性
-        $randomStats = $this->itemCalculator->generateRandomStats($definition);
+        $cachedShopItem = $this->findCachedShopItem($character, $itemId);
+        if ($cachedShopItem !== null) {
+            /** @var array<string, int|float> $randomStats */
+            $randomStats = is_array($cachedShopItem['base_stats'] ?? null) ? $cachedShopItem['base_stats'] : [];
+            $quality = is_string($cachedShopItem['quality'] ?? null) ? $cachedShopItem['quality'] : 'common';
+            $unitPrice = (int) ($cachedShopItem['buy_price'] ?? 0);
+            if ($unitPrice <= 0) {
+                $unitPrice = $this->itemCalculator->calculateBuyPrice($definition, $randomStats, $quality);
+            }
+        } else {
+            $randomStats = $this->itemCalculator->generateRandomStats($definition);
+            $quality = 'common';
+            $unitPrice = $this->itemCalculator->calculateBuyPrice($definition, $randomStats, $quality);
+        }
 
-        // 计算总价
-        $totalPrice = $this->itemCalculator->calculateBuyPrice($definition, $randomStats) * $quantity;
+        $totalPrice = $unitPrice * $quantity;
 
         if ($character->copper < $totalPrice) {
             throw new \InvalidArgumentException('货币不足');
         }
 
-        return DB::transaction(function () use ($character, $definition, $randomStats, $totalPrice, $quantity, $itemId) {
+        return DB::transaction(function () use ($character, $definition, $randomStats, $quality, $totalPrice, $quantity, $itemId) {
             $isPotion = $definition->type === 'potion';
 
             // 检查背包空间
@@ -324,7 +336,7 @@ class GameShopService
                 $this->itemCreationService->addPotionToInventory($character, $definition, $quantity, $randomStats);
             } else {
                 // 装备类物品
-                $this->itemCreationService->createEquipmentItems($character, $definition, $quantity, $randomStats);
+                $this->itemCreationService->createEquipmentItems($character, $definition, $quantity, $randomStats, $quality);
 
                 // 记录已购买的装备
                 $this->recordPurchasedItem($character, $itemId);
@@ -358,6 +370,7 @@ class GameShopService
                 operation: 'sell',
                 idempotencyKey: $idempotencyKey,
                 callback: fn () => $this->performSell($character, $itemId, $quantity),
+                idempotencyTtlSeconds: self::IDEMPOTENCY_CACHE_TTL_SECONDS,
             );
         }
 
@@ -430,5 +443,36 @@ class GameShopService
     private function getPurchasedCacheKey(GameCharacter $character): string
     {
         return self::PURCHASED_CACHE_KEY_PREFIX . $character->id;
+    }
+
+    /**
+     * 从商店缓存中查找当前展示的装备（保证购买价与列表一致）
+     *
+     * @return array<string, mixed>|null
+     */
+    private function findCachedShopItem(GameCharacter $character, int $definitionId): ?array
+    {
+        $cacheKey = $this->getShopCacheKey($character);
+        $cached = cache()->get($cacheKey);
+
+        if (! is_array($cached)) {
+            return null;
+        }
+
+        $equipment = $cached['equipment'] ?? null;
+        if (! is_array($equipment)) {
+            return null;
+        }
+
+        foreach ($equipment as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            if ((int) ($item['id'] ?? 0) === $definitionId) {
+                return $item;
+            }
+        }
+
+        return null;
     }
 }

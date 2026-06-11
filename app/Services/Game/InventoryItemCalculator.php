@@ -6,22 +6,86 @@ use App\Models\Game\GameItem;
 use App\Models\Game\GameItemDefinition;
 
 /**
- * 物品计算辅助类
+ * 物品定价统一入口（商店买卖、背包显示/出售均使用本类）
  */
 class InventoryItemCalculator
 {
+    /** 不参与计价的属性键 */
+    private const PRICING_EXCLUDED_STATS = ['restore', 'price'];
+
     /**
-     * 计算物品售价
+     * 计算物品售价（购买价 × sell_ratio）
      */
     public function calculateSellPrice(GameItem $item): int
     {
-        $definition = $item->definition;
-        /** @var GameItemDefinition|null $definition */
-        // calculateBuyPrice already includes quality multiplier, so don't multiply again
-        $basePrice = $this->calculateBuyPrice($definition, $item->stats ?? [], $item->quality);
+        $buyPrice = $this->calculateItemBuyPrice($item);
+        if ($buyPrice <= 0) {
+            return 0;
+        }
+
         $sellRatio = (float) config('game.shop.sell_ratio', 0.3);
 
-        return (int) ($basePrice * $sellRatio);
+        return max(1, (int) round($buyPrice * $sellRatio));
+    }
+
+    /**
+     * 根据背包实例计算购买价（含词缀、宝石等完整属性）
+     */
+    public function calculateItemBuyPrice(GameItem $item): int
+    {
+        $definition = $item->definition;
+        /** @var GameItemDefinition|null $definition */
+        if (! $definition) {
+            return 0;
+        }
+
+        $quality = $item->quality ?? 'common';
+        $stats = $this->resolvePricingStats($item);
+
+        return $this->calculateBuyPrice($definition, $stats, $quality);
+    }
+
+    /**
+     * @return array<string, int|float>
+     */
+    private function resolvePricingStats(GameItem $item): array
+    {
+        $definition = $item->definition;
+        if (! $definition instanceof GameItemDefinition) {
+            return [];
+        }
+
+        if ($definition->type === 'gem') {
+            $gemStats = $definition->gem_stats;
+
+            return is_array($gemStats) ? $this->normalizePricingStats($gemStats) : [];
+        }
+
+        $totalStats = $item->getTotalStats();
+        if ($totalStats !== []) {
+            return $this->normalizePricingStats($totalStats);
+        }
+
+        $baseStats = $definition->base_stats;
+
+        return is_array($baseStats) ? $this->normalizePricingStats($baseStats) : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $stats
+     * @return array<string, int|float>
+     */
+    private function normalizePricingStats(array $stats): array
+    {
+        $normalized = [];
+        foreach ($stats as $stat => $value) {
+            if (in_array($stat, self::PRICING_EXCLUDED_STATS, true) || ! is_numeric($value)) {
+                continue;
+            }
+            $normalized[$stat] = (float) $value;
+        }
+
+        return $normalized;
     }
 
     /**
@@ -73,6 +137,9 @@ class InventoryItemCalculator
         $statPriceConfig = is_array($statPriceConfig) ? $statPriceConfig : [];
         $statsPrice = 0.0;
         foreach ($stats as $stat => $value) {
+            if (in_array($stat, self::PRICING_EXCLUDED_STATS, true)) {
+                continue;
+            }
             $statMultiplier = isset($statPriceConfig[$stat]) && is_numeric($statPriceConfig[$stat]) ? (float) $statPriceConfig[$stat] : 2.0;
             $valueNumeric = (float) $value;
             $statsPrice += $valueNumeric * $statMultiplier;

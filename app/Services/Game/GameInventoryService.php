@@ -600,8 +600,9 @@ class GameInventoryService
     private function ensureItemsSellPrice(Collection|\Illuminate\Database\Eloquent\Collection $items): void
     {
         foreach ($items as $item) {
-            if (! isset($item->sell_price) || $item->sell_price === 0) {
-                $item->sell_price = $item->calculateSellPrice();
+            $newPrice = $item->calculateSellPrice();
+            if ($item->sell_price !== $newPrice) {
+                $item->sell_price = $newPrice;
                 $item->saveQuietly();
             }
         }

@@ -5,6 +5,9 @@ namespace Tests\Unit\Models\Game;
 use App\Models\Game\GameCharacter;
 use App\Models\Game\GameItem;
 use App\Models\Game\GameItemDefinition;
+use App\Services\Game\InventoryItemCalculator;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Tests\TestCase;
 
 class GameItemTest extends TestCase
@@ -68,25 +71,6 @@ class GameItemTest extends TestCase
         $this->assertEquals(1.6, GameItem::QUALITY_MULTIPLIERS['rare']);
         $this->assertEquals(2.0, GameItem::QUALITY_MULTIPLIERS['legendary']);
         $this->assertEquals(2.5, GameItem::QUALITY_MULTIPLIERS['mythic']);
-    }
-
-    public function test_model_has_stat_prices_constant(): void
-    {
-        $this->assertEquals(3, GameItem::STAT_PRICES['attack']);
-        $this->assertEquals(2, GameItem::STAT_PRICES['defense']);
-        $this->assertEquals(0.5, GameItem::STAT_PRICES['max_hp']);
-        $this->assertEquals(0.3, GameItem::STAT_PRICES['max_mana']);
-        $this->assertEquals(500, GameItem::STAT_PRICES['crit_rate']);
-        $this->assertEquals(200, GameItem::STAT_PRICES['crit_damage']);
-    }
-
-    public function test_model_has_type_price_multipliers_constant(): void
-    {
-        $this->assertEquals(1.2, GameItem::TYPE_PRICE_MULTIPLIERS['weapon']);
-        $this->assertEquals(1.0, GameItem::TYPE_PRICE_MULTIPLIERS['helmet']);
-        $this->assertEquals(1.3, GameItem::TYPE_PRICE_MULTIPLIERS['armor']);
-        $this->assertEquals(0.8, GameItem::TYPE_PRICE_MULTIPLIERS['gloves']);
-        $this->assertEquals(0.8, GameItem::TYPE_PRICE_MULTIPLIERS['boots']);
     }
 
     public function test_normalize_stats_precision_rounds_numeric_values(): void
@@ -210,19 +194,19 @@ class GameItemTest extends TestCase
     public function test_character_relationship(): void
     {
         $this->assertTrue(method_exists($this->item, 'character'));
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class, $this->item->character());
+        $this->assertInstanceOf(BelongsTo::class, $this->item->character());
     }
 
     public function test_definition_relationship(): void
     {
         $this->assertTrue(method_exists($this->item, 'definition'));
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class, $this->item->definition());
+        $this->assertInstanceOf(BelongsTo::class, $this->item->definition());
     }
 
     public function test_gems_relationship(): void
     {
         $this->assertTrue(method_exists($this->item, 'gems'));
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class, $this->item->gems());
+        $this->assertInstanceOf(HasMany::class, $this->item->gems());
     }
 
     public function test_get_total_stats_returns_base_stats(): void
@@ -266,6 +250,7 @@ class GameItemTest extends TestCase
     {
         $definition = new GameItemDefinition([
             'type' => 'potion',
+            'required_level' => 1,
             'base_stats' => ['max_hp' => 100, 'max_mana' => 50],
         ]);
         $item = new GameItem;
@@ -273,14 +258,16 @@ class GameItemTest extends TestCase
 
         $price = $item->calculateSellPrice();
 
-        // HP: 100 * 0.3 = 30, MP: 50 * 0.2 = 10, Total: 40
-        $this->assertEquals(40, $price);
+        $expected = (new InventoryItemCalculator)->calculateSellPrice($item);
+        $this->assertSame($expected, $price);
+        $this->assertGreaterThan(0, $price);
     }
 
     public function test_calculate_sell_price_for_gem(): void
     {
         $definition = new GameItemDefinition([
             'type' => 'gem',
+            'required_level' => 1,
             'gem_stats' => ['attack' => 10],
         ]);
         $item = new GameItem;
@@ -288,8 +275,27 @@ class GameItemTest extends TestCase
 
         $price = $item->calculateSellPrice();
 
-        // Attack: 10 * 3 = 30
-        $this->assertEquals(30, $price);
+        $expected = (new InventoryItemCalculator)->calculateSellPrice($item);
+        $this->assertSame($expected, $price);
+        $this->assertGreaterThan(0, $price);
+    }
+
+    public function test_calculate_sell_price_matches_inventory_calculator_for_equipment(): void
+    {
+        $definition = new GameItemDefinition([
+            'type' => 'weapon',
+            'required_level' => 5,
+        ]);
+        $item = new GameItem([
+            'stats' => ['attack' => 15, 'max_mana' => 118],
+            'affixes' => [['defense' => 10]],
+            'quality' => 'magic',
+        ]);
+        $item->definition = $definition;
+
+        $calculator = new InventoryItemCalculator;
+
+        $this->assertSame($calculator->calculateSellPrice($item), $item->calculateSellPrice());
     }
 
     public function test_calculate_sell_price_for_equipment(): void
@@ -311,9 +317,9 @@ class GameItemTest extends TestCase
         $this->assertIsInt($price);
     }
 
-    public function test_calculate_sell_price_returns_minimum_one(): void
+    public function test_calculate_sell_price_returns_positive_for_empty_stats_weapon(): void
     {
-        $definition = new GameItemDefinition(['type' => 'weapon']);
+        $definition = new GameItemDefinition(['type' => 'weapon', 'required_level' => 1]);
         $item = new GameItem([
             'stats' => [],
             'quality' => 'common',
@@ -322,7 +328,7 @@ class GameItemTest extends TestCase
 
         $price = $item->calculateSellPrice();
 
-        $this->assertEquals(1, $price);
+        $this->assertGreaterThanOrEqual(1, $price);
     }
 
     public function test_to_array_includes_basic_attributes(): void

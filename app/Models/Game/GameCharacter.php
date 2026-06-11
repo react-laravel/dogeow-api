@@ -312,9 +312,10 @@ class GameCharacter extends Model
         foreach ($equipmentSlots as $slot) {
             if ($slot->item) {
                 $item = $slot->item;
-                // 计算卖出价格
-                if (! isset($item->sell_price) || $item->sell_price === 0) {
-                    $item->sell_price = $item->calculateSellPrice();
+                $newPrice = $item->calculateSellPrice();
+                if ($item->sell_price !== $newPrice) {
+                    $item->sell_price = $newPrice;
+                    $item->saveQuietly();
                 }
                 $equipped[$slot->slot] = $item;
             }

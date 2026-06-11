@@ -47,6 +47,47 @@ class InventoryItemCalculatorTest extends TestCase
         $this->assertSame(30, $sellPrice);
     }
 
+    public function test_calculate_sell_price_includes_affixes_in_total_stats(): void
+    {
+        $definition = new GameItemDefinition;
+        $definition->buy_price = 0;
+        $definition->base_stats = ['price' => 0];
+        $definition->required_level = 1;
+        $definition->type = 'weapon';
+
+        $item = new GameItem;
+        $item->definition = $definition;
+        $item->stats = ['attack' => 10];
+        $item->affixes = [['attack' => 5]];
+        $item->quality = 'common';
+
+        $withAffix = $this->calculator->calculateSellPrice($item);
+
+        $item->affixes = [];
+        $withoutAffix = $this->calculator->calculateSellPrice($item);
+
+        $this->assertGreaterThan($withoutAffix, $withAffix);
+    }
+
+    public function test_calculate_item_buy_price_matches_calculate_buy_price_with_total_stats(): void
+    {
+        $definition = new GameItemDefinition;
+        $definition->buy_price = 0;
+        $definition->base_stats = ['price' => 0];
+        $definition->required_level = 3;
+        $definition->type = 'weapon';
+
+        $item = new GameItem;
+        $item->definition = $definition;
+        $item->stats = ['attack' => 24];
+        $item->quality = 'common';
+
+        $this->assertSame(
+            $this->calculator->calculateBuyPrice($definition, ['attack' => 24], 'common'),
+            $this->calculator->calculateItemBuyPrice($item)
+        );
+    }
+
     public function test_calculate_buy_price_returns_zero_when_no_definition(): void
     {
         $result = $this->calculator->calculateBuyPrice(null);
