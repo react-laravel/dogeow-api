@@ -8,6 +8,7 @@ use App\Services\Game\Combat\CombatRewardCalculator;
 use App\Services\Game\Combat\CombatSkillSelector;
 use App\Services\Game\DTOs\DamageContext;
 use App\Services\Game\DTOs\RoundDetailsContext;
+use App\Support\Game\RpgAssetIconNormalizer;
 
 /**
  * 单回合战斗处理器：技能选择、目标选择、伤害计算、反击、奖励结算
@@ -280,7 +281,7 @@ class CombatRoundProcessor
                 $aggregated[$id] = [
                     'skill_id' => $entry['skill_id'],
                     'name' => $entry['name'],
-                    'icon' => $entry['icon'] ?? null,
+                    'icon' => RpgAssetIconNormalizer::normalizeSkill($entry['icon'] ?? null),
                     'use_count' => 0,
                 ];
             }

@@ -2,11 +2,11 @@
 
 namespace App\Services\Game;
 
+use App\Jobs\Game\AutoCombatRoundJob;
 use App\Models\Game\GameCharacter;
 use App\Models\Game\GameMapDefinition;
-use App\Models\Game\GameMonsterDefinition;
 use App\Services\Game\DTOs\DefeatContext;
-use App\Jobs\Game\AutoCombatRoundJob;
+use App\Support\Game\RpgAssetIconNormalizer;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
@@ -104,17 +104,9 @@ class GameCombatService
         ];
 
         if ($character->is_fighting) {
-            $monsters = $character->combat_monsters ?? [];
+            $monsters = $this->resolveCombatMonstersForStatus($character);
             $result['current_combat_monsters'] = $monsters;
-            $firstAliveOrAny = null;
-            foreach ($monsters as $m) {
-                if (is_array($m) && isset($m['id'])) {
-                    $firstAliveOrAny = $m;
-                    if (($m['hp'] ?? 0) > 0) {
-                        break;
-                    }
-                }
-            }
+            $firstAliveOrAny = $this->pickPrimaryCombatMonster($monsters);
             if ($firstAliveOrAny !== null) {
                 $result['current_combat_monster'] = [
                     'id' => $firstAliveOrAny['id'],
@@ -124,17 +116,6 @@ class GameCombatService
                     'level' => (int) ($firstAliveOrAny['level'] ?? 1),
                     'hp' => (int) ($firstAliveOrAny['hp'] ?? 0),
                     'max_hp' => (int) ($firstAliveOrAny['max_hp'] ?? 0),
-                ];
-            } elseif ($character->currentCombatMonster !== null) {
-                $def = $character->currentCombatMonster;
-                $result['current_combat_monster'] = [
-                    'id' => $def->id,
-                    'name' => $def->name,
-                    'icon' => $def->icon,
-                    'type' => $def->type ?? 'normal',
-                    'level' => (int) $def->level,
-                    'hp' => (int) ($character->combat_monster_hp ?? 0),
-                    'max_hp' => (int) ($character->combat_monster_max_hp ?? 0),
                 ];
             }
         }
@@ -486,5 +467,69 @@ class GameCombatService
     public function getCombatStats(GameCharacter $character): array
     {
         return $this->combatLogService->getCombatStats($character);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>|null>
+     */
+    private function resolveCombatMonstersForStatus(GameCharacter $character): array
+    {
+        $monsters = $character->combat_monsters ?? [];
+        $hasMonster = false;
+        foreach ($monsters as $monster) {
+            if (is_array($monster) && isset($monster['id'])) {
+                $hasMonster = true;
+                break;
+            }
+        }
+
+        if (! $hasMonster && $character->combat_monster_id !== null) {
+            $definition = $character->currentCombatMonster;
+            if ($definition !== null) {
+                $stats = $definition->getCombatStats();
+                $monsters = array_fill(0, 5, null);
+                $monsters[0] = [
+                    'id' => $definition->id,
+                    'instance_id' => 'legacy',
+                    'name' => $definition->name,
+                    'icon' => $definition->icon,
+                    'type' => $definition->type,
+                    'level' => (int) $definition->level,
+                    'hp' => (int) ($character->combat_monster_hp ?? $stats['hp']),
+                    'max_hp' => (int) ($character->combat_monster_max_hp ?? $stats['hp']),
+                    'attack' => $stats['attack'],
+                    'defense' => $stats['defense'],
+                    'experience' => $stats['experience'],
+                    'position' => 0,
+                    'damage_taken' => -1,
+                ];
+            }
+        }
+
+        return RpgAssetIconNormalizer::normalizeMonsterCombatList($monsters);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>|null>  $monsters
+     * @return array<string, mixed>|null
+     */
+    private function pickPrimaryCombatMonster(array $monsters): ?array
+    {
+        $firstAny = null;
+        foreach ($monsters as $monster) {
+            if (! is_array($monster) || ! isset($monster['id'])) {
+                continue;
+            }
+
+            if ($firstAny === null) {
+                $firstAny = $monster;
+            }
+
+            if (($monster['hp'] ?? 0) > 0) {
+                return $monster;
+            }
+        }
+
+        return $firstAny;
     }
 }

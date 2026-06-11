@@ -2,12 +2,15 @@
 
 namespace App\Models\Game;
 
+use App\Support\Game\RpgAssetIconNormalizer;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property array<string, mixed>|null $drop_table
+ * @property string|null $icon
  */
 class GameMonsterDefinition extends Model
 {
@@ -45,6 +48,13 @@ class GameMonsterDefinition extends Model
     }
 
     public const TYPES = ['normal', 'elite', 'boss'];
+
+    protected function icon(): Attribute
+    {
+        return Attribute::get(
+            fn (?string $value): ?string => RpgAssetIconNormalizer::normalizeMonster($value)
+        );
+    }
 
     /**
      * 获取战斗日志

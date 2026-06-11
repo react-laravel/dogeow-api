@@ -5,6 +5,7 @@ namespace App\Services\Game;
 use App\Models\Game\GameCharacter;
 use App\Models\Game\GameMapDefinition;
 use App\Models\Game\GameMonsterDefinition;
+use App\Support\Game\RpgAssetIconNormalizer;
 use Illuminate\Support\Carbon;
 
 class GameMonsterService
@@ -35,7 +36,7 @@ class GameMonsterService
     /**
      * 从角色获取现有怪物或生成新怪物
      *
-     * @return array{0: ?\App\Models\Game\GameMonsterDefinition,1: ?int,2: ?array<string,int>,3: int,4: int}
+     * @return array{0: ?GameMonsterDefinition,1: ?int,2: ?array<string,int>,3: int,4: int}
      */
     public function prepareMonsterInfo(GameCharacter $character, GameMapDefinition $map): array
     {
@@ -65,7 +66,7 @@ class GameMonsterService
      * 从角色状态加载现有怪物
      *
      * @param  array<int, array<string,mixed>|null>  $existingMonsters
-     * @return array{0: ?\App\Models\Game\GameMonsterDefinition,1: ?int,2: ?array<string,int>,3: int,4: int}
+     * @return array{0: ?GameMonsterDefinition,1: ?int,2: ?array<string,int>,3: int,4: int}
      */
     public function loadExistingMonsters(GameCharacter $character, array $existingMonsters): array
     {
@@ -87,7 +88,7 @@ class GameMonsterService
                 if ($monster instanceof GameMonsterDefinition) {
                     $firstMonster = $monster;
                     $monsterLevel = isset($m['level']) && is_numeric($m['level']) ? (int) $m['level'] : null;
-                    /** @var \App\Models\Game\GameMonsterDefinition $monster */
+                    /** @var GameMonsterDefinition $monster */
                     $monsterStats = $monster->getCombatStats();
                 }
             }
@@ -108,12 +109,12 @@ class GameMonsterService
      * 生成新怪物 (1-5 个)
      *
      * @param  array<int, array<string,mixed>|null>  $existingMonsters
-     * @return array{0: ?\App\Models\Game\GameMonsterDefinition,1: ?int,2: ?array<string,int>,3: int,4: int}
+     * @return array{0: ?GameMonsterDefinition,1: ?int,2: ?array<string,int>,3: int,4: int}
      */
     public function generateNewMonsters(GameCharacter $character, GameMapDefinition $map, array $existingMonsters, bool $isRefresh = false): array
     {
         $monsters = $map->getMonsters();
-        /** @var array<int, \App\Models\Game\GameMonsterDefinition> $monsters */
+        /** @var array<int, GameMonsterDefinition> $monsters */
         if (empty($monsters)) {
             return [null, null, null, 0, 0];
         }
@@ -216,7 +217,7 @@ class GameMonsterService
         $monsterStats = null;
         $firstLevel = null;
         $monster = GameMonsterDefinition::query()->find($firstMonster['id']);
-        /** @var \App\Models\Game\GameMonsterDefinition|null $monster */
+        /** @var GameMonsterDefinition|null $monster */
         $monsterStats = $monster ? $monster->getCombatStats() : null;
         $firstLevel = (int) $firstMonster['level'];
 
@@ -365,7 +366,10 @@ class GameMonsterService
         }
         $iconsById = GameMonsterDefinition::query()
             ->whereIn('id', array_values(array_unique($monsterIds)))
-            ->pluck('icon', 'id')
+            ->get(['id', 'icon'])
+            ->mapWithKeys(fn (GameMonsterDefinition $definition): array => [
+                $definition->id => $definition->icon,
+            ])
             ->all();
         $fixedMonsters = array_fill(0, 5, null);
         for ($idx = 0; $idx < 5; $idx++) {
@@ -376,7 +380,7 @@ class GameMonsterService
                 if (($m['icon'] ?? null) === null && $monsterId !== null) {
                     $m['icon'] = $iconsById[$monsterId] ?? null;
                 }
-                $fixedMonsters[$idx] = $m;
+                $fixedMonsters[$idx] = RpgAssetIconNormalizer::normalizeMonsterCombatPayload($m);
             }
         }
 

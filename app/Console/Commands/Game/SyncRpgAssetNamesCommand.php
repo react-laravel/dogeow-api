@@ -53,7 +53,7 @@ class SyncRpgAssetNamesCommand extends Command
      */
     private function syncItemDefinitions(bool $dryRun): array
     {
-        $items = require database_path('seeders/GameSeederData/items.php');
+        $items = require database_path('seeders/Game/Data/items.php');
         $assetMap = [];
         foreach ($items as $item) {
             $assetMap[$item['name']] = ($item['asset_key'] ?? ('item_' . $item['id'])) . '.png';
@@ -104,7 +104,7 @@ class SyncRpgAssetNamesCommand extends Command
      */
     private function syncMonsterDefinitions(bool $dryRun): array
     {
-        $monsters = require database_path('seeders/GameSeederData/monsters.php');
+        $monsters = require database_path('seeders/Game/Data/monsters.php');
         $assetMap = [];
         foreach ($monsters as $monster) {
             $assetMap[$monster['name']] = ($monster['asset_key'] ?? ('monster_' . $monster['id'])) . '.png';
@@ -155,7 +155,7 @@ class SyncRpgAssetNamesCommand extends Command
      */
     private function syncMapDefinitions(bool $dryRun): array
     {
-        $maps = require database_path('seeders/GameSeederData/maps.php');
+        $maps = require database_path('seeders/Game/Data/maps.php');
         $assetMap = [];
         foreach ($maps as $index => $map) {
             $assetMap[$map['name'] . '#' . $map['act']] = ($map['asset_key'] ?? ('map_' . ($index + 1))) . '.jpg';
@@ -208,7 +208,7 @@ class SyncRpgAssetNamesCommand extends Command
      */
     private function syncSkillDefinitions(bool $dryRun): array
     {
-        $skillsDir = database_path('seeders/GameSeederData/skills');
+        $skillsDir = database_path('seeders/Game/Data/skills');
         $skillFiles = [
             'skills_warrior.php',
             'skills_mage.php',

@@ -113,7 +113,7 @@ class GameCombatServiceTest extends TestCase
         $this->assertCount(2, $result['current_combat_monsters']);
     }
 
-    public function test_get_combat_status_falls_back_to_legacy_single_monster_fields(): void
+    public function test_get_combat_status_migrates_legacy_single_monster_fields_to_multi_slot_payload(): void
     {
         $map = $this->createMap();
         $monster = $this->createMonster([
@@ -137,6 +137,8 @@ class GameCombatServiceTest extends TestCase
         $this->assertSame('Legacy Ogre', $result['current_combat_monster']['name']);
         $this->assertSame(7, $result['current_combat_monster']['hp']);
         $this->assertSame(19, $result['current_combat_monster']['max_hp']);
+        $this->assertCount(5, $result['current_combat_monsters']);
+        $this->assertSame($monster->id, $result['current_combat_monsters'][0]['id']);
     }
 
     public function test_update_potion_settings_updates_only_requested_fields(): void

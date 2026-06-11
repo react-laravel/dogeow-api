@@ -2,6 +2,8 @@
 
 namespace App\Models\Game;
 
+use App\Support\Game\RpgAssetIconNormalizer;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -14,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property mixed $target_type
  * @property mixed $base_damage
  * @property mixed $damage_per_level
+ * @property string|null $icon
  */
 class GameSkillDefinition extends Model
 {
@@ -64,6 +67,13 @@ class GameSkillDefinition extends Model
     public const TYPES = ['active', 'passive'];
 
     public const CLASS_RESTRICTIONS = ['warrior', 'mage', 'ranger', 'all'];
+
+    protected function icon(): Attribute
+    {
+        return Attribute::get(
+            fn (?string $value): ?string => RpgAssetIconNormalizer::normalizeSkill($value)
+        );
+    }
 
     /**
      * 检查职业是否可以使用该技能
