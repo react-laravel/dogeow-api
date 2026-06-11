@@ -147,21 +147,15 @@ trait CharacterCombatStats
     {
         $bonus = 0;
 
-        $equipmentSlots = $this->equipment()->with('item.definition', 'item')->get();
+        $equipmentSlots = $this->equipment()
+            ->with('item.definition', 'item.gems.gemDefinition')
+            ->get();
 
         /** @var GameEquipment $slot */
         foreach ($equipmentSlots as $slot) {
             if ($slot->item) {
-                $itemStats = $slot->item->stats ?? [];
+                $itemStats = $slot->item->getTotalStats();
                 $bonus += (float) ($itemStats[$stat] ?? 0);
-
-                // 词缀加成
-                $affixes = $slot->item->affixes ?? [];
-                foreach ($affixes as $affix) {
-                    if (isset($affix[$stat])) {
-                        $bonus += (float) $affix[$stat];
-                    }
-                }
             }
         }
 

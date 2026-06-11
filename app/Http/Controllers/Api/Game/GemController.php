@@ -87,8 +87,12 @@ class GemController extends Controller
         // 删除宝石物品
         $gemItem->delete();
 
+        $equipment->refresh()->load('definition', 'gems.gemDefinition');
+
         return $this->success([
-            'equipment' => $equipment->load('gems.gemDefinition'),
+            'equipment' => $equipment,
+            'combat_stats' => $character->getCombatStats(),
+            'stats_breakdown' => $character->getCombatStatsBreakdown(),
             'message' => '宝石镶嵌成功',
         ], '宝石镶嵌成功');
     }
@@ -132,7 +136,7 @@ class GemController extends Controller
         $slotIndex = $this->inventoryService->findEmptySlot($character, false);
 
         // 创建宝石物品
-        GameItem::create([
+        $gemItem = GameItem::create([
             'character_id' => $character->id,
             'definition_id' => $gemDefinition->id,
             'quality' => 'common',
@@ -147,8 +151,14 @@ class GemController extends Controller
         // 删除镶嵌记录
         $gem->delete();
 
+        $equipment->refresh()->load('definition', 'gems.gemDefinition');
+        $gemItem->load('definition');
+
         return $this->success([
-            'equipment' => $equipment->load('gems.gemDefinition'),
+            'equipment' => $equipment,
+            'gem_item' => $gemItem,
+            'combat_stats' => $character->getCombatStats(),
+            'stats_breakdown' => $character->getCombatStatsBreakdown(),
             'message' => '宝石卸下成功',
         ], '宝石卸下成功');
     }

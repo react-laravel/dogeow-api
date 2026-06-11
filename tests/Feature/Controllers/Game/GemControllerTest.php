@@ -3,6 +3,7 @@
 namespace Tests\Feature\Controllers\Game;
 
 use App\Models\Game\GameCharacter;
+use App\Models\Game\GameEquipment;
 use App\Models\Game\GameItem;
 use App\Models\Game\GameItemDefinition;
 use App\Models\Game\GameItemGem;
@@ -123,6 +124,43 @@ class GemControllerTest extends TestCase
             'socket_index' => 0,
         ]);
         $this->assertDatabaseMissing('game_items', ['id' => $gemItem->id]);
+    }
+
+    public function test_socketed_gem_stats_affect_equipped_character_combat_stats(): void
+    {
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, ['strength' => 10]);
+        $equipmentDef = $this->createItemDefinition([
+            'sockets' => 1,
+            'base_stats' => ['attack' => 10],
+        ]);
+        $gemDef = $this->createGemDefinition(['gem_stats' => ['attack' => 5]]);
+        $equipment = $this->createItem($character, $equipmentDef, [
+            'sockets' => 1,
+            'stats' => ['attack' => 10],
+        ]);
+        $gemItem = $this->createItem($character, $gemDef);
+
+        GameEquipment::create([
+            'character_id' => $character->id,
+            'slot' => 'weapon',
+            'item_id' => $equipment->id,
+        ]);
+
+        $baseAttack = $character->getBaseAttack();
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/rpg/gems/socket?character_id=' . $character->id, [
+                'item_id' => $equipment->id,
+                'gem_item_id' => $gemItem->id,
+                'socket_index' => 0,
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.combat_stats.attack', $baseAttack + 15)
+            ->assertJsonPath('data.stats_breakdown.attack.equipment', 15);
+
+        $this->assertSame($baseAttack + 15, $character->fresh()->getCombatStats()['attack']);
     }
 
     public function test_socket_rejects_non_gem_items(): void
