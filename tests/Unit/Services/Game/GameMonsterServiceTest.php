@@ -97,6 +97,40 @@ class GameMonsterServiceTest extends TestCase
         $this->assertSame(20, $totalMaxHp);
     }
 
+    public function test_prepare_monster_info_regenerates_when_monsters_do_not_belong_to_map(): void
+    {
+        GameMonsterRandomControl::$randQueue = [1, 0, 0, 0, 0];
+
+        $forestMonster = $this->createMonster(['name' => 'Forest Deer']);
+        $goblin = $this->createMonster(['name' => 'Goblin']);
+        $forestMap = $this->createMap([$forestMonster->id]);
+        $goblinMap = $this->createMap([$goblin->id]);
+        $character = $this->createCharacter([
+            'current_map_id' => $goblinMap->id,
+            'combat_monsters_refreshed_at' => now(),
+            'combat_monsters' => [
+                [
+                    'id' => $forestMonster->id,
+                    'name' => $forestMonster->name,
+                    'type' => $forestMonster->type,
+                    'level' => 2,
+                    'hp' => 18,
+                    'max_hp' => 20,
+                    'position' => 0,
+                ],
+                null,
+                null,
+                null,
+                null,
+            ],
+        ]);
+
+        [$loadedMonster] = $this->service->prepareMonsterInfo($character, $goblinMap);
+
+        $this->assertSame($goblin->id, $loadedMonster?->id);
+        $this->assertSame($goblin->id, $character->fresh()->combat_monsters[0]['id'] ?? null);
+    }
+
     public function test_load_existing_monsters_clears_invalid_state_when_no_definitions_match(): void
     {
         $character = $this->createCharacter([

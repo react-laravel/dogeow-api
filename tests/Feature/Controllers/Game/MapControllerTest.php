@@ -2,10 +2,13 @@
 
 namespace Tests\Feature\Controllers\Game;
 
+use App\Events\Game\GameCombatUpdate;
 use App\Models\Game\GameCharacter;
 use App\Models\Game\GameMapDefinition;
+use App\Models\Game\GameMonsterDefinition;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
 class MapControllerTest extends TestCase
@@ -44,7 +47,23 @@ class MapControllerTest extends TestCase
             'level_range' => '1-5',
             'required_level' => 1,
             'is_active' => true,
-            'monsters' => [],
+            'monster_ids' => [],
+        ], $attributes));
+    }
+
+    private function createMonsterDefinition(array $attributes = []): GameMonsterDefinition
+    {
+        return GameMonsterDefinition::create(array_merge([
+            'name' => 'Test Monster',
+            'type' => 'normal',
+            'level' => 1,
+            'hp_base' => 20,
+            'attack_base' => 5,
+            'defense_base' => 2,
+            'experience_base' => 10,
+            'drop_table' => [],
+            'icon' => 'monster.png',
+            'is_active' => true,
         ], $attributes));
     }
 
@@ -70,6 +89,50 @@ class MapControllerTest extends TestCase
             ->postJson('/api/rpg/maps/' . $map->id . '/enter?character_id=' . $character->id);
 
         $response->assertStatus(200);
+    }
+
+    public function test_enter_map_replaces_monsters_from_previous_map(): void
+    {
+        Event::fake([GameCombatUpdate::class]);
+
+        $user = User::factory()->create();
+        $deer = $this->createMonsterDefinition(['name' => 'Deer']);
+        $goblin = $this->createMonsterDefinition(['name' => 'Goblin']);
+        $forest = $this->createMapDefinition(['monster_ids' => [$deer->id]]);
+        $goblinDen = $this->createMapDefinition(['name' => 'Goblin Den', 'monster_ids' => [$goblin->id]]);
+        $character = $this->createCharacter($user, [
+            'current_map_id' => $forest->id,
+            'is_fighting' => true,
+            'combat_monsters_refreshed_at' => now(),
+            'combat_monsters' => [
+                [
+                    'id' => $deer->id,
+                    'name' => $deer->name,
+                    'type' => 'normal',
+                    'level' => 1,
+                    'hp' => 20,
+                    'max_hp' => 20,
+                    'position' => 0,
+                ],
+            ],
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/rpg/maps/' . $goblinDen->id . '/enter?character_id=' . $character->id);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.monsters.0.id', $goblin->id);
+
+        $character->refresh();
+        $this->assertSame($goblinDen->id, $character->current_map_id);
+        $aliveMonsterIds = array_values(array_filter(array_map(
+            static fn ($monster) => is_array($monster) && ($monster['hp'] ?? 0) > 0 ? (int) $monster['id'] : null,
+            $character->combat_monsters ?? []
+        )));
+        $this->assertNotEmpty($aliveMonsterIds);
+        $this->assertSame([$goblin->id], array_values(array_unique($aliveMonsterIds)));
+
+        Event::assertDispatched(GameCombatUpdate::class);
     }
 
     public function test_can_teleport_to_map(): void

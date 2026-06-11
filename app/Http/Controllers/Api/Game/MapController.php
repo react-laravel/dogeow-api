@@ -2,14 +2,22 @@
 
 namespace App\Http\Controllers\Api\Game;
 
+use App\Http\Controllers\Concerns\CharacterConcern;
 use App\Http\Controllers\Controller;
 use App\Models\Game\GameMapDefinition;
+use App\Services\Game\GameCombatService;
+use App\Services\Game\GameMonsterService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class MapController extends Controller
 {
-    use \App\Http\Controllers\Concerns\CharacterConcern;
+    use CharacterConcern;
+
+    public function __construct(
+        private readonly GameCombatService $combatService,
+        private readonly GameMonsterService $monsterService,
+    ) {}
 
     /**
      * 获取所有地图
@@ -48,14 +56,19 @@ class MapController extends Controller
         $character = $this->getCharacter($request);
         $map = GameMapDefinition::findOrFail($mapId);
 
-        // 更新当前地图并自动开始战斗
+        $character->clearCombatState();
         $character->current_map_id = $mapId;
         $character->is_fighting = true;
         $character->save();
 
+        $character->refresh();
+        $character->load('currentMap');
+        $this->combatService->broadcastMonstersAppear($character, $map);
+
         return $this->success([
             'character' => $character->fresh('currentMap'),
             'map' => $map,
+            'monsters' => $this->monsterService->formatMonstersForResponse($character->fresh())['monsters'] ?? [],
         ], "已进入 {$map->name}");
     }
 
@@ -69,6 +82,7 @@ class MapController extends Controller
 
         // 直接传送到地图，自动开始战斗；若当前未在战斗中则视为复活，只恢复基础生命值与法力值
         $wasNotFighting = ! $character->is_fighting;
+        $character->clearCombatState();
         $character->current_map_id = $mapId;
         $character->is_fighting = true;
         if ($wasNotFighting) {
@@ -78,8 +92,13 @@ class MapController extends Controller
         }
         $character->save();
 
+        $character->refresh();
+        $character->load('currentMap');
+        $this->combatService->broadcastMonstersAppear($character, $map);
+
         return $this->success([
             'character' => $character->fresh('currentMap'),
+            'monsters' => $this->monsterService->formatMonstersForResponse($character->fresh())['monsters'] ?? [],
         ], "已传送到 {$map->name}");
     }
 

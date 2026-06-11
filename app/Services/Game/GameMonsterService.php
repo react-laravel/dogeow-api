@@ -53,6 +53,12 @@ class GameMonsterService
 
         // 检查是否需要刷新怪物(定期从数据库读取最新属性)
         $shouldRefresh = $this->shouldRefreshMonsters($character);
+        $monstersMismatchMap = ! $this->monstersBelongToMap($existingMonsters, $map);
+
+        if ($monstersMismatchMap) {
+            $hasAliveMonster = false;
+            $existingMonsters = [];
+        }
 
         if ($character->hasActiveCombat() && $hasAliveMonster && ! $shouldRefresh) {
             return $this->loadExistingMonsters($character, $existingMonsters);
@@ -60,6 +66,32 @@ class GameMonsterService
 
         // 需要刷新怪物：重新生成
         return $this->generateNewMonsters($character, $map, $existingMonsters, $shouldRefresh);
+    }
+
+    /**
+     * 检查当前战斗怪物是否属于指定地图
+     *
+     * @param  array<int, array<string,mixed>|null>  $existingMonsters
+     */
+    private function monstersBelongToMap(array $existingMonsters, GameMapDefinition $map): bool
+    {
+        $mapMonsterIds = array_map(
+            static fn (GameMonsterDefinition $monster): int => $monster->id,
+            $map->getMonsters()
+        );
+
+        foreach ($existingMonsters as $monster) {
+            if (! is_array($monster) || ($monster['hp'] ?? 0) <= 0) {
+                continue;
+            }
+
+            $monsterId = isset($monster['id']) && is_numeric($monster['id']) ? (int) $monster['id'] : 0;
+            if ($monsterId > 0 && ! in_array($monsterId, $mapMonsterIds, true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
