@@ -429,6 +429,39 @@ class GameShopServiceTest extends TestCase
         );
     }
 
+    public function test_buy_gem_removes_from_shop_until_refresh(): void
+    {
+        config([
+            'game.shop.equipment_count_min' => 0,
+            'game.shop.equipment_count_max' => 0,
+        ]);
+        $character = $this->createCharacter(['level' => 10, 'copper' => 10000]);
+        $defenseGem = $this->createItemDefinition([
+            'name' => '防御宝石',
+            'type' => 'gem',
+            'gem_stats' => ['defense' => 8],
+            'required_level' => 1,
+            'buy_price' => 50,
+        ]);
+        $attackGem = $this->createItemDefinition([
+            'name' => '攻击宝石',
+            'type' => 'gem',
+            'gem_stats' => ['attack' => 10],
+            'required_level' => 1,
+            'buy_price' => 50,
+        ]);
+
+        $before = $this->service->getShopItems($character);
+        $this->assertCount(2, $before['items']->where('type', 'gem'));
+
+        $this->service->buyItem($character, $defenseGem->id, 1);
+
+        $after = $this->service->getShopItems($character);
+        $gemIds = $after['items']->where('type', 'gem')->pluck('id')->all();
+        $this->assertSame([$attackGem->id], $gemIds);
+        $this->assertContains($defenseGem->id, $after['purchased']);
+    }
+
     public function test_shop_equipment_stats_value_is_at_least_equipped_item_value(): void
     {
         $calculator = new InventoryItemCalculator;

@@ -74,7 +74,6 @@ class GameShopService
     {
         // 药品、宝石固定显示
         $fixedPotionItems = $this->buildFixedPotionItems($character);
-        $fixedGemItems = $this->buildFixedGemItems($character);
 
         // 装备列表使用缓存
         $cacheKey = $this->getShopCacheKey($character);
@@ -85,8 +84,9 @@ class GameShopService
         }
         $equipment = collect($equipmentArray);
 
-        // 获取已购买的装备ID列表
+        // 获取已购买的装备/宝石 ID 列表
         $purchasedItemIds = $this->getPurchasedItemIds($character);
+        $fixedGemItems = $this->buildFixedGemItems($character, $purchasedItemIds);
         $equippedValueFloorsByType = $this->buildEquippedValueFloorsByType($character);
 
         if (is_array($cached) && isset($cached['equipment'], $cached['refreshed_at'])) {
@@ -235,7 +235,10 @@ class GameShopService
     /**
      * 构建固定宝石列表（每种属性一颗，与药水一样常驻商店）
      */
-    private function buildFixedGemItems(GameCharacter $character): Collection
+    /**
+     * @param  int[]  $purchasedItemIds
+     */
+    private function buildFixedGemItems(GameCharacter $character, array $purchasedItemIds = []): Collection
     {
         $gemDefinitions = GameItemDefinition::query()
             ->where('is_active', true)
@@ -264,7 +267,9 @@ class GameShopService
                 'name' => $definition->name,
                 'type' => $definition->type,
                 'sub_type' => $definition->sub_type,
-                'base_stats' => GameItem::normalizeStatsPrecision([]),
+                'base_stats' => GameItem::normalizeStatsPrecision(
+                    is_array($definition->gem_stats) ? $definition->gem_stats : []
+                ),
                 'required_level' => $definition->required_level,
                 'icon' => $definition->icon,
                 'description' => $definition->description,
@@ -273,7 +278,9 @@ class GameShopService
             ];
         });
 
-        return $result;
+        return $result
+            ->filter(fn (array $item): bool => ! in_array((int) $item['id'], $purchasedItemIds, true))
+            ->values();
     }
 
     /**
@@ -443,6 +450,7 @@ class GameShopService
                 $this->itemCreationService->addPotionToInventory($character, $definition, $quantity, $randomStats);
             } elseif ($isGem) {
                 $this->itemCreationService->addGemToInventory($character, $definition, $quantity);
+                $this->recordPurchasedItem($character, $itemId);
             } else {
                 // 装备类物品
                 $this->itemCreationService->createEquipmentItems($character, $definition, $quantity, $randomStats, $quality);
