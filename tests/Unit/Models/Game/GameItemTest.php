@@ -258,9 +258,7 @@ class GameItemTest extends TestCase
 
         $price = $item->calculateSellPrice();
 
-        $expected = (new InventoryItemCalculator)->calculateSellPrice($item);
-        $this->assertSame($expected, $price);
-        $this->assertGreaterThan(0, $price);
+        $this->assertSame(40, $price);
     }
 
     public function test_calculate_sell_price_for_gem(): void
@@ -275,9 +273,7 @@ class GameItemTest extends TestCase
 
         $price = $item->calculateSellPrice();
 
-        $expected = (new InventoryItemCalculator)->calculateSellPrice($item);
-        $this->assertSame($expected, $price);
-        $this->assertGreaterThan(0, $price);
+        $this->assertSame(30, $price);
     }
 
     public function test_calculate_sell_price_matches_inventory_calculator_for_equipment(): void

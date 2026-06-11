@@ -198,6 +198,14 @@ class GameShopService
         $result = $fixedPotions->map(function ($definition) {
             $randomStats = $this->itemCalculator->generateRandomStats($definition);
             $buyPrice = $this->itemCalculator->calculateBuyPrice($definition, $randomStats);
+            $previewItem = new GameItem([
+                'quality' => 'common',
+                'stats' => $randomStats,
+            ]);
+            $previewItem->setRelation('definition', $definition);
+            $sellPrice = $definition->buy_price > 0
+                ? max(1, (int) ($buyPrice / 2))
+                : $this->itemCalculator->calculateSellPrice($previewItem);
 
             return [
                 'id' => $definition->id,
@@ -209,7 +217,7 @@ class GameShopService
                 'icon' => $definition->icon,
                 'description' => $definition->description,
                 'buy_price' => $buyPrice,
-                'sell_price' => (int) floor($buyPrice * (float) config('game.shop.sell_ratio', 0.3)),
+                'sell_price' => $sellPrice,
             ];
         });
 

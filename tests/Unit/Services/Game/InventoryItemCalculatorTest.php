@@ -28,23 +28,22 @@ class InventoryItemCalculatorTest extends TestCase
         $this->assertSame(0, $result);
     }
 
-    public function test_calculate_sell_price_uses_sell_ratio(): void
+    public function test_calculate_sell_price_for_potion_uses_restore_stats(): void
     {
         $definition = new GameItemDefinition;
-        $definition->buy_price = 100;
+        $definition->buy_price = 0;
         $definition->base_stats = null;
         $definition->required_level = 1;
         $definition->type = 'potion';
 
         $item = new GameItem;
         $item->definition = $definition;
-        $item->stats = [];
+        $item->stats = ['max_hp' => 100, 'max_mana' => 50];
         $item->quality = 'common';
 
         $sellPrice = $this->calculator->calculateSellPrice($item);
 
-        // Default sell_ratio is 0.3, so sell price = 100 * 0.3 = 30
-        $this->assertSame(30, $sellPrice);
+        $this->assertSame(40, $sellPrice);
     }
 
     public function test_calculate_sell_price_includes_affixes_in_total_stats(): void
@@ -121,25 +120,24 @@ class InventoryItemCalculatorTest extends TestCase
         $this->assertSame(200, $result);
     }
 
-    public function test_calculate_buy_price_returns_zero_when_base_stats_price_is_not_numeric(): void
+    public function test_calculate_buy_price_falls_back_to_stat_formula_when_base_stats_price_is_not_numeric(): void
     {
         $definition = new GameItemDefinition;
         $definition->buy_price = 0;
         $definition->base_stats = ['price' => 'free'];
         $definition->required_level = 1;
-        $definition->type = 'potion';
+        $definition->type = 'weapon';
 
         $result = $this->calculator->calculateBuyPrice($definition);
 
-        // typeBasePrice=20, levelMult=1.5, qualityMult=1.0, *100 = 3000, /2 = 1500
-        $this->assertSame(1500, $result);
+        $this->assertSame(1, $result);
     }
 
-    public function test_calculate_buy_price_includes_stats_in_calculation(): void
+    public function test_calculate_buy_price_is_twice_equipment_sell_price(): void
     {
         $definition = new GameItemDefinition;
         $definition->buy_price = 0;
-        $definition->base_stats = ['price' => 0]; // No base price
+        $definition->base_stats = ['price' => 0];
         $definition->required_level = 5;
         $definition->type = 'weapon';
 
@@ -148,13 +146,15 @@ class InventoryItemCalculatorTest extends TestCase
             'crit_rate' => 0.05,
         ];
 
-        $result = $this->calculator->calculateBuyPrice($definition, $stats, 'common');
+        $item = new GameItem;
+        $item->definition = $definition;
+        $item->stats = $stats;
+        $item->quality = 'common';
 
-        // Level multiplier: 1 + 5 * 0.5 = 3.5
-        // Type base price: 20 (default for weapon)
-        // Stat price: attack * 2 + crit_rate * 2 = 10 * 2 + 0.05 * 2 = 20 + 0.1 = 20.1
-        // Total: (20 + 20.1) * 3.5 * 1.0 (quality multiplier) = 140.35 -> 14035 (rounded * 100)
-        $this->assertGreaterThan(0, $result);
+        $buyPrice = $this->calculator->calculateBuyPrice($definition, $stats, 'common');
+        $sellPrice = $this->calculator->calculateSellPrice($item);
+
+        $this->assertSame($sellPrice * 2, $buyPrice);
     }
 
     public function test_get_potion_effects_returns_hp_and_mana(): void
@@ -320,7 +320,19 @@ class InventoryItemCalculatorTest extends TestCase
 
         $result = $this->calculator->calculateBuyPrice($definition, [], 'unknown_quality');
 
-        // Should fall back to multiplier of 1.0
         $this->assertSame(100, $result);
+    }
+
+    public function test_calculate_sell_price_for_gem_uses_gem_stats(): void
+    {
+        $definition = new GameItemDefinition;
+        $definition->type = 'gem';
+        $definition->gem_stats = ['attack' => 10];
+
+        $item = new GameItem;
+        $item->definition = $definition;
+
+        $this->assertSame(30, $this->calculator->calculateSellPrice($item));
+        $this->assertSame(60, $this->calculator->calculateBuyPrice($definition));
     }
 }

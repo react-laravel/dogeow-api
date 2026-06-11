@@ -6,30 +6,67 @@ use App\Models\Game\GameItem;
 use App\Models\Game\GameItemDefinition;
 
 /**
- * 物品定价统一入口（商店买卖、背包显示/出售均使用本类）
+ * 物品定价统一入口（与背包/角色显示一致：铜币级属性计价）
  */
 class InventoryItemCalculator
 {
     /** 不参与计价的属性键 */
     private const PRICING_EXCLUDED_STATS = ['restore', 'price'];
 
+    /** 装备卖出价为估价的 50% */
+    private const EQUIPMENT_SELL_RATIO = 0.5;
+
+    /** 商店购入价相对出售价的倍率（装备为收回 50% 折价，故买价≈卖价×2） */
+    private const SHOP_BUY_TO_SELL_MULTIPLIER = 2;
+
     /**
-     * 计算物品售价（购买价 × sell_ratio）
+     * 属性价格系数（每 1 点属性对应的基础铜币）
+     */
+    private const STAT_PRICES = [
+        'attack' => 3,
+        'defense' => 2,
+        'max_hp' => 0.5,
+        'max_mana' => 0.3,
+        'crit_rate' => 500,
+        'crit_damage' => 200,
+    ];
+
+    /**
+     * 物品类型价格系数
+     */
+    private const TYPE_PRICE_MULTIPLIERS = [
+        'weapon' => 1.2,
+        'helmet' => 1.0,
+        'armor' => 1.3,
+        'gloves' => 0.8,
+        'boots' => 0.8,
+        'belt' => 0.7,
+        'ring' => 1.5,
+        'amulet' => 1.8,
+        'potion' => 0.5,
+        'gem' => 1.0,
+    ];
+
+    /**
+     * 计算物品卖出价（背包/角色显示、背包出售、商店回收）
      */
     public function calculateSellPrice(GameItem $item): int
     {
-        $buyPrice = $this->calculateItemBuyPrice($item);
-        if ($buyPrice <= 0) {
+        $definition = $item->definition;
+        /** @var GameItemDefinition|null $definition */
+        if (! $definition) {
             return 0;
         }
 
-        $sellRatio = (float) config('game.shop.sell_ratio', 0.3);
-
-        return max(1, (int) round($buyPrice * $sellRatio));
+        return match ($definition->type) {
+            'potion' => $this->calculatePotionSellPrice($item),
+            'gem' => $this->calculateGemSellPrice($definition),
+            default => $this->calculateEquipmentSellPrice($item),
+        };
     }
 
     /**
-     * 根据背包实例计算购买价（含词缀、宝石等完整属性）
+     * 根据背包实例计算商店购入价（含词缀、宝石等完整属性）
      */
     public function calculateItemBuyPrice(GameItem $item): int
     {
@@ -42,7 +79,12 @@ class InventoryItemCalculator
         $quality = $item->quality ?? 'common';
         $stats = $this->resolvePricingStats($item);
 
-        return $this->calculateBuyPrice($definition, $stats, $quality);
+        return $this->calculateBuyPrice(
+            $definition,
+            $stats,
+            $quality,
+            (int) ($item->sockets ?? 0),
+        );
     }
 
     /**
@@ -89,63 +131,142 @@ class InventoryItemCalculator
     }
 
     /**
-     * 计算购买价格
+     * 计算商店购入价
      *
      * @param  array<string,int|float>  $stats
      */
-    public function calculateBuyPrice(?GameItemDefinition $item, array $stats = [], string $quality = 'common'): int
-    {
+    public function calculateBuyPrice(
+        ?GameItemDefinition $item,
+        array $stats = [],
+        string $quality = 'common',
+        int $sockets = 0,
+    ): int {
         if (! $item) {
             return 0;
         }
 
-        // 优先使用固定价格
         if ($item->buy_price > 0) {
             return $item->buy_price;
         }
 
         /** @var array<string, mixed>|null $baseStats */
         $baseStats = $item->base_stats;
+        if (is_array($baseStats) && isset($baseStats['price']) && is_numeric($baseStats['price']) && (int) $baseStats['price'] > 0) {
+            return (int) $baseStats['price'];
+        }
+
+        return match ($item->type) {
+            'potion' => $this->calculatePotionBuyPrice($stats, $baseStats),
+            'gem' => $this->calculateGemBuyPrice($item),
+            default => max(1, $this->calculateEquipmentFullPrice($item, $stats, $quality, $sockets)),
+        };
+    }
+
+    private function calculateEquipmentSellPrice(GameItem $item): int
+    {
+        $definition = $item->definition;
+        if (! $definition instanceof GameItemDefinition) {
+            return 0;
+        }
+
+        $fullPrice = $this->calculateEquipmentFullPrice(
+            $definition,
+            $this->resolvePricingStats($item),
+            $item->quality ?? 'common',
+            (int) ($item->sockets ?? 0),
+        );
+
+        return max(1, (int) ($fullPrice * self::EQUIPMENT_SELL_RATIO));
+    }
+
+    /**
+     * @param  array<string, int|float>  $stats
+     */
+    private function calculateEquipmentFullPrice(
+        GameItemDefinition $definition,
+        array $stats,
+        string $quality,
+        int $sockets,
+    ): int {
+        if ($stats === [] && is_array($definition->base_stats)) {
+            $stats = $this->normalizePricingStats($definition->base_stats);
+        }
+
         $basePrice = 0;
-        if (is_array($baseStats)) {
-            $basePrice = isset($baseStats['price']) && is_numeric($baseStats['price']) ? (int) $baseStats['price'] : 0;
-        }
-
-        if ($basePrice > 0) {
-            return $basePrice;
-        }
-
-        // 从配置读取
-        $levelMultiplierConfig = config('game.shop.level_price_multiplier', 0.5);
-        $levelMultiplierConfig = is_numeric($levelMultiplierConfig) ? (float) $levelMultiplierConfig : 0.5;
-        $levelMultiplier = 1 + ((int) $item->required_level * $levelMultiplierConfig);
-
-        // 品质价格乘数
-        $qualityMultiplierConfig = config('game.shop.quality_price_multiplier', []);
-        $qualityMultiplier = is_array($qualityMultiplierConfig) ? (isset($qualityMultiplierConfig[$quality]) && is_numeric($qualityMultiplierConfig[$quality]) ? (float) $qualityMultiplierConfig[$quality] : 1.0) : 1.0;
-
-        // 基础价格(按类型)
-        $typeBasePriceConfig = config('game.shop.type_base_price', []);
-        $typeBasePrice = 20;
-        if (is_array($typeBasePriceConfig)) {
-            $typeKey = (string) $item->type;
-            $typeBasePrice = isset($typeBasePriceConfig[$typeKey]) && is_numeric($typeBasePriceConfig[$typeKey]) ? (float) $typeBasePriceConfig[$typeKey] : 20;
-        }
-
-        // 属性价格计算
-        $statPriceConfig = config('game.shop.stat_price', []);
-        $statPriceConfig = is_array($statPriceConfig) ? $statPriceConfig : [];
-        $statsPrice = 0.0;
         foreach ($stats as $stat => $value) {
-            if (in_array($stat, self::PRICING_EXCLUDED_STATS, true)) {
+            $pricePerPoint = self::STAT_PRICES[$stat] ?? 1;
+            $basePrice += (int) ((float) $value * $pricePerPoint);
+        }
+
+        $qualityMultiplier = GameItem::QUALITY_MULTIPLIERS[$quality] ?? 1.0;
+        $type = $definition->type ?? 'weapon';
+        $typeMultiplier = self::TYPE_PRICE_MULTIPLIERS[$type] ?? 1.0;
+        $requiredLevel = $definition->required_level ?? 1;
+        $levelMultiplier = 1 + ($requiredLevel / 50);
+        $socketBonus = $sockets * 10;
+
+        return (int) (($basePrice * $qualityMultiplier * $typeMultiplier * $levelMultiplier) + $socketBonus);
+    }
+
+    private function calculatePotionSellPrice(GameItem $item): int
+    {
+        $stats = $this->normalizePricingStats($item->stats ?? []);
+        if ($stats === [] && $item->definition instanceof GameItemDefinition) {
+            $baseStats = $item->definition->base_stats;
+            if (is_array($baseStats)) {
+                $stats = $this->normalizePricingStats($baseStats);
+            }
+        }
+
+        $hpRestore = (int) ($stats['max_hp'] ?? 0);
+        $manaRestore = (int) ($stats['max_mana'] ?? 0);
+        $price = (int) ($hpRestore * 0.3 + $manaRestore * 0.2);
+
+        return max(1, $price);
+    }
+
+    /**
+     * @param  array<string, int|float>  $stats
+     * @param  array<string, mixed>|null  $definitionBaseStats
+     */
+    private function calculatePotionBuyPrice(array $stats, ?array $definitionBaseStats): int
+    {
+        $normalized = $this->normalizePricingStats($stats);
+        if ($normalized === [] && is_array($definitionBaseStats)) {
+            $normalized = $this->normalizePricingStats($definitionBaseStats);
+        }
+
+        $sellPrice = max(1, (int) (($normalized['max_hp'] ?? 0) * 0.3 + ($normalized['max_mana'] ?? 0) * 0.2));
+
+        return max(1, $sellPrice * self::SHOP_BUY_TO_SELL_MULTIPLIER);
+    }
+
+    private function calculateGemSellPrice(GameItemDefinition $definition): int
+    {
+        return $this->calculateGemPriceFromStats($definition->gem_stats ?? []);
+    }
+
+    private function calculateGemBuyPrice(GameItemDefinition $definition): int
+    {
+        return max(1, $this->calculateGemSellPrice($definition) * self::SHOP_BUY_TO_SELL_MULTIPLIER);
+    }
+
+    /**
+     * @param  array<string, mixed>  $gemStats
+     */
+    private function calculateGemPriceFromStats(array $gemStats): int
+    {
+        $price = 0;
+
+        foreach ($gemStats as $stat => $value) {
+            if (! is_numeric($value)) {
                 continue;
             }
-            $statMultiplier = isset($statPriceConfig[$stat]) && is_numeric($statPriceConfig[$stat]) ? (float) $statPriceConfig[$stat] : 2.0;
-            $valueNumeric = (float) $value;
-            $statsPrice += $valueNumeric * $statMultiplier;
+            $pricePerPoint = self::STAT_PRICES[$stat] ?? 1;
+            $price += (int) ((float) $value * $pricePerPoint);
         }
 
-        return (int) (round((($typeBasePrice + $statsPrice) * $levelMultiplier * $qualityMultiplier) * 100));
+        return max(1, $price);
     }
 
     /**

@@ -79,7 +79,7 @@ class GameShopServiceTest extends TestCase
             $result['items']->pluck('buy_price')->all()
         );
         $this->assertSame(
-            [12, 9],
+            [20, 15],
             $result['items']->take(2)->pluck('sell_price')->all()
         );
         $this->assertArrayNotHasKey('sell_price', $result['items']->last());
@@ -305,13 +305,15 @@ class GameShopServiceTest extends TestCase
             'slot_index' => 1,
         ]);
 
+        $unitSellPrice = $stackItem->calculateSellPrice();
+
         $first = $this->service->sellItem($character, $stackItem->id, 2);
         $second = $this->service->sellItem($character->fresh(), $singleItem->id, 1);
 
-        $this->assertSame(160, $first['copper']);
-        $this->assertSame(60, $first['sell_price']);
+        $this->assertSame(100 + $unitSellPrice * 2, $first['copper']);
+        $this->assertSame($unitSellPrice * 2, $first['sell_price']);
         $this->assertSame(1, $stackItem->fresh()->quantity);
-        $this->assertSame(190, $second['copper']);
+        $this->assertSame(100 + $unitSellPrice * 3, $second['copper']);
         $this->assertNull(GameItem::find($singleItem->id));
     }
 
@@ -588,13 +590,13 @@ class GameShopServiceTest extends TestCase
         $item = $this->createItem($character, $definition, [
             'quantity' => 1,
             'slot_index' => 0,
-            'sell_price' => 60, // 30% of buy price
         ]);
+        $expectedSellPrice = $item->calculateSellPrice();
 
         $result = $this->service->sellItem($character, $item->id, 1);
 
-        $this->assertEquals(60, $result['sell_price']);
-        $this->assertEquals(60, $result['copper']);
+        $this->assertEquals($expectedSellPrice, $result['sell_price']);
+        $this->assertEquals($expectedSellPrice, $result['copper']);
     }
 
     public function test_refresh_shop_updates_next_refresh_timestamp(): void
@@ -660,12 +662,13 @@ class GameShopServiceTest extends TestCase
         $item = $this->createItem($character, $definition, [
             'quantity' => 10,
             'slot_index' => 0,
-            'sell_price' => 12, // 10 * 12 = 120 for all
+            'stats' => ['max_hp' => 40],
         ]);
+        $unitSellPrice = $item->calculateSellPrice();
 
         $result = $this->service->sellItem($character, $item->id, 5);
 
-        $this->assertEquals(110, $result['copper']); // 50 + (5 * 12)
+        $this->assertEquals(50 + $unitSellPrice * 5, $result['copper']);
         $this->assertEquals(5, $item->fresh()->quantity);
     }
 
@@ -876,23 +879,25 @@ class GameShopServiceTest extends TestCase
         $priceFromBaseStats = $calculator->calculateBuyPrice($baseStatsPriceItem, ['attack' => 10], 'common');
         $this->assertSame(345, $priceFromBaseStats);
 
-        config([
-            'game.shop.level_price_multiplier' => 'invalid',
-            'game.shop.quality_price_multiplier' => 'invalid',
-            'game.shop.type_base_price' => 'invalid',
-            'game.shop.stat_price' => 'invalid',
-        ]);
-
-        $configFallbackItem = $this->createItemDefinition([
-            'name' => '配置回退物品',
+        $statBasedItem = $this->createItemDefinition([
+            'name' => '属性计价物品',
             'buy_price' => 0,
             'base_stats' => ['attack' => 1],
             'required_level' => 10,
             'type' => 'weapon',
         ]);
 
-        $priceWithFallbacks = $calculator->calculateBuyPrice($configFallbackItem, ['attack' => 10], 'mythic');
-        $this->assertSame(24000, $priceWithFallbacks);
+        $gameItem = new GameItem([
+            'stats' => ['attack' => 10],
+            'quality' => 'mythic',
+        ]);
+        $gameItem->setRelation('definition', $statBasedItem);
+
+        $buyPrice = $calculator->calculateBuyPrice($statBasedItem, ['attack' => 10], 'mythic');
+        $sellPrice = $calculator->calculateSellPrice($gameItem);
+
+        $this->assertSame($sellPrice * 2, $buyPrice);
+        $this->assertGreaterThan(0, $buyPrice);
     }
 
     public function test_get_shop_items_returns_empty_purchased_when_shop_cache_missing_refreshed_at(): void
@@ -1026,27 +1031,28 @@ class GameShopServiceTest extends TestCase
         $this->assertTrue($amuletDefense);
     }
 
-    public function test_calculate_buy_price_uses_type_base_price_when_config_is_array(): void
+    public function test_calculate_buy_price_uses_ring_type_multiplier_for_stats(): void
     {
         $calculator = new InventoryItemCalculator;
 
-        config([
-            'game.shop.level_price_multiplier' => 0,
-            'game.shop.quality_price_multiplier' => ['common' => 1],
-            'game.shop.type_base_price' => ['ring' => 77],
-            'game.shop.stat_price' => [],
-        ]);
-
         $item = $this->createItemDefinition([
-            'name' => '类型价格戒指',
+            'name' => '属性戒指',
             'type' => 'ring',
             'required_level' => 1,
             'buy_price' => 0,
             'base_stats' => [],
         ]);
 
-        $price = $calculator->calculateBuyPrice($item, [], 'common');
+        $gameItem = new GameItem([
+            'stats' => ['attack' => 10],
+            'quality' => 'common',
+        ]);
+        $gameItem->setRelation('definition', $item);
 
-        $this->assertSame(7700, $price);
+        $buyPrice = $calculator->calculateBuyPrice($item, ['attack' => 10], 'common');
+        $sellPrice = $calculator->calculateSellPrice($gameItem);
+
+        $this->assertSame(45, $buyPrice);
+        $this->assertSame(22, $sellPrice);
     }
 }
