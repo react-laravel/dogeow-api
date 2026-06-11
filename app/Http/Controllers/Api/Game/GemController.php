@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Game;
 
+use App\Http\Controllers\Concerns\CharacterConcern;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Game\SocketGemRequest;
 use App\Http\Requests\Game\UnsocketGemRequest;
@@ -13,7 +14,7 @@ use Illuminate\Http\Request;
 
 class GemController extends Controller
 {
-    use \App\Http\Controllers\Concerns\CharacterConcern;
+    use CharacterConcern;
 
     /** @var array<int, string> */
     private const EQUIPMENT_SLOT_TYPES = [
@@ -55,13 +56,15 @@ class GemController extends Controller
             return $this->error('只能向装备镶嵌宝石');
         }
 
+        $maxSockets = min((int) $equipment->sockets, (int) config('game.max_item_sockets', 3));
+
         // 验证插槽数量
-        if ($equipment->sockets <= 0) {
+        if ($maxSockets <= 0) {
             return $this->error('该装备没有宝石插槽');
         }
 
         // 验证插槽索引
-        if ($request->input('socket_index') >= $equipment->sockets) {
+        if ($request->input('socket_index') >= $maxSockets) {
             return $this->error('插槽索引超出范围');
         }
 

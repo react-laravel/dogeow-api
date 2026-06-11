@@ -178,9 +178,10 @@ class GameCombatLootService
                     'magic' => rand(0, 1),
                     'rare' => rand(1, 2),
                     'legendary' => rand(2, 3),
-                    'mythic' => rand(3, 4),
+                    'mythic' => 3,
                     default => 0,
                 };
+                $sockets = min($sockets, (int) config('game.max_item_sockets', 3));
             }
         }
 

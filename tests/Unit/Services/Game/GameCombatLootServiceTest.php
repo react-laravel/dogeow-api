@@ -404,8 +404,7 @@ class GameCombatLootServiceTest extends TestCase
         $this->assertNotEmpty($item->stats);
         $this->assertGreaterThanOrEqual(4, count($item->affixes ?? []));
         $this->assertLessThanOrEqual(5, count($item->affixes ?? []));
-        $this->assertGreaterThanOrEqual(3, $item->sockets ?? 0);
-        $this->assertLessThanOrEqual(4, $item->sockets ?? 0);
+        $this->assertSame(3, $item->sockets ?? 0);
         $this->assertTrue($character->fresh()->hasDiscoveredItem($definition->id));
     }
 
