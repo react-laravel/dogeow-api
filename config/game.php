@@ -359,9 +359,11 @@ return [
     'shop' => [
         // 回收价格系数 (售价 = 购买价 × 该系数)
         'sell_ratio' => 0.3,
-        // 商店刷新装备数量范围
+        // 商店刷新装备数量范围（已弃用，保留兼容旧配置）
         'equipment_count_min' => 20,
         'equipment_count_max' => 25,
+        // 每个分类最多展示的物品数量
+        'items_per_category_max' => 5,
         // 商店装备估价上限 = 同部位已装备估价 × 该倍率（下限仍为已装备估价，形成价格梯度）
         'value_ceiling_multiplier' => 2.0,
         // 装备等级价格系数 (价格 = 基础价格 × (1 + 等级 × 该系数))

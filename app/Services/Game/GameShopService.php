@@ -30,6 +30,9 @@ class GameShopService
     /** 商店操作分布式锁超时时间（秒） */
     private const SHOP_LOCK_TIMEOUT_SECONDS = 10;
 
+    /** 每个分类最多展示的商店物品数量 */
+    private const SHOP_ITEMS_PER_CATEGORY_MAX = 5;
+
     public function __construct(
         private InventoryItemCalculator $itemCalculator = new InventoryItemCalculator,
         private ShopItemCreationService $itemCreationService = new ShopItemCreationService
@@ -108,7 +111,9 @@ class GameShopService
             $this->clearPurchasedItems($character);
         }
 
-        $shopItems = $fixedPotionItems->concat($randomEquipmentItems)->concat($fixedGemItems);
+        $shopItems = $this->limitItemsPerCategory(
+            $fixedPotionItems->concat($randomEquipmentItems)->concat($fixedGemItems),
+        );
 
         $refreshedAt = time();
         if (is_array($cached) && isset($cached['refreshed_at']) && is_numeric($cached['refreshed_at'])) {
@@ -291,31 +296,61 @@ class GameShopService
             ->orderBy('required_level')
             ->get();
 
-        $shopSizeMin = (int) config('game.shop.equipment_count_min', 20);
-        $shopSizeMax = (int) config('game.shop.equipment_count_max', 25);
-        $shopSize = rand($shopSizeMin, $shopSizeMax);
-        $selectedEquipments = $equipmentDefinitions->shuffle()->take($shopSize);
+        $perCategoryMax = $this->shopItemsPerCategoryMax();
 
         /** @var Collection<int, array{id:int,name:string,type:string,sub_type:string|null,base_stats:array<string,mixed>,quality:string,required_level:int,icon:string|null,description:string|null,buy_price:int}> $result */
-        $result = $selectedEquipments->map(function ($definition) use ($equippedValueFloorsByType) {
-            $valueFloor = $equippedValueFloorsByType[$definition->type] ?? 0;
-            $roll = $this->rollShopEquipment($definition, $valueFloor);
+        $result = new Collection;
 
-            return [
-                'id' => $definition->id,
-                'name' => $definition->name,
-                'type' => $definition->type,
-                'sub_type' => $definition->sub_type,
-                'base_stats' => GameItem::normalizeStatsPrecision($roll['stats']),
-                'quality' => $roll['quality'],
-                'required_level' => $definition->required_level,
-                'icon' => $definition->icon,
-                'description' => $definition->description,
-                'buy_price' => $this->itemCalculator->calculateBuyPrice($definition, $roll['stats'], $roll['quality']),
-            ];
-        });
+        foreach ($equipmentDefinitions->groupBy('type') as $definitions) {
+            $selectedDefinitions = $definitions->shuffle()->take($perCategoryMax);
+
+            foreach ($selectedDefinitions as $definition) {
+                if (! $definition instanceof GameItemDefinition) {
+                    continue;
+                }
+
+                $valueFloor = $equippedValueFloorsByType[$definition->type] ?? 0;
+                $roll = $this->rollShopEquipment($definition, $valueFloor);
+
+                $result->push([
+                    'id' => $definition->id,
+                    'name' => $definition->name,
+                    'type' => $definition->type,
+                    'sub_type' => $definition->sub_type,
+                    'base_stats' => GameItem::normalizeStatsPrecision($roll['stats']),
+                    'quality' => $roll['quality'],
+                    'required_level' => $definition->required_level,
+                    'icon' => $definition->icon,
+                    'description' => $definition->description,
+                    'buy_price' => $this->itemCalculator->calculateBuyPrice($definition, $roll['stats'], $roll['quality']),
+                ]);
+            }
+        }
 
         return $result;
+    }
+
+    private function shopItemsPerCategoryMax(): int
+    {
+        return max(1, (int) config('game.shop.items_per_category_max', self::SHOP_ITEMS_PER_CATEGORY_MAX));
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $items
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function limitItemsPerCategory(Collection $items): Collection
+    {
+        $perCategoryMax = $this->shopItemsPerCategoryMax();
+
+        return $items
+            ->groupBy(fn (array $item): string => (string) ($item['type'] ?? 'unknown'))
+            ->flatMap(function (Collection $group) use ($perCategoryMax) {
+                return $group
+                    ->sortByDesc(fn (array $item): int => (int) ($item['buy_price'] ?? 0))
+                    ->take($perCategoryMax);
+            })
+            ->values();
     }
 
     /**

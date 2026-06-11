@@ -366,6 +366,25 @@ class GameShopServiceTest extends TestCase
         $this->service->sellItem($character, $smallStack->id, 2);
     }
 
+    public function test_get_shop_items_limits_each_category_to_five_items(): void
+    {
+        $character = $this->createCharacter(['level' => 20]);
+
+        foreach (range(1, 8) as $index) {
+            $this->createItemDefinition([
+                'name' => "测试武器{$index}",
+                'type' => 'weapon',
+                'sub_type' => 'sword',
+                'required_level' => 1,
+                'base_stats' => ['attack' => $index],
+            ]);
+        }
+
+        $result = $this->service->getShopItems($character);
+
+        $this->assertLessThanOrEqual(5, $result['items']->where('type', 'weapon')->count());
+    }
+
     public function test_get_shop_items_includes_fixed_gems_by_sub_type(): void
     {
         config([
