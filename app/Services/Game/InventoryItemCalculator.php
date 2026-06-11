@@ -198,6 +198,22 @@ class InventoryItemCalculator
     }
 
     /**
+     * 在已装备估价下限与上限倍率之间随机取目标估价（用于商店刷新，避免全部挤在下限）
+     */
+    public function resolveShopTargetValue(int $equippedValueFloor): int
+    {
+        if ($equippedValueFloor <= 0) {
+            return 0;
+        }
+
+        $multiplier = (float) config('game.shop.value_ceiling_multiplier', 2.0);
+        $multiplier = max(1.0, $multiplier);
+        $ceiling = (int) ceil($equippedValueFloor * $multiplier);
+
+        return random_int($equippedValueFloor, $ceiling);
+    }
+
+    /**
      * 将商店装备属性抬升到不低于指定估价（保证刷新物为升级而非降级）
      *
      * @param  array<string, int|float>  $stats

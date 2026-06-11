@@ -351,4 +351,22 @@ class InventoryItemCalculatorTest extends TestCase
         $this->assertGreaterThan(5, $adjusted['attack']);
         $this->assertGreaterThanOrEqual($floor, $adjustedValue);
     }
+
+    public function test_resolve_shop_target_value_returns_zero_when_no_equipped_floor(): void
+    {
+        $this->assertSame(0, $this->calculator->resolveShopTargetValue(0));
+        $this->assertSame(0, $this->calculator->resolveShopTargetValue(-10));
+    }
+
+    public function test_resolve_shop_target_value_stays_within_floor_and_ceiling(): void
+    {
+        config(['game.shop.value_ceiling_multiplier' => 2.0]);
+        $floor = 100;
+
+        for ($i = 0; $i < 50; $i++) {
+            $target = $this->calculator->resolveShopTargetValue($floor);
+            $this->assertGreaterThanOrEqual($floor, $target);
+            $this->assertLessThanOrEqual(200, $target);
+        }
+    }
 }

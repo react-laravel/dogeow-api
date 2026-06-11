@@ -11,7 +11,8 @@ $items = array_merge(
     require $dir . '/belts.php',
     require $dir . '/rings.php',
     require $dir . '/amulets.php',
-    require $dir . '/potions.php'
+    require $dir . '/potions.php',
+    require $dir . '/gems.php'
 );
 
 // AI生成物品图标提示词，通过 name 确定

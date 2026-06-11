@@ -69,8 +69,9 @@ class GameShopService
      */
     public function getShopItems(GameCharacter $character): array
     {
-        // 药品固定显示
+        // 药品、宝石固定显示
         $fixedPotionItems = $this->buildFixedPotionItems($character);
+        $fixedGemItems = $this->buildFixedGemItems($character);
 
         // 装备列表使用缓存
         $cacheKey = $this->getShopCacheKey($character);
@@ -107,7 +108,7 @@ class GameShopService
             $this->clearPurchasedItems($character);
         }
 
-        $shopItems = $fixedPotionItems->concat($randomEquipmentItems);
+        $shopItems = $fixedPotionItems->concat($randomEquipmentItems)->concat($fixedGemItems);
 
         $refreshedAt = time();
         if (is_array($cached) && isset($cached['refreshed_at']) && is_numeric($cached['refreshed_at'])) {
@@ -227,6 +228,50 @@ class GameShopService
     }
 
     /**
+     * 构建固定宝石列表（每种属性一颗，与药水一样常驻商店）
+     */
+    private function buildFixedGemItems(GameCharacter $character): Collection
+    {
+        $gemDefinitions = GameItemDefinition::query()
+            ->where('is_active', true)
+            ->where('type', 'gem')
+            ->where('required_level', '<=', $character->level)
+            ->orderByDesc('required_level')
+            ->orderBy('id')
+            ->get();
+
+        $fixedGems = $gemDefinitions
+            ->unique(fn (GameItemDefinition $definition): string => $this->resolveGemStatKey($definition))
+            ->values();
+
+        /** @var Collection<int, array{id:int,name:string,type:string,sub_type:string|null,base_stats:array<string,mixed>,required_level:int,icon:string|null,description:string|null,buy_price:int,sell_price:int}> $result */
+        $result = $fixedGems->map(function (GameItemDefinition $definition) {
+            $previewItem = new GameItem([
+                'quality' => 'common',
+                'stats' => [],
+            ]);
+            $previewItem->setRelation('definition', $definition);
+            $buyPrice = $this->itemCalculator->calculateBuyPrice($definition);
+            $sellPrice = $this->itemCalculator->calculateSellPrice($previewItem);
+
+            return [
+                'id' => $definition->id,
+                'name' => $definition->name,
+                'type' => $definition->type,
+                'sub_type' => $definition->sub_type,
+                'base_stats' => GameItem::normalizeStatsPrecision([]),
+                'required_level' => $definition->required_level,
+                'icon' => $definition->icon,
+                'description' => $definition->description,
+                'buy_price' => $buyPrice,
+                'sell_price' => $sellPrice,
+            ];
+        });
+
+        return $result;
+    }
+
+    /**
      * 构建随机装备列表
      *
      * @return Collection<int, array{id:int,name:string,type:string,sub_type:string|null,base_stats:array<string,mixed>,quality:string,required_level:int,icon:string|null,description:string|null,buy_price:int}>
@@ -239,6 +284,7 @@ class GameShopService
         $equipmentDefinitions = GameItemDefinition::query()
             ->where('is_active', true)
             ->where('type', '!=', 'potion')
+            ->where('type', '!=', 'gem')
             ->where('type', '!=', 'amulet')
             ->where('required_level', '<=', $character->level)
             ->orderBy('type')
@@ -316,8 +362,10 @@ class GameShopService
         }
 
         $isPotion = $definition->type === 'potion';
-        $equippedValueFloorsByType = $isPotion ? [] : $this->buildEquippedValueFloorsByType($character);
-        $cachedShopItem = $isPotion ? null : $this->findCachedShopItem($character, $itemId, $equippedValueFloorsByType);
+        $isGem = $definition->type === 'gem';
+        $isFixedShopItem = $isPotion || $isGem;
+        $equippedValueFloorsByType = $isFixedShopItem ? [] : $this->buildEquippedValueFloorsByType($character);
+        $cachedShopItem = $isFixedShopItem ? null : $this->findCachedShopItem($character, $itemId, $equippedValueFloorsByType);
         if ($cachedShopItem !== null) {
             /** @var array<string, int|float> $randomStats */
             $randomStats = is_array($cachedShopItem['base_stats'] ?? null) ? $cachedShopItem['base_stats'] : [];
@@ -327,6 +375,10 @@ class GameShopService
             $randomStats = $this->itemCalculator->generateRandomStats($definition);
             $quality = 'common';
             $unitPrice = $this->itemCalculator->calculateBuyPrice($definition, $randomStats, $quality);
+        } elseif ($isGem) {
+            $randomStats = [];
+            $quality = 'common';
+            $unitPrice = $this->itemCalculator->calculateBuyPrice($definition);
         } else {
             $valueFloor = $equippedValueFloorsByType[$definition->type] ?? 0;
             $roll = $this->rollShopEquipment($definition, $valueFloor);
@@ -341,15 +393,17 @@ class GameShopService
             throw new \InvalidArgumentException('货币不足');
         }
 
-        return DB::transaction(function () use ($character, $definition, $randomStats, $quality, $totalPrice, $quantity, $itemId, $isPotion) {
+        return DB::transaction(function () use ($character, $definition, $randomStats, $quality, $totalPrice, $quantity, $itemId, $isPotion, $isGem) {
             // 检查背包空间
-            if (! $this->itemCreationService->hasInventorySpace($character, $quantity, $isPotion)) {
-                throw new \InvalidArgumentException($isPotion ? '背包已满' : '背包空间不足');
+            if (! $this->itemCreationService->hasInventorySpace($character, $quantity, $isPotion || $isGem)) {
+                throw new \InvalidArgumentException($isPotion || $isGem ? '背包已满' : '背包空间不足');
             }
 
             // 药品处理
             if ($isPotion) {
                 $this->itemCreationService->addPotionToInventory($character, $definition, $quantity, $randomStats);
+            } elseif ($isGem) {
+                $this->itemCreationService->addGemToInventory($character, $definition, $quantity);
             } else {
                 // 装备类物品
                 $this->itemCreationService->createEquipmentItems($character, $definition, $quantity, $randomStats, $quality);
@@ -520,6 +574,18 @@ class GameShopService
         return $floors;
     }
 
+    private function resolveGemStatKey(GameItemDefinition $definition): string
+    {
+        $gemStats = $definition->gem_stats;
+        if (! is_array($gemStats) || $gemStats === []) {
+            return 'gem:' . $definition->id;
+        }
+
+        $statKey = array_key_first($gemStats);
+
+        return is_string($statKey) ? $statKey : 'gem:' . $definition->id;
+    }
+
     /**
      * 随机生成商店装备，并保证属性估价不低于已装备下限
      *
@@ -529,7 +595,8 @@ class GameShopService
     {
         $stats = $this->itemCalculator->generateRandomStats($definition);
         $quality = $this->itemCalculator->generateRandomQuality($definition->required_level);
-        $stats = $this->itemCalculator->ensureStatsMeetValueFloor($definition, $stats, $quality, $valueFloor);
+        $targetValue = $this->itemCalculator->resolveShopTargetValue($valueFloor);
+        $stats = $this->itemCalculator->ensureStatsMeetValueFloor($definition, $stats, $quality, $targetValue);
 
         return [
             'stats' => $stats,

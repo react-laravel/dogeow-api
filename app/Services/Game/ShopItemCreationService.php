@@ -95,6 +95,64 @@ class ShopItemCreationService
     }
 
     /**
+     * Create a gem item for purchase
+     */
+    public function createGemItem(GameCharacter $character, GameItemDefinition $definition, int $quantity): GameItem
+    {
+        $tempItem = new GameItem([
+            'character_id' => $character->id,
+            'definition_id' => $definition->id,
+            'quality' => 'common',
+            'stats' => [],
+            'affixes' => [],
+            'is_in_storage' => false,
+            'quantity' => $quantity,
+        ]);
+        $tempItem->setRelation('definition', $definition);
+        $sellPrice = $this->itemCalculator->calculateSellPrice($tempItem);
+
+        $inventoryService = new GameInventoryService;
+
+        return GameItem::create([
+            'character_id' => $character->id,
+            'definition_id' => $definition->id,
+            'quality' => 'common',
+            'stats' => [],
+            'affixes' => [],
+            'is_in_storage' => false,
+            'quantity' => $quantity,
+            'slot_index' => $inventoryService->findEmptySlot($character, false),
+            'sell_price' => $sellPrice,
+        ]);
+    }
+
+    /**
+     * Add quantity to existing gem item or create new one
+     *
+     * @return array{item: GameItem, is_new: bool}
+     */
+    public function addGemToInventory(GameCharacter $character, GameItemDefinition $definition, int $quantity): array
+    {
+        /** @var GameItem|null $existingItem */
+        $existingItem = $character->items()
+            ->where('definition_id', $definition->id)
+            ->where('is_in_storage', false)
+            ->where('quality', 'common')
+            ->first();
+
+        if ($existingItem) {
+            $existingItem->quantity += $quantity;
+            $existingItem->save();
+
+            return ['item' => $existingItem, 'is_new' => false];
+        }
+
+        $item = $this->createGemItem($character, $definition, $quantity);
+
+        return ['item' => $item, 'is_new' => true];
+    }
+
+    /**
      * Add quantity to existing potion item or create new one
      *
      * @return array{item: GameItem, is_new: bool}

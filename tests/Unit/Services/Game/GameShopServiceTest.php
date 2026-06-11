@@ -26,6 +26,7 @@ class GameShopServiceTest extends TestCase
 
         $this->service = new GameShopService;
         Cache::flush();
+        GameItemDefinition::query()->where('type', 'gem')->delete();
         config([
             'game.shop.equipment_count_min' => 1,
             'game.shop.equipment_count_max' => 1,
@@ -365,6 +366,45 @@ class GameShopServiceTest extends TestCase
         $this->service->sellItem($character, $smallStack->id, 2);
     }
 
+    public function test_get_shop_items_includes_fixed_gems_by_sub_type(): void
+    {
+        config([
+            'game.shop.equipment_count_min' => 0,
+            'game.shop.equipment_count_max' => 0,
+        ]);
+        $character = $this->createCharacter(['level' => 10]);
+        $this->createItemDefinition([
+            'name' => '低级攻击宝石',
+            'type' => 'gem',
+            'sub_type' => null,
+            'gem_stats' => ['attack' => 5],
+            'required_level' => 1,
+        ]);
+        $higherAttackGem = $this->createItemDefinition([
+            'name' => '高级攻击宝石',
+            'type' => 'gem',
+            'sub_type' => null,
+            'gem_stats' => ['attack' => 20],
+            'required_level' => 8,
+        ]);
+        $defenseGem = $this->createItemDefinition([
+            'name' => '防御宝石',
+            'type' => 'gem',
+            'sub_type' => null,
+            'gem_stats' => ['defense' => 8],
+            'required_level' => 1,
+        ]);
+
+        $result = $this->service->getShopItems($character);
+        $gemItems = $result['items']->where('type', 'gem')->values();
+
+        $this->assertCount(2, $gemItems);
+        $this->assertSame(
+            [$higherAttackGem->id, $defenseGem->id],
+            $gemItems->pluck('id')->all()
+        );
+    }
+
     public function test_shop_equipment_stats_value_is_at_least_equipped_item_value(): void
     {
         $calculator = new InventoryItemCalculator;
@@ -408,6 +448,65 @@ class GameShopServiceTest extends TestCase
         );
         $this->assertGreaterThanOrEqual($equippedValue, $shopValue);
         $this->assertGreaterThan(1, $shopItem['base_stats']['attack'] ?? 0);
+    }
+
+    public function test_shop_refresh_spreads_equipment_prices_up_to_double_equipped_value(): void
+    {
+        config([
+            'game.shop.equipment_count_min' => 12,
+            'game.shop.equipment_count_max' => 12,
+            'game.shop.value_ceiling_multiplier' => 2.0,
+        ]);
+
+        $calculator = new InventoryItemCalculator;
+        $character = $this->createCharacter(['level' => 20]);
+        $equippedDefinition = $this->createItemDefinition([
+            'name' => '已装备长剑',
+            'type' => 'weapon',
+            'sub_type' => 'sword',
+            'base_stats' => ['attack' => 20],
+        ]);
+        $equippedItem = $this->createItem($character, $equippedDefinition, [
+            'stats' => ['attack' => 20],
+            'quality' => 'common',
+            'slot_index' => 0,
+        ]);
+        $character->equipment()->where('slot', 'weapon')->update(['item_id' => $equippedItem->id]);
+        $equippedValue = $calculator->calculateItemValue($equippedItem->fresh()->load('definition'));
+
+        for ($i = 0; $i < 5; $i++) {
+            foreach (range(1, 8) as $weaponIndex) {
+                $this->createItemDefinition([
+                    'name' => "商店武器{$i}_{$weaponIndex}",
+                    'type' => 'weapon',
+                    'sub_type' => 'sword',
+                    'required_level' => 1,
+                    'base_stats' => ['attack' => 1],
+                    'buy_price' => 0,
+                ]);
+            }
+
+            Cache::flush();
+            $this->service = new GameShopService;
+            $result = $this->service->getShopItems($character);
+
+            $weaponPrices = $result['items']
+                ->filter(fn ($item) => $item['type'] === 'weapon')
+                ->pluck('buy_price')
+                ->all();
+
+            $this->assertNotEmpty($weaponPrices);
+            foreach ($weaponPrices as $buyPrice) {
+                $this->assertGreaterThanOrEqual($equippedValue, $buyPrice);
+            }
+
+            $uniquePrices = array_values(array_unique($weaponPrices));
+            if (count($uniquePrices) >= 2 && max($weaponPrices) > $equippedValue + 5) {
+                return;
+            }
+        }
+
+        $this->fail('Expected shop weapons to spread above the equipped value floor instead of clustering at it');
     }
 
     private function shopCacheKey(GameCharacter $character): string

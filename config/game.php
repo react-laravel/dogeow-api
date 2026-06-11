@@ -362,6 +362,8 @@ return [
         // 商店刷新装备数量范围
         'equipment_count_min' => 20,
         'equipment_count_max' => 25,
+        // 商店装备估价上限 = 同部位已装备估价 × 该倍率（下限仍为已装备估价，形成价格梯度）
+        'value_ceiling_multiplier' => 2.0,
         // 装备等级价格系数 (价格 = 基础价格 × (1 + 等级 × 该系数))
         'level_price_multiplier' => 0.5,
         // 品质价格乘数
