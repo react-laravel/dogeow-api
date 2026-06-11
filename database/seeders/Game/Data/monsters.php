@@ -2,6 +2,33 @@
 
 $monsters = [
     [
+        'name' => '猪',
+        'type' => 'normal',
+        'level' => 1,
+        'hp_base' => 25,
+        'attack_base' => 1,
+        'defense_base' => 2,
+        'experience_base' => 8,
+    ],
+    [
+        'name' => '鹿',
+        'type' => 'normal',
+        'level' => 1,
+        'hp_base' => 20,
+        'attack_base' => 1,
+        'defense_base' => 1,
+        'experience_base' => 6,
+    ],
+    [
+        'name' => '兔子',
+        'type' => 'normal',
+        'level' => 1,
+        'hp_base' => 12,
+        'attack_base' => 0,
+        'defense_base' => 0,
+        'experience_base' => 4,
+    ],
+    [
         'name' => '小野猪',
         'type' => 'normal',
         'level' => 1,
@@ -418,6 +445,9 @@ $monsters = [
 ];
 
 $assetKeys = [
+    'training-pig',
+    'training-deer',
+    'training-rabbit',
     'wild-boar',
     'wild-wolf',
     'forest-goblin',
@@ -468,6 +498,9 @@ $assetKeys = [
 
 // AI生成怪物图标提示词，通过 asset_key 确定
 $prompts = [
+    'training-pig' => 'RPG monster portrait, cute pink piglet, soft fur, friendly training monster, gentle expression, game character art, square composition, dark background',
+    'training-deer' => 'RPG monster portrait, young fawn deer, spotted coat, gentle eyes, peaceful training monster, soft lighting, game character art, square composition, dark background',
+    'training-rabbit' => 'RPG monster portrait, fluffy white rabbit, carrot nearby, adorable harmless training monster, soft lighting, game character art, square composition, dark background',
     'wild-boar' => 'RPG monster portrait, wild boar, detailed fur texture, tusks, fierce expression, dynamic pose, soft lighting, game character art, square composition, dark background',
     'wild-wolf' => 'RPG monster portrait, wild wolf, muscular beast, sharp fangs, detailed fur, aggressive stance, atmospheric shading, fantasy game art, square frame, dark background',
     'forest-goblin' => 'RPG monster portrait, forest goblin, green skin texture, large ears, cunning expression, detailed armor or rags, menacing pose, RPG character design, square, dark background',

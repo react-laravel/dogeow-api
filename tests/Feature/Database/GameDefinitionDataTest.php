@@ -52,6 +52,18 @@ class GameDefinitionDataTest extends TestCase
             ->whereIn('id', $monsterIds)
             ->get();
 
+        $this->assertCount(3, $newbieMonsters);
+        $this->assertSame(
+            ['猪', '鹿', '兔子'],
+            $newbieMonsters->sortBy('id')->pluck('name')->values()->all()
+        );
+        $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '猪')?->attack_base);
+        $this->assertSame(2, (int) $newbieMonsters->firstWhere('name', '猪')?->defense_base);
+        $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '鹿')?->attack_base);
+        $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '鹿')?->defense_base);
+        $this->assertSame(0, (int) $newbieMonsters->firstWhere('name', '兔子')?->attack_base);
+        $this->assertSame(0, (int) $newbieMonsters->firstWhere('name', '兔子')?->defense_base);
+
         foreach ($newbieMonsters as $monster) {
             $this->assertIsArray($monster->drop_table, "{$monster->name} should have an RPG drop table");
             $this->assertGreaterThan(0, $monster->drop_table['item_chance'] ?? 0, "{$monster->name} should be able to drop equipment");
