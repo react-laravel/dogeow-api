@@ -451,7 +451,7 @@ class GameShopServiceTest extends TestCase
             'name' => '廉价商店剑',
             'type' => 'weapon',
             'sub_type' => 'sword',
-            'required_level' => 1,
+            'required_level' => 20,
             'base_stats' => ['attack' => 1],
             'buy_price' => 0,
         ]);
@@ -472,6 +472,40 @@ class GameShopServiceTest extends TestCase
         );
         $this->assertGreaterThanOrEqual($equippedValue, $shopValue);
         $this->assertGreaterThan(1, $shopItem['base_stats']['attack'] ?? 0);
+        $this->assertLessThanOrEqual(
+            $calculator->resolveMaxShopStats($shopDefinition, $shopItem['quality'])['attack'],
+            $shopItem['base_stats']['attack'] ?? 0,
+        );
+    }
+
+    public function test_shop_does_not_offer_low_level_equipment_far_below_character_level(): void
+    {
+        $character = $this->createCharacter(['level' => 30]);
+        $lowLevelDefinition = $this->createItemDefinition([
+            'name' => '新手剑',
+            'type' => 'weapon',
+            'sub_type' => 'sword',
+            'required_level' => 1,
+            'base_stats' => ['attack' => 5],
+            'buy_price' => 0,
+        ]);
+        $this->createItemDefinition([
+            'name' => '精钢剑',
+            'type' => 'weapon',
+            'sub_type' => 'sword',
+            'required_level' => 25,
+            'base_stats' => ['attack' => 30],
+            'buy_price' => 0,
+        ]);
+
+        Cache::flush();
+        $result = $this->service->getShopItems($character);
+        $weaponIds = $result['items']
+            ->filter(fn ($item) => $item['type'] === 'weapon')
+            ->pluck('id')
+            ->all();
+
+        $this->assertNotContains($lowLevelDefinition->id, $weaponIds);
     }
 
     public function test_shop_refresh_spreads_equipment_prices_up_to_double_equipped_value(): void
@@ -504,7 +538,7 @@ class GameShopServiceTest extends TestCase
                     'name' => "商店武器{$i}_{$weaponIndex}",
                     'type' => 'weapon',
                     'sub_type' => 'sword',
-                    'required_level' => 1,
+                    'required_level' => 20,
                     'base_stats' => ['attack' => 1],
                     'buy_price' => 0,
                 ]);
@@ -683,7 +717,9 @@ class GameShopServiceTest extends TestCase
     {
         $character = $this->createCharacter(['copper' => 1000]);
         $definition = $this->createItemDefinition([
-            'name' => '测试物品',
+            'name' => '测试药水',
+            'type' => 'potion',
+            'sub_type' => 'hp',
             'buy_price' => 10,
         ]);
 
@@ -1256,7 +1292,7 @@ class GameShopServiceTest extends TestCase
         $buyPrice = $calculator->calculateBuyPrice($item, ['attack' => 10], 'common');
         $sellPrice = $calculator->calculateSellPrice($gameItem);
 
-        $this->assertSame(45, $buyPrice);
-        $this->assertSame(22, $sellPrice);
+        $this->assertSame(76, $buyPrice);
+        $this->assertSame(38, $sellPrice);
     }
 }

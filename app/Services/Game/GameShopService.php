@@ -286,11 +286,15 @@ class GameShopService
      */
     private function buildRandomEquipmentItems(GameCharacter $character, array $equippedValueFloorsByType): Collection
     {
+        $levelSpan = max(0, (int) config('game.shop.min_required_level_span', 10));
+        $minRequiredLevel = max(1, $character->level - $levelSpan);
+
         $equipmentDefinitions = GameItemDefinition::query()
             ->where('is_active', true)
             ->where('type', '!=', 'potion')
             ->where('type', '!=', 'gem')
             ->where('type', '!=', 'amulet')
+            ->where('required_level', '>=', $minRequiredLevel)
             ->where('required_level', '<=', $character->level)
             ->orderBy('type')
             ->orderBy('required_level')
@@ -661,7 +665,8 @@ class GameShopService
         $stats = is_array($item['base_stats'] ?? null) ? $item['base_stats'] : [];
         $quality = is_string($item['quality'] ?? null) ? $item['quality'] : 'common';
         $valueFloor = $equippedValueFloorsByType[$definition->type] ?? 0;
-        $stats = $this->itemCalculator->ensureStatsMeetValueFloor($definition, $stats, $quality, $valueFloor);
+        $targetValue = $this->itemCalculator->resolveShopTargetValue($valueFloor);
+        $stats = $this->itemCalculator->ensureStatsMeetValueFloor($definition, $stats, $quality, $targetValue);
         $item['base_stats'] = GameItem::normalizeStatsPrecision($stats);
         $item['buy_price'] = $this->itemCalculator->calculateBuyPrice($definition, $stats, $quality);
 

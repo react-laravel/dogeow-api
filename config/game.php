@@ -364,6 +364,10 @@ return [
         'equipment_count_max' => 25,
         // 每个分类最多展示的物品数量
         'items_per_category_max' => 5,
+        // 商店装备需求等级窗口：仅展示 [角色等级 - span, 角色等级] 内的装备，避免低等级模板被抬属性
+        'min_required_level_span' => 10,
+        // 商店随机属性相对模板上限的额外浮动（品质加成后再乘该系数）
+        'stat_ceiling_headroom' => 1.25,
         // 商店装备估价上限 = 同部位已装备估价 × 该倍率（下限仍为已装备估价，形成价格梯度）
         'value_ceiling_multiplier' => 2.0,
         // 装备等级价格系数 (价格 = 基础价格 × (1 + 等级 × 该系数))

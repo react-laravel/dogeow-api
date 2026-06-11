@@ -226,12 +226,14 @@ class InventoryItemCalculator
         int $valueFloor,
         int $sockets = 0,
     ): array {
-        if ($valueFloor <= 0) {
+        $stats = $this->normalizePricingStats($stats);
+        if ($stats === []) {
             return $stats;
         }
 
-        $stats = $this->normalizePricingStats($stats);
-        if ($stats === []) {
+        $stats = $this->clampStatsToShopCeiling($definition, $stats, $quality);
+
+        if ($valueFloor <= 0) {
             return $stats;
         }
 
@@ -248,16 +250,113 @@ class InventoryItemCalculator
             $ratio = $valueFloor / $currentValue;
             $scaled = [];
             foreach ($stats as $stat => $value) {
-                if ($stat === 'crit_rate') {
-                    $scaled[$stat] = min(1.0, round((float) $value * $ratio, 4));
+                if (in_array($stat, ['crit_rate', 'crit_damage'], true)) {
+                    $scaled[$stat] = round((float) $value * $ratio, 4);
                 } else {
                     $scaled[$stat] = max(1, (int) ceil((float) $value * $ratio));
                 }
             }
-            $stats = $scaled;
+            $stats = $this->clampStatsToShopCeiling($definition, $scaled, $quality);
         }
 
         return $stats;
+    }
+
+    /**
+     * 商店装备单条属性的合理上限（基于模板等级、定义基础值与随机上限）
+     *
+     * @return array<string, int|float>
+     */
+    public function resolveMaxShopStats(GameItemDefinition $definition, string $quality = 'common'): array
+    {
+        $level = max(1, (int) $definition->required_level);
+        $qualityMultiplier = GameItem::QUALITY_MULTIPLIERS[$quality] ?? 1.0;
+        $headroom = max(1.0, (float) config('game.shop.stat_ceiling_headroom', 1.25));
+        $scale = $qualityMultiplier * $headroom;
+        /** @var array<string, mixed> $baseStats */
+        $baseStats = is_array($definition->base_stats) ? $definition->base_stats : [];
+
+        $maxStats = match ($definition->type) {
+            'weapon' => [
+                'attack' => max((int) ($baseStats['attack'] ?? 0), 15 + $level * 2),
+                'crit_rate' => 0.1,
+                'crit_damage' => 0.5,
+            ],
+            'helmet', 'armor' => [
+                'defense' => max((int) ($baseStats['defense'] ?? 0), 10 + $level),
+                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 30 + $level * 5),
+                'crit_rate' => 0.05,
+            ],
+            'gloves' => [
+                'attack' => max((int) ($baseStats['attack'] ?? 0), 6 + $level),
+                'crit_rate' => 0.08,
+            ],
+            'boots' => [
+                'defense' => max((int) ($baseStats['defense'] ?? 0), 5 + $level),
+                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 20 + $level * 3),
+                'dexterity' => max((int) ($baseStats['dexterity'] ?? 0), 3),
+            ],
+            'belt' => [
+                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 40 + $level * 4),
+                'max_mana' => max((int) ($baseStats['max_mana'] ?? 0), 30 + $level * 3),
+            ],
+            'ring' => [
+                'attack' => max((int) ($baseStats['attack'] ?? 0), 12 + $level * 2),
+                'defense' => max((int) ($baseStats['defense'] ?? 0), 12 + $level * 2),
+                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 12 + $level * 2),
+                'max_mana' => max((int) ($baseStats['max_mana'] ?? 0), 12 + $level * 2),
+                'crit_rate' => 0.08,
+                'strength' => max((int) ($baseStats['strength'] ?? 0), 12 + $level * 2),
+                'dexterity' => max((int) ($baseStats['dexterity'] ?? 0), 12 + $level * 2),
+                'energy' => max((int) ($baseStats['energy'] ?? 0), 12 + $level * 2),
+            ],
+            'amulet' => [
+                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 50 + $level * 5),
+                'max_mana' => max((int) ($baseStats['max_mana'] ?? 0), 40 + $level * 4),
+                'defense' => max((int) ($baseStats['defense'] ?? 0), 15),
+            ],
+            default => [],
+        };
+
+        $scaled = [];
+        foreach ($maxStats as $stat => $value) {
+            if (in_array($stat, ['crit_rate', 'crit_damage'], true)) {
+                $scaled[$stat] = min(1.0, round((float) $value * $scale, 4));
+            } else {
+                $scaled[$stat] = (int) ceil((float) $value * $scale);
+            }
+        }
+
+        return $scaled;
+    }
+
+    /**
+     * @param  array<string, int|float>  $stats
+     * @return array<string, int|float>
+     */
+    public function clampStatsToShopCeiling(
+        GameItemDefinition $definition,
+        array $stats,
+        string $quality,
+    ): array {
+        $ceiling = $this->resolveMaxShopStats($definition, $quality);
+        $clamped = [];
+
+        foreach ($stats as $stat => $value) {
+            if (! isset($ceiling[$stat])) {
+                $clamped[$stat] = $value;
+
+                continue;
+            }
+
+            if (in_array($stat, ['crit_rate', 'crit_damage'], true)) {
+                $clamped[$stat] = min((float) $value, (float) $ceiling[$stat]);
+            } else {
+                $clamped[$stat] = min((float) $value, (float) $ceiling[$stat]);
+            }
+        }
+
+        return $clamped;
     }
 
     private function calculateEquipmentSellPrice(GameItem $item): int
@@ -292,8 +391,8 @@ class InventoryItemCalculator
 
         $basePrice = 0;
         foreach ($stats as $stat => $value) {
-            $pricePerPoint = self::STAT_PRICES[$stat] ?? 1;
-            $basePrice += (int) ((float) $value * $pricePerPoint);
+            $pricePerPoint = $this->resolveStatPrice($stat);
+            $basePrice += (int) ($this->statValueToPricePoints($stat, (float) $value) * $pricePerPoint);
         }
 
         $qualityMultiplier = GameItem::QUALITY_MULTIPLIERS[$quality] ?? 1.0;
@@ -360,8 +459,8 @@ class InventoryItemCalculator
             if (! is_numeric($value)) {
                 continue;
             }
-            $pricePerPoint = self::STAT_PRICES[$stat] ?? 1;
-            $price += (int) ((float) $value * $pricePerPoint);
+            $pricePerPoint = $this->resolveStatPrice($stat);
+            $price += (int) ($this->statValueToPricePoints($stat, (float) $value) * $pricePerPoint);
         }
 
         return max(1, $price);
@@ -437,7 +536,7 @@ class InventoryItemCalculator
                     $stats['crit_rate'] = (float) bcdiv((string) rand(1, 10), '100', 4);
                 }
                 if (rand(1, 100) <= 20) {
-                    $stats['crit_damage'] = rand(20, 50);
+                    $stats['crit_damage'] = (float) bcdiv((string) rand(5, 20), '100', 4);
                 }
                 break;
 
@@ -548,5 +647,27 @@ class InventoryItemCalculator
         }
 
         return 'common';
+    }
+
+    private function resolveStatPrice(string $stat): float
+    {
+        $configured = config('game.shop.stat_price');
+        if (is_array($configured) && isset($configured[$stat]) && is_numeric($configured[$stat])) {
+            return (float) $configured[$stat];
+        }
+
+        return (float) (self::STAT_PRICES[$stat] ?? 1);
+    }
+
+    /**
+     * 将暴击率/暴伤等小数属性换算为计价用的「百分点」
+     */
+    private function statValueToPricePoints(string $stat, float $value): float
+    {
+        if (in_array($stat, ['crit_rate', 'crit_damage'], true) && abs($value) <= 1.0) {
+            return $value * 100;
+        }
+
+        return $value;
     }
 }

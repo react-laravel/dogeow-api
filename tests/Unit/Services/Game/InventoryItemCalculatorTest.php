@@ -332,11 +332,11 @@ class InventoryItemCalculatorTest extends TestCase
         $item = new GameItem;
         $item->definition = $definition;
 
-        $this->assertSame(30, $this->calculator->calculateSellPrice($item));
-        $this->assertSame(60, $this->calculator->calculateBuyPrice($definition));
+        $this->assertSame(50, $this->calculator->calculateSellPrice($item));
+        $this->assertSame(100, $this->calculator->calculateBuyPrice($definition));
     }
 
-    public function test_ensure_stats_meet_value_floor_scales_weapon_stats(): void
+    public function test_ensure_stats_meet_value_floor_scales_weapon_stats_within_ceiling(): void
     {
         $definition = new GameItemDefinition;
         $definition->type = 'weapon';
@@ -347,9 +347,24 @@ class InventoryItemCalculatorTest extends TestCase
         $floor = 500;
         $adjusted = $this->calculator->ensureStatsMeetValueFloor($definition, $weakStats, 'common', $floor);
         $adjustedValue = $this->calculator->calculateEquipmentValue($definition, $adjusted, 'common');
+        $ceiling = $this->calculator->resolveMaxShopStats($definition, 'common');
 
         $this->assertGreaterThan(5, $adjusted['attack']);
-        $this->assertGreaterThanOrEqual($floor, $adjustedValue);
+        $this->assertLessThanOrEqual($ceiling['attack'], $adjusted['attack']);
+        $this->assertLessThan($floor, $adjustedValue);
+    }
+
+    public function test_clamp_stats_to_shop_ceiling_prevents_beginner_sword_from_inflating_attack(): void
+    {
+        $definition = new GameItemDefinition;
+        $definition->type = 'weapon';
+        $definition->required_level = 1;
+        $definition->base_stats = ['attack' => 5];
+
+        $inflated = ['attack' => 2699];
+        $clamped = $this->calculator->clampStatsToShopCeiling($definition, $inflated, 'common');
+
+        $this->assertLessThanOrEqual(27, $clamped['attack']);
     }
 
     public function test_resolve_shop_target_value_returns_zero_when_no_equipped_floor(): void
