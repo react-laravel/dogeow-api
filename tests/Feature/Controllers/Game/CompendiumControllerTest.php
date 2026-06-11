@@ -86,10 +86,11 @@ class CompendiumControllerTest extends TestCase
             ->getJson('/api/rpg/compendium/items?character_id=' . $character->id);
 
         $response->assertStatus(200)
-            ->assertJsonPath('total', 1)
-            ->assertJsonPath('discovered_count', 1)
-            ->assertJsonPath('items.0.id', $item->id)
-            ->assertJsonPath('items.0.discovered', true);
+            ->assertJsonPath('discovered_count', 1);
+
+        $items = collect($response->json('items'));
+        $this->assertTrue($items->contains(fn (array $entry): bool => ($entry['id'] ?? null) === $item->id));
+        $this->assertTrue($items->firstWhere('id', $item->id)['discovered'] ?? false);
     }
 
     public function test_can_get_monster_compendium(): void

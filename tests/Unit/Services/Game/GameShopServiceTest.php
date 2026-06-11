@@ -283,9 +283,14 @@ class GameShopServiceTest extends TestCase
             'name' => '背包装备',
             'type' => 'weapon',
             'sub_type' => 'sword',
-            'buy_price' => 10,
+            'buy_price' => 0,
+            'base_stats' => ['price' => 10],
         ]);
         $this->fillInventory($fullEquipmentCharacter, $filler, GameInventoryService::INVENTORY_SIZE - 1);
+        $this->seedShopEquipmentCache($fullEquipmentCharacter, $equipmentDefinition, [
+            'base_stats' => ['price' => 10],
+            'buy_price' => 10,
+        ]);
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('背包空间不足');

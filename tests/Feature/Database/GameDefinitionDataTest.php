@@ -92,7 +92,7 @@ class GameDefinitionDataTest extends TestCase
     {
         $this->seed(GameFactorySeeder::class);
 
-        $this->assertSame(24, GameItemDefinition::query()->count());
+        $this->assertSame(30, GameItemDefinition::query()->count());
         $this->assertSame(12, GameSkillDefinition::query()->count());
         $this->assertSame(18, GameMonsterDefinition::query()->count());
         $this->assertSame(8, GameMapDefinition::query()->count());
