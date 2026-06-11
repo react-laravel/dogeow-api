@@ -145,7 +145,8 @@ class InventoryItemCalculator
             return 0;
         }
 
-        if ($item->buy_price > 0) {
+        // 仅药水使用定义表固定标价；装备按实例属性计价
+        if ($item->buy_price > 0 && $item->type === 'potion') {
             return $item->buy_price;
         }
 
@@ -160,6 +161,87 @@ class InventoryItemCalculator
             'gem' => $this->calculateGemBuyPrice($item),
             default => max(1, $this->calculateEquipmentFullPrice($item, $stats, $quality, $sockets)),
         };
+    }
+
+    /**
+     * 装备实例的估价（与商店购入价同一套属性公式，不含卖出折价）
+     */
+    public function calculateItemValue(GameItem $item): int
+    {
+        $definition = $item->definition;
+        if (! $definition instanceof GameItemDefinition) {
+            return 0;
+        }
+
+        if ($definition->type === 'potion' || $definition->type === 'gem') {
+            return $this->calculateBuyPrice($definition, $this->resolvePricingStats($item), $item->quality ?? 'common');
+        }
+
+        return $this->calculateEquipmentValue(
+            $definition,
+            $this->resolvePricingStats($item),
+            $item->quality ?? 'common',
+            (int) ($item->sockets ?? 0),
+        );
+    }
+
+    /**
+     * @param  array<string, int|float>  $stats
+     */
+    public function calculateEquipmentValue(
+        GameItemDefinition $definition,
+        array $stats,
+        string $quality = 'common',
+        int $sockets = 0,
+    ): int {
+        return max(1, $this->calculateEquipmentFullPrice($definition, $stats, $quality, $sockets));
+    }
+
+    /**
+     * 将商店装备属性抬升到不低于指定估价（保证刷新物为升级而非降级）
+     *
+     * @param  array<string, int|float>  $stats
+     * @return array<string, int|float>
+     */
+    public function ensureStatsMeetValueFloor(
+        GameItemDefinition $definition,
+        array $stats,
+        string $quality,
+        int $valueFloor,
+        int $sockets = 0,
+    ): array {
+        if ($valueFloor <= 0) {
+            return $stats;
+        }
+
+        $stats = $this->normalizePricingStats($stats);
+        if ($stats === []) {
+            return $stats;
+        }
+
+        for ($attempt = 0; $attempt < 8; $attempt++) {
+            $currentValue = $this->calculateEquipmentFullPrice($definition, $stats, $quality, $sockets);
+            if ($currentValue >= $valueFloor) {
+                return $stats;
+            }
+
+            if ($currentValue <= 0) {
+                break;
+            }
+
+            $ratio = $valueFloor / $currentValue;
+            $scaled = [];
+            foreach ($stats as $stat => $value) {
+                if ($stat === 'crit_rate') {
+                    $scaled[$stat] = min(1.0, round((float) $value * $ratio, 4));
+                } else {
+                    $scaled[$stat] = max(1, (int) ceil((float) $value * $ratio));
+                }
+            }
+            $stats = $scaled;
+        }
+
+        return $stats;
     }
 
     private function calculateEquipmentSellPrice(GameItem $item): int

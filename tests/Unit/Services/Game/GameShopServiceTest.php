@@ -74,10 +74,8 @@ class GameShopServiceTest extends TestCase
             [$higherPotion->id, $manaPotion->id, $equipment->id],
             $result['items']->pluck('id')->all()
         );
-        $this->assertSame(
-            [40, 30, 120],
-            $result['items']->pluck('buy_price')->all()
-        );
+        $this->assertSame([40, 30], $result['items']->take(2)->pluck('buy_price')->all());
+        $this->assertGreaterThan(0, $result['items']->last()['buy_price']);
         $this->assertSame(
             [20, 15],
             $result['items']->take(2)->pluck('sell_price')->all()
@@ -131,7 +129,7 @@ class GameShopServiceTest extends TestCase
         ]);
 
         $this->service->getShopItems($character);
-        Cache::put(sprintf('game_shop_%s', $character->id), [
+        Cache::put($this->shopCacheKey($character), [
             'equipment' => [[
                 'id' => 999999,
                 'name' => 'Stale Cache',
@@ -196,13 +194,17 @@ class GameShopServiceTest extends TestCase
             'type' => 'gloves',
             'sub_type' => null,
             'required_level' => 3,
-            'buy_price' => 50,
+            'buy_price' => 0,
+            'base_stats' => ['price' => 50],
         ]);
         $this->createItem($character, $definition, [
             'slot_index' => 0,
             'sell_price' => 10,
         ]);
-        $this->service->getShopItems($character);
+        $this->seedShopEquipmentCache($character, $definition, [
+            'base_stats' => ['price' => 50],
+            'buy_price' => 50,
+        ]);
 
         $result = $this->service->buyItem($character, $definition->id, 2);
 
@@ -363,6 +365,78 @@ class GameShopServiceTest extends TestCase
         $this->service->sellItem($character, $smallStack->id, 2);
     }
 
+    public function test_shop_equipment_stats_value_is_at_least_equipped_item_value(): void
+    {
+        $calculator = new InventoryItemCalculator;
+        $character = $this->createCharacter(['level' => 20]);
+        $equippedDefinition = $this->createItemDefinition([
+            'name' => '已装备长剑',
+            'type' => 'weapon',
+            'sub_type' => 'sword',
+            'base_stats' => ['attack' => 30],
+        ]);
+        $equippedItem = $this->createItem($character, $equippedDefinition, [
+            'stats' => ['attack' => 30],
+            'quality' => 'rare',
+            'slot_index' => 0,
+        ]);
+        $character->equipment()->where('slot', 'weapon')->update(['item_id' => $equippedItem->id]);
+        $equippedValue = $calculator->calculateItemValue($equippedItem->fresh()->load('definition'));
+
+        $shopDefinition = $this->createItemDefinition([
+            'name' => '廉价商店剑',
+            'type' => 'weapon',
+            'sub_type' => 'sword',
+            'required_level' => 1,
+            'base_stats' => ['attack' => 1],
+            'buy_price' => 0,
+        ]);
+        $this->seedShopEquipmentCache($character, $shopDefinition, [
+            'base_stats' => ['attack' => 1],
+            'quality' => 'common',
+            'buy_price' => 1,
+        ]);
+
+        $result = $this->service->getShopItems($character);
+        $shopItem = $result['items']->firstWhere('id', $shopDefinition->id);
+
+        $this->assertNotNull($shopItem);
+        $shopValue = $calculator->calculateEquipmentValue(
+            $shopDefinition,
+            $shopItem['base_stats'],
+            $shopItem['quality'],
+        );
+        $this->assertGreaterThanOrEqual($equippedValue, $shopValue);
+        $this->assertGreaterThan(1, $shopItem['base_stats']['attack'] ?? 0);
+    }
+
+    private function shopCacheKey(GameCharacter $character): string
+    {
+        return sprintf('game_shop_v2_%s', $character->id);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function seedShopEquipmentCache(GameCharacter $character, GameItemDefinition $definition, array $overrides = []): void
+    {
+        Cache::put($this->shopCacheKey($character), [
+            'equipment' => [array_merge([
+                'id' => $definition->id,
+                'name' => $definition->name,
+                'type' => $definition->type,
+                'sub_type' => $definition->sub_type,
+                'base_stats' => $definition->base_stats,
+                'quality' => 'common',
+                'required_level' => $definition->required_level,
+                'icon' => $definition->icon,
+                'description' => $definition->description,
+                'buy_price' => 100,
+            ], $overrides)],
+            'refreshed_at' => time(),
+        ], 1800);
+    }
+
     private function createCharacter(array $attributes = []): GameCharacter
     {
         $user = User::factory()->create();
@@ -456,7 +530,7 @@ class GameShopServiceTest extends TestCase
 
         // Populate cache
         $this->service->getShopItems($character);
-        $cacheKey = sprintf('game_shop_%s', $character->id);
+        $cacheKey = $this->shopCacheKey($character);
         $this->assertNotNull(Cache::get($cacheKey));
 
         // Clear cache
@@ -570,7 +644,9 @@ class GameShopServiceTest extends TestCase
     {
         $character = $this->createCharacter(['copper' => 100]);
         $definition = $this->createItemDefinition([
-            'name' => '精确价格物品',
+            'name' => '精确价格药水',
+            'type' => 'potion',
+            'sub_type' => 'hp',
             'buy_price' => 100,
         ]);
 
@@ -640,6 +716,11 @@ class GameShopServiceTest extends TestCase
             'type' => 'weapon',
             'sub_type' => 'sword',
             'required_level' => 40,
+            'buy_price' => 0,
+            'base_stats' => ['price' => 1000],
+        ]);
+        $this->seedShopEquipmentCache($character, $definition, [
+            'base_stats' => ['price' => 1000],
             'buy_price' => 1000,
         ]);
 
@@ -754,7 +835,7 @@ class GameShopServiceTest extends TestCase
             'buy_price' => 100,
         ]);
 
-        Cache::put('game_shop_' . $character->id, [
+        Cache::put($this->shopCacheKey($character), [
             'equipment' => [[
                 'id' => $equipment->id,
                 'name' => $equipment->name,
@@ -912,7 +993,7 @@ class GameShopServiceTest extends TestCase
         ]);
 
         Cache::put('game_shop_purchased_' . $character->id, [$equipment->id], 1800);
-        Cache::put('game_shop_' . $character->id, [
+        Cache::put($this->shopCacheKey($character), [
             'equipment' => [[
                 'id' => $equipment->id,
                 'name' => $equipment->name,

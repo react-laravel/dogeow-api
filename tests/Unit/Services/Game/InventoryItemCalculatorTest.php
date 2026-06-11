@@ -335,4 +335,20 @@ class InventoryItemCalculatorTest extends TestCase
         $this->assertSame(30, $this->calculator->calculateSellPrice($item));
         $this->assertSame(60, $this->calculator->calculateBuyPrice($definition));
     }
+
+    public function test_ensure_stats_meet_value_floor_scales_weapon_stats(): void
+    {
+        $definition = new GameItemDefinition;
+        $definition->type = 'weapon';
+        $definition->required_level = 5;
+        $definition->base_stats = ['attack' => 1];
+
+        $weakStats = ['attack' => 5];
+        $floor = 500;
+        $adjusted = $this->calculator->ensureStatsMeetValueFloor($definition, $weakStats, 'common', $floor);
+        $adjustedValue = $this->calculator->calculateEquipmentValue($definition, $adjusted, 'common');
+
+        $this->assertGreaterThan(5, $adjusted['attack']);
+        $this->assertGreaterThanOrEqual($floor, $adjustedValue);
+    }
 }

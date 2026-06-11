@@ -23,7 +23,7 @@ class GameShopService
     /** 幂等性缓存时间（秒），24 小时 */
     private const IDEMPOTENCY_CACHE_TTL_SECONDS = 86400;
 
-    private const SHOP_CACHE_KEY_PREFIX = 'game_shop_';
+    private const SHOP_CACHE_KEY_PREFIX = 'game_shop_v2_';
 
     private const PURCHASED_CACHE_KEY_PREFIX = 'game_shop_purchased_';
 
@@ -83,18 +83,20 @@ class GameShopService
 
         // 获取已购买的装备ID列表
         $purchasedItemIds = $this->getPurchasedItemIds($character);
+        $equippedValueFloorsByType = $this->buildEquippedValueFloorsByType($character);
 
         if (is_array($cached) && isset($cached['equipment'], $cached['refreshed_at'])) {
             /** @var array<int, array<string,mixed>> $cachedEquipment */
             $cachedEquipment = is_array($cached['equipment']) ? $cached['equipment'] : [];
             $cachedRefreshed = is_numeric($cached['refreshed_at']) ? (int) $cached['refreshed_at'] : time();
             $randomEquipmentItems = collect($cachedEquipment)
+                ->map(fn (array $item): array => $this->hydrateEquipmentListing($item, $equippedValueFloorsByType))
                 ->filter(fn ($item) => ($item['required_level'] ?? 0) <= $character->level)
                 ->filter(fn ($item) => ! in_array($item['id'], $purchasedItemIds))
                 ->values();
             $nextRefreshAt = $cachedRefreshed + self::SHOP_CACHE_TTL_SECONDS;
         } else {
-            $randomEquipmentItems = $this->buildRandomEquipmentItems($character);
+            $randomEquipmentItems = $this->buildRandomEquipmentItems($character, $equippedValueFloorsByType);
             $refreshedAt = time();
             Cache::put($cacheKey, [
                 'equipment' => $randomEquipmentItems->values()->all(),
@@ -229,7 +231,10 @@ class GameShopService
      *
      * @return Collection<int, array{id:int,name:string,type:string,sub_type:string|null,base_stats:array<string,mixed>,quality:string,required_level:int,icon:string|null,description:string|null,buy_price:int}>
      */
-    private function buildRandomEquipmentItems(GameCharacter $character): Collection
+    /**
+     * @param  array<string, int>  $equippedValueFloorsByType
+     */
+    private function buildRandomEquipmentItems(GameCharacter $character, array $equippedValueFloorsByType): Collection
     {
         $equipmentDefinitions = GameItemDefinition::query()
             ->where('is_active', true)
@@ -246,21 +251,21 @@ class GameShopService
         $selectedEquipments = $equipmentDefinitions->shuffle()->take($shopSize);
 
         /** @var Collection<int, array{id:int,name:string,type:string,sub_type:string|null,base_stats:array<string,mixed>,quality:string,required_level:int,icon:string|null,description:string|null,buy_price:int}> $result */
-        $result = $selectedEquipments->map(function ($definition) {
-            $randomStats = $this->itemCalculator->generateRandomStats($definition);
-            $quality = $this->itemCalculator->generateRandomQuality($definition->required_level);
+        $result = $selectedEquipments->map(function ($definition) use ($equippedValueFloorsByType) {
+            $valueFloor = $equippedValueFloorsByType[$definition->type] ?? 0;
+            $roll = $this->rollShopEquipment($definition, $valueFloor);
 
             return [
                 'id' => $definition->id,
                 'name' => $definition->name,
                 'type' => $definition->type,
                 'sub_type' => $definition->sub_type,
-                'base_stats' => GameItem::normalizeStatsPrecision($randomStats),
-                'quality' => $quality,
+                'base_stats' => GameItem::normalizeStatsPrecision($roll['stats']),
+                'quality' => $roll['quality'],
                 'required_level' => $definition->required_level,
                 'icon' => $definition->icon,
                 'description' => $definition->description,
-                'buy_price' => $this->itemCalculator->calculateBuyPrice($definition, $randomStats, $quality),
+                'buy_price' => $this->itemCalculator->calculateBuyPrice($definition, $roll['stats'], $roll['quality']),
             ];
         });
 
@@ -310,18 +315,23 @@ class GameShopService
             throw new \InvalidArgumentException("需要等级 {$definition->required_level}");
         }
 
-        $cachedShopItem = $this->findCachedShopItem($character, $itemId);
+        $isPotion = $definition->type === 'potion';
+        $equippedValueFloorsByType = $isPotion ? [] : $this->buildEquippedValueFloorsByType($character);
+        $cachedShopItem = $isPotion ? null : $this->findCachedShopItem($character, $itemId, $equippedValueFloorsByType);
         if ($cachedShopItem !== null) {
             /** @var array<string, int|float> $randomStats */
             $randomStats = is_array($cachedShopItem['base_stats'] ?? null) ? $cachedShopItem['base_stats'] : [];
             $quality = is_string($cachedShopItem['quality'] ?? null) ? $cachedShopItem['quality'] : 'common';
             $unitPrice = (int) ($cachedShopItem['buy_price'] ?? 0);
-            if ($unitPrice <= 0) {
-                $unitPrice = $this->itemCalculator->calculateBuyPrice($definition, $randomStats, $quality);
-            }
-        } else {
+        } elseif ($isPotion) {
             $randomStats = $this->itemCalculator->generateRandomStats($definition);
             $quality = 'common';
+            $unitPrice = $this->itemCalculator->calculateBuyPrice($definition, $randomStats, $quality);
+        } else {
+            $valueFloor = $equippedValueFloorsByType[$definition->type] ?? 0;
+            $roll = $this->rollShopEquipment($definition, $valueFloor);
+            $randomStats = $roll['stats'];
+            $quality = $roll['quality'];
             $unitPrice = $this->itemCalculator->calculateBuyPrice($definition, $randomStats, $quality);
         }
 
@@ -331,9 +341,7 @@ class GameShopService
             throw new \InvalidArgumentException('货币不足');
         }
 
-        return DB::transaction(function () use ($character, $definition, $randomStats, $quality, $totalPrice, $quantity, $itemId) {
-            $isPotion = $definition->type === 'potion';
-
+        return DB::transaction(function () use ($character, $definition, $randomStats, $quality, $totalPrice, $quantity, $itemId, $isPotion) {
             // 检查背包空间
             if (! $this->itemCreationService->hasInventorySpace($character, $quantity, $isPotion)) {
                 throw new \InvalidArgumentException($isPotion ? '背包已满' : '背包空间不足');
@@ -456,9 +464,10 @@ class GameShopService
     /**
      * 从商店缓存中查找当前展示的装备（保证购买价与列表一致）
      *
+     * @param  array<string, int>  $equippedValueFloorsByType
      * @return array<string, mixed>|null
      */
-    private function findCachedShopItem(GameCharacter $character, int $definitionId): ?array
+    private function findCachedShopItem(GameCharacter $character, int $definitionId, array $equippedValueFloorsByType): ?array
     {
         $cacheKey = $this->getShopCacheKey($character);
         $cached = cache()->get($cacheKey);
@@ -477,10 +486,83 @@ class GameShopService
                 continue;
             }
             if ((int) ($item['id'] ?? 0) === $definitionId) {
-                return $item;
+                return $this->hydrateEquipmentListing($item, $equippedValueFloorsByType);
             }
         }
 
         return null;
+    }
+
+    /**
+     * 各装备类型已穿戴物品的估价下限（同类型取最高，与商店属性计价一致）
+     *
+     * @return array<string, int>
+     */
+    private function buildEquippedValueFloorsByType(GameCharacter $character): array
+    {
+        $floors = [];
+
+        $equipmentSlots = $character->equipment()
+            ->with(['item.definition', 'item.gems'])
+            ->get();
+
+        foreach ($equipmentSlots as $slot) {
+            $item = $slot->item;
+            if (! $item instanceof GameItem || ! $item->definition instanceof GameItemDefinition) {
+                continue;
+            }
+
+            $type = $item->definition->type;
+            $itemValue = $this->itemCalculator->calculateItemValue($item);
+            $floors[$type] = max($floors[$type] ?? 0, $itemValue);
+        }
+
+        return $floors;
+    }
+
+    /**
+     * 随机生成商店装备，并保证属性估价不低于已装备下限
+     *
+     * @return array{stats: array<string, int|float>, quality: string}
+     */
+    private function rollShopEquipment(GameItemDefinition $definition, int $valueFloor): array
+    {
+        $stats = $this->itemCalculator->generateRandomStats($definition);
+        $quality = $this->itemCalculator->generateRandomQuality($definition->required_level);
+        $stats = $this->itemCalculator->ensureStatsMeetValueFloor($definition, $stats, $quality, $valueFloor);
+
+        return [
+            'stats' => $stats,
+            'quality' => $quality,
+        ];
+    }
+
+    /**
+     * 按当前已装备估价下限校正缓存中的商店装备属性与标价
+     *
+     * @param  array<string, mixed>  $item
+     * @param  array<string, int>  $equippedValueFloorsByType
+     * @return array<string, mixed>
+     */
+    private function hydrateEquipmentListing(array $item, array $equippedValueFloorsByType): array
+    {
+        $definitionId = (int) ($item['id'] ?? 0);
+        if ($definitionId <= 0) {
+            return $item;
+        }
+
+        $definition = GameItemDefinition::query()->find($definitionId);
+        if (! $definition) {
+            return $item;
+        }
+
+        $stats = is_array($item['base_stats'] ?? null) ? $item['base_stats'] : [];
+        $quality = is_string($item['quality'] ?? null) ? $item['quality'] : 'common';
+        $valueFloor = $equippedValueFloorsByType[$definition->type] ?? 0;
+        $stats = $this->itemCalculator->ensureStatsMeetValueFloor($definition, $stats, $quality, $valueFloor);
+        $item['base_stats'] = GameItem::normalizeStatsPrecision($stats);
+        $item['buy_price'] = $this->itemCalculator->calculateBuyPrice($definition, $stats, $quality);
+
+        return $item;
     }
 }
