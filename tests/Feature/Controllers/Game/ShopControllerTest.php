@@ -56,6 +56,8 @@ class ShopControllerTest extends TestCase
 
     public function test_can_refresh_shop(): void
     {
+        config(['game.shop.manual_refresh_enabled' => true]);
+
         $user = User::factory()->create();
         $character = $this->createCharacter($user, ['copper' => 100]);
 

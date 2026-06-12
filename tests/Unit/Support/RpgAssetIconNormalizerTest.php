@@ -27,7 +27,7 @@ class RpgAssetIconNormalizerTest extends TestCase
 
     public function test_normalizes_legacy_skill_icon_names(): void
     {
-        $this->assertSame('eagle-eye.png', RpgAssetIconNormalizer::normalizeSkill('skill_24.png'));
+        $this->assertSame('iron-wall.png', RpgAssetIconNormalizer::normalizeSkill('skill_24.png'));
     }
 
     public function test_normalizes_monster_icons_inside_combat_payload(): void

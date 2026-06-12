@@ -390,7 +390,7 @@ class GameShopServiceTest extends TestCase
                 'name' => "测试武器{$index}",
                 'type' => 'weapon',
                 'sub_type' => 'sword',
-                'required_level' => 1,
+                'required_level' => 10,
                 'base_stats' => ['attack' => $index],
             ]);
         }
