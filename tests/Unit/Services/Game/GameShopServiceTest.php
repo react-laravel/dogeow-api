@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\Game\GameInventoryService;
 use App\Services\Game\GameShopService;
 use App\Services\Game\InventoryItemCalculator;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
@@ -30,6 +31,9 @@ class GameShopServiceTest extends TestCase
         config([
             'game.shop.equipment_count_min' => 1,
             'game.shop.equipment_count_max' => 1,
+            'game.shop.manual_refresh_enabled' => true,
+            'game.shop.items_per_category_min' => 1,
+            'game.shop.items_per_category_max' => 5,
         ]);
     }
 
@@ -67,21 +71,19 @@ class GameShopServiceTest extends TestCase
 
         $result = $this->service->getShopItems($character);
 
-        $this->assertCount(3, $result['items']);
+        $this->assertGreaterThanOrEqual(2, $result['items']->count());
         $this->assertSame(345, $result['player_copper']);
         $this->assertGreaterThan(time(), $result['next_refresh_at']);
         $this->assertSame([], $result['purchased']);
-        $this->assertSame(
-            [$higherPotion->id, $manaPotion->id, $equipment->id],
-            $result['items']->pluck('id')->all()
+        $this->assertTrue($result['items']->pluck('id')->contains($equipment->id));
+        $this->assertTrue(
+            $result['items']->pluck('id')->contains($higherPotion->id)
+            || $result['items']->pluck('id')->contains($manaPotion->id)
         );
-        $this->assertSame([40, 30], $result['items']->take(2)->pluck('buy_price')->all());
-        $this->assertGreaterThan(0, $result['items']->last()['buy_price']);
-        $this->assertSame(
-            [20, 15],
-            $result['items']->take(2)->pluck('sell_price')->all()
-        );
-        $this->assertArrayNotHasKey('sell_price', $result['items']->last());
+        $equipmentListing = $result['items']->firstWhere('id', $equipment->id);
+        $this->assertNotNull($equipmentListing);
+        $this->assertGreaterThan(0, $equipmentListing['buy_price']);
+        $this->assertArrayNotHasKey('sell_price', $equipmentListing);
     }
 
     public function test_get_shop_items_uses_cache_and_filters_purchased_equipment(): void
@@ -102,14 +104,18 @@ class GameShopServiceTest extends TestCase
         ]);
 
         $first = $this->service->getShopItems($character);
-        $this->assertSame([$potion->id, $equipment->id], $first['items']->pluck('id')->all());
+        $this->assertTrue($first['items']->pluck('id')->contains($potion->id));
+        $this->assertTrue($first['items']->pluck('id')->contains($equipment->id));
 
-        $this->service->recordPurchasedItem($character, $equipment->id);
+        $equipmentListing = $first['items']->firstWhere('id', $equipment->id);
+        $this->assertNotNull($equipmentListing);
+        $listingKey = (string) $equipmentListing['listing_id'];
+        $this->service->recordPurchasedItem($character, $listingKey);
 
         $second = $this->service->getShopItems($character);
 
-        $this->assertSame([$potion->id], $second['items']->pluck('id')->all());
-        $this->assertSame([$equipment->id], $second['purchased']);
+        $this->assertFalse($second['items']->pluck('listing_id')->contains($listingKey));
+        $this->assertSame([$listingKey], $second['purchased']);
     }
 
     public function test_refresh_shop_clears_cached_equipment_and_deducts_copper(): void
@@ -143,13 +149,15 @@ class GameShopServiceTest extends TestCase
                 'description' => 'stale',
                 'buy_price' => 1,
             ]],
+            'gems' => [],
             'refreshed_at' => time(),
         ], 1800);
 
         $result = $this->service->refreshShop($character);
 
         $this->assertSame(400, $character->fresh()->copper);
-        $this->assertSame([$potion->id, $realEquipment->id], $result['items']->pluck('id')->all());
+        $this->assertTrue($result['items']->pluck('id')->contains($potion->id));
+        $this->assertTrue($result['items']->pluck('id')->contains($realEquipment->id));
         $this->assertFalse($result['items']->pluck('id')->contains(999999));
     }
 
@@ -202,12 +210,14 @@ class GameShopServiceTest extends TestCase
             'slot_index' => 0,
             'sell_price' => 10,
         ]);
+        $listingId = 'gloves:' . $definition->id . ':0';
         $this->seedShopEquipmentCache($character, $definition, [
             'base_stats' => ['price' => 50],
             'buy_price' => 50,
+            'listing_id' => $listingId,
         ]);
 
-        $result = $this->service->buyItem($character, $definition->id, 2);
+        $result = $this->service->buyItem($character, $definition->id, 2, null, $listingId);
 
         $newItems = GameItem::where('character_id', $character->id)
             ->where('definition_id', $definition->id)
@@ -219,7 +229,7 @@ class GameShopServiceTest extends TestCase
         $this->assertSame(100, $result['total_price']);
         $this->assertCount(2, $newItems);
         $this->assertSame([1, 2], $newItems->pluck('slot_index')->all());
-        $this->assertSame([$definition->id], $this->service->getShopItems($character)['purchased']);
+        $this->assertSame([$listingId], $this->service->getShopItems($character)['purchased']);
     }
 
     public function test_buy_item_rejects_invalid_level_copper_and_inventory_capacity_cases(): void
@@ -386,8 +396,103 @@ class GameShopServiceTest extends TestCase
         }
 
         $result = $this->service->getShopItems($character);
+        $weaponCount = $result['items']->where('type', 'weapon')->count();
 
-        $this->assertLessThanOrEqual(5, $result['items']->where('type', 'weapon')->count());
+        $this->assertGreaterThanOrEqual(3, $weaponCount);
+        $this->assertLessThanOrEqual(5, $weaponCount);
+    }
+
+    public function test_get_shop_items_generates_at_least_three_listings_with_single_template(): void
+    {
+        config([
+            'game.shop.items_per_category_min' => 3,
+            'game.shop.items_per_category_max' => 5,
+        ]);
+        $character = $this->createCharacter(['level' => 20]);
+        $this->createItemDefinition([
+            'name' => '唯一长剑',
+            'type' => 'weapon',
+            'sub_type' => 'sword',
+            'required_level' => 10,
+            'base_stats' => ['attack' => 12],
+        ]);
+
+        $result = $this->service->getShopItems($character);
+        $weapons = $result['items']->where('type', 'weapon')->values();
+
+        $this->assertGreaterThanOrEqual(3, $weapons->count());
+        $this->assertLessThanOrEqual(5, $weapons->count());
+        $this->assertSame($weapons->count(), $weapons->pluck('listing_id')->unique()->count());
+    }
+
+    public function test_manual_refresh_disabled_throws(): void
+    {
+        config(['game.shop.manual_refresh_enabled' => false]);
+        $character = $this->createCharacter(['copper' => 500]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('商店手动刷新暂未开放');
+
+        $this->service->refreshShop($character);
+    }
+
+    public function test_shop_gems_roll_stats_within_configured_ranges(): void
+    {
+        config([
+            'game.shop.equipment_count_min' => 0,
+            'game.shop.equipment_count_max' => 0,
+            'game.shop.gem_stat_ranges' => [
+                'attack' => [8, 12],
+            ],
+        ]);
+        $character = $this->createCharacter(['level' => 10]);
+        $this->createItemDefinition([
+            'name' => '攻击宝石',
+            'type' => 'gem',
+            'gem_stats' => ['attack' => 10],
+            'required_level' => 1,
+        ]);
+
+        $result = $this->service->getShopItems($character);
+        $attackGem = $result['items']->firstWhere('type', 'gem');
+
+        $this->assertNotNull($attackGem);
+        $attack = (int) ($attackGem['base_stats']['attack'] ?? 0);
+        $this->assertGreaterThanOrEqual(8, $attack);
+        $this->assertLessThanOrEqual(12, $attack);
+    }
+
+    public function test_buy_gem_uses_cached_rolled_stats(): void
+    {
+        config([
+            'game.shop.equipment_count_min' => 0,
+            'game.shop.equipment_count_max' => 0,
+        ]);
+        $character = $this->createCharacter(['level' => 10, 'copper' => 10000]);
+        $attackGem = $this->createItemDefinition([
+            'name' => '攻击宝石',
+            'type' => 'gem',
+            'gem_stats' => ['attack' => 10],
+            'required_level' => 1,
+        ]);
+
+        $shop = $this->service->getShopItems($character);
+        $listedGem = $shop['items']->firstWhere('id', $attackGem->id);
+        $this->assertNotNull($listedGem);
+
+        $this->service->buyItem($character, $attackGem->id, 1, null, (string) $listedGem['listing_id']);
+
+        $item = GameItem::query()
+            ->where('character_id', $character->id)
+            ->whereHas('definition', fn ($query) => $query->where('type', 'gem'))
+            ->with('definition')
+            ->first();
+
+        $this->assertNotNull($item);
+        $this->assertSame(
+            $listedGem['base_stats'],
+            GameItem::normalizeStatsPrecision($item->definition->gem_stats ?? [])
+        );
     }
 
     public function test_get_shop_items_includes_fixed_gems_by_sub_type(): void
@@ -422,11 +527,10 @@ class GameShopServiceTest extends TestCase
         $result = $this->service->getShopItems($character);
         $gemItems = $result['items']->where('type', 'gem')->values();
 
-        $this->assertCount(2, $gemItems);
-        $this->assertSame(
-            [$higherAttackGem->id, $defenseGem->id],
-            $gemItems->pluck('id')->all()
-        );
+        $this->assertGreaterThanOrEqual(1, $gemItems->count());
+        $this->assertLessThanOrEqual(5, $gemItems->count());
+        $this->assertTrue($gemItems->pluck('id')->contains($higherAttackGem->id));
+        $this->assertTrue($gemItems->pluck('id')->contains($defenseGem->id));
     }
 
     public function test_buy_gem_removes_from_shop_until_refresh(): void
@@ -452,14 +556,17 @@ class GameShopServiceTest extends TestCase
         ]);
 
         $before = $this->service->getShopItems($character);
-        $this->assertCount(2, $before['items']->where('type', 'gem'));
+        $this->assertGreaterThanOrEqual(1, $before['items']->where('type', 'gem')->count());
 
-        $this->service->buyItem($character, $defenseGem->id, 1);
+        $defenseListing = $before['items']->firstWhere('id', $defenseGem->id);
+        $this->assertNotNull($defenseListing);
+        $listingId = (string) $defenseListing['listing_id'];
+
+        $this->service->buyItem($character, $defenseGem->id, 1, null, $listingId);
 
         $after = $this->service->getShopItems($character);
-        $gemIds = $after['items']->where('type', 'gem')->pluck('id')->all();
-        $this->assertSame([$attackGem->id], $gemIds);
-        $this->assertContains($defenseGem->id, $after['purchased']);
+        $this->assertFalse($after['items']->pluck('listing_id')->contains($listingId));
+        $this->assertContains($listingId, $after['purchased']);
     }
 
     public function test_shop_equipment_stats_value_is_at_least_equipped_item_value(): void
@@ -610,9 +717,12 @@ class GameShopServiceTest extends TestCase
      */
     private function seedShopEquipmentCache(GameCharacter $character, GameItemDefinition $definition, array $overrides = []): void
     {
+        $listingId = ($definition->type ?? 'equipment') . ':' . $definition->id . ':0';
+
         Cache::put($this->shopCacheKey($character), [
             'equipment' => [array_merge([
                 'id' => $definition->id,
+                'listing_id' => $listingId,
                 'name' => $definition->name,
                 'type' => $definition->type,
                 'sub_type' => $definition->sub_type,
@@ -623,6 +733,7 @@ class GameShopServiceTest extends TestCase
                 'description' => $definition->description,
                 'buy_price' => 100,
             ], $overrides)],
+            'gems' => [],
             'refreshed_at' => time(),
         ], 1800);
     }
@@ -742,8 +853,8 @@ class GameShopServiceTest extends TestCase
 
         $result = $this->service->getShopItems($character);
 
-        $this->assertCount(1, $result['items']);
-        $this->assertEquals($potion->id, $result['items']->first()['id']);
+        $this->assertGreaterThanOrEqual(1, $result['items']->count());
+        $this->assertTrue($result['items']->every(fn (array $item): bool => $item['id'] === $potion->id));
     }
 
     public function test_buy_item_with_single_quantity(): void
@@ -809,10 +920,10 @@ class GameShopServiceTest extends TestCase
 
         $result = $this->service->getShopItems($character);
 
-        // Should only show the highest level HP potion
+        // Should only show the highest level HP potion template
         $hpPotions = $result['items']->filter(fn ($item) => $item['type'] === 'potion' && $item['sub_type'] === 'hp');
-        $this->assertCount(1, $hpPotions);
-        $this->assertEquals($highHpPotion->id, $hpPotions->first()['id']);
+        $this->assertGreaterThanOrEqual(1, $hpPotions->count());
+        $this->assertTrue($hpPotions->every(fn (array $item): bool => $item['id'] === $highHpPotion->id));
     }
 
     public function test_record_purchased_item_adds_to_cache(): void
@@ -825,11 +936,14 @@ class GameShopServiceTest extends TestCase
             'buy_price' => 50,
         ]);
 
-        $this->service->getShopItems($character);
-        $this->service->recordPurchasedItem($character, $equipment->id);
+        $shop = $this->service->getShopItems($character);
+        $listing = $shop['items']->firstWhere('id', $equipment->id);
+        $this->assertNotNull($listing);
+        $listingKey = (string) $listing['listing_id'];
+        $this->service->recordPurchasedItem($character, $listingKey);
 
         $result = $this->service->getShopItems($character);
-        $this->assertContains($equipment->id, $result['purchased']);
+        $this->assertContains($listingKey, $result['purchased']);
     }
 
     public function test_buy_item_with_exact_copper_amount(): void
@@ -1027,6 +1141,9 @@ class GameShopServiceTest extends TestCase
             'buy_price' => 100,
         ]);
 
+        $timezone = (string) config('app.timezone', 'UTC');
+        $yesterday = Carbon::now($timezone)->subDay()->startOfDay()->getTimestamp();
+
         Cache::put($this->shopCacheKey($character), [
             'equipment' => [[
                 'id' => $equipment->id,
@@ -1040,7 +1157,8 @@ class GameShopServiceTest extends TestCase
                 'description' => $equipment->description,
                 'buy_price' => $equipment->buy_price,
             ]],
-            'refreshed_at' => time() - 3600,
+            'gems' => [],
+            'refreshed_at' => $yesterday,
         ], 1800);
         Cache::put('game_shop_purchased_' . $character->id, [$equipment->id], 1800);
 

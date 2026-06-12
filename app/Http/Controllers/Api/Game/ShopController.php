@@ -73,7 +73,8 @@ class ShopController extends Controller
                 $character,
                 $request->input('item_id'),
                 $request->input('quantity', 1),
-                $request->input('idempotency_key')
+                $request->input('idempotency_key'),
+                $request->input('listing_id'),
             );
             broadcast(new GameInventoryUpdate($character->id, $this->inventoryService->getInventoryForBroadcast($character)));
 

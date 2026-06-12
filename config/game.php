@@ -364,12 +364,24 @@ return [
     |--------------------------------------------------------------------------
     */
     'shop' => [
+        // 是否允许玩家手动花费银币强制刷新商店
+        'manual_refresh_enabled' => false,
+        // 商店宝石各属性随机范围 [min, max]（与战斗掉落类似，每日刷新时重新掷骰）
+        'gem_stat_ranges' => [
+            'attack' => [5, 15],
+            'defense' => [3, 10],
+            'max_hp' => [20, 50],
+            'max_mana' => [10, 30],
+            'crit_rate' => [0.01, 0.03],
+            'crit_damage' => [0.05, 0.15],
+        ],
         // 回收价格系数 (售价 = 购买价 × 该系数)
         'sell_ratio' => 0.3,
         // 商店刷新装备数量范围（已弃用，保留兼容旧配置）
         'equipment_count_min' => 20,
         'equipment_count_max' => 25,
-        // 每个分类最多展示的物品数量
+        // 每个分类展示的物品数量范围（模板不足时可重复同一模板并重新掷属性）
+        'items_per_category_min' => 3,
         'items_per_category_max' => 5,
         // 商店装备需求等级窗口：仅展示 [角色等级 - span, 角色等级] 内的装备，避免低等级模板被抬属性
         'min_required_level_span' => 10,

@@ -129,10 +129,25 @@ class ShopItemCreationService
     /**
      * Add quantity to existing gem item or create new one
      *
+     * @param  array<string, int|float>  $rolledStats
      * @return array{item: GameItem, is_new: bool}
      */
-    public function addGemToInventory(GameCharacter $character, GameItemDefinition $definition, int $quantity): array
-    {
+    public function addGemToInventory(
+        GameCharacter $character,
+        GameItemDefinition $definition,
+        int $quantity,
+        array $rolledStats = [],
+    ): array {
+        if ($rolledStats !== []) {
+            $createdItems = [];
+            for ($i = 0; $i < $quantity; $i++) {
+                $instanceDefinition = $this->createGemInstanceDefinition($definition, $rolledStats);
+                $createdItems[] = $this->createGemItem($character, $instanceDefinition, 1);
+            }
+
+            return ['item' => $createdItems[0], 'is_new' => true];
+        }
+
         /** @var GameItem|null $existingItem */
         $existingItem = $character->items()
             ->where('definition_id', $definition->id)
@@ -150,6 +165,26 @@ class ShopItemCreationService
         $item = $this->createGemItem($character, $definition, $quantity);
 
         return ['item' => $item, 'is_new' => true];
+    }
+
+    /**
+     * @param  array<string, int|float>  $rolledStats
+     */
+    private function createGemInstanceDefinition(GameItemDefinition $template, array $rolledStats): GameItemDefinition
+    {
+        return GameItemDefinition::create([
+            'name' => $template->name,
+            'type' => 'gem',
+            'sub_type' => $template->sub_type,
+            'base_stats' => [],
+            'required_level' => $template->required_level,
+            'icon' => $template->icon,
+            'description' => $template->description,
+            'is_active' => false,
+            'sockets' => 0,
+            'gem_stats' => $rolledStats,
+            'buy_price' => 0,
+        ]);
     }
 
     /**

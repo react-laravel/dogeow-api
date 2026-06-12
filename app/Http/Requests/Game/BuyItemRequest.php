@@ -15,6 +15,7 @@ class BuyItemRequest extends FormRequest
     {
         return [
             'item_id' => 'required|integer|exists:game_item_definitions,id',
+            'listing_id' => 'sometimes|string|max:64',
             'quantity' => 'sometimes|integer|min:1',
             'idempotency_key' => 'sometimes|string|max:255',
         ];

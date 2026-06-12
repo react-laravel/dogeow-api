@@ -158,7 +158,9 @@ class InventoryItemCalculator
 
         return match ($item->type) {
             'potion' => $this->calculatePotionBuyPrice($stats, $baseStats),
-            'gem' => $this->calculateGemBuyPrice($item),
+            'gem' => $stats !== []
+                ? $this->calculateGemBuyPriceFromStats($stats)
+                : $this->calculateGemBuyPrice($item),
             default => max(1, $this->calculateEquipmentFullPrice($item, $stats, $quality, $sockets)),
         };
     }
@@ -446,6 +448,71 @@ class InventoryItemCalculator
     private function calculateGemBuyPrice(GameItemDefinition $definition): int
     {
         return max(1, $this->calculateGemSellPrice($definition) * self::SHOP_BUY_TO_SELL_MULTIPLIER);
+    }
+
+    /**
+     * @param  array<string, int|float>  $gemStats
+     */
+    public function calculateGemBuyPriceFromStats(array $gemStats): int
+    {
+        return max(1, $this->calculateGemPriceFromStats($gemStats) * self::SHOP_BUY_TO_SELL_MULTIPLIER);
+    }
+
+    /**
+     * @param  array<string, int|float>  $gemStats
+     */
+    public function calculateGemSellPriceFromStats(array $gemStats): int
+    {
+        return $this->calculateGemPriceFromStats($gemStats);
+    }
+
+    /**
+     * 按配置范围为商店宝石掷骰属性
+     *
+     * @return array<string, int|float>
+     */
+    public function rollGemStats(GameItemDefinition $definition): array
+    {
+        $template = $definition->gem_stats;
+        if (! is_array($template) || $template === []) {
+            return [];
+        }
+
+        $statKey = array_key_first($template);
+        if (! is_string($statKey)) {
+            return [];
+        }
+
+        /** @var array<string, array{0: int|float, 1: int|float}> $ranges */
+        $ranges = config('game.shop.gem_stat_ranges', []);
+        if (! isset($ranges[$statKey]) || ! is_array($ranges[$statKey]) || count($ranges[$statKey]) < 2) {
+            $templateValue = $template[$statKey] ?? 0;
+            if (! is_numeric($templateValue)) {
+                return [];
+            }
+
+            return [$statKey => is_float($templateValue + 0) ? (float) $templateValue : (int) $templateValue];
+        }
+
+        [$min, $max] = $ranges[$statKey];
+        if (! is_numeric($min) || ! is_numeric($max)) {
+            return [];
+        }
+
+        $minValue = (float) $min;
+        $maxValue = (float) $max;
+        if ($minValue > $maxValue) {
+            [$minValue, $maxValue] = [$maxValue, $minValue];
+        }
+
+        if (in_array($statKey, ['crit_rate', 'crit_damage'], true)) {
+            $scale = 10000;
+            $rolled = random_int((int) round($minValue * $scale), (int) round($maxValue * $scale)) / $scale;
+
+            return [$statKey => $rolled];
+        }
+
+        return [$statKey => random_int((int) $minValue, (int) $maxValue)];
     }
 
     /**
