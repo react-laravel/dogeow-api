@@ -558,11 +558,11 @@ class GameShopServiceTest extends TestCase
         $before = $this->service->getShopItems($character);
         $this->assertGreaterThanOrEqual(1, $before['items']->where('type', 'gem')->count());
 
-        $defenseListing = $before['items']->firstWhere('id', $defenseGem->id);
-        $this->assertNotNull($defenseListing);
-        $listingId = (string) $defenseListing['listing_id'];
+        $gemListing = $before['items']->where('type', 'gem')->first();
+        $this->assertNotNull($gemListing);
+        $listingId = (string) $gemListing['listing_id'];
 
-        $this->service->buyItem($character, $defenseGem->id, 1, null, $listingId);
+        $this->service->buyItem($character, (int) $gemListing['id'], 1, null, $listingId);
 
         $after = $this->service->getShopItems($character);
         $this->assertFalse($after['items']->pluck('listing_id')->contains($listingId));
