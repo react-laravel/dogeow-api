@@ -28,15 +28,18 @@ class CombatSkillSelector
         $skillsUsedThisRound = [];
         $newCooldowns = $skillCooldowns;
 
-        $activeSkills = $character->skills()
-            ->whereHas('skill', fn ($q) => $q->where('type', 'active'))
+        $learnedSkills = $character->skills()
             ->with('skill')
-            ->get();
+            ->get()
+            ->filter(fn ($cs) => $cs->skill !== null);
 
-        // 若前端指定了自动施法技能列表，只从该列表中选技能
+        $activeSkills = $learnedSkills->filter(fn ($cs) => $cs->skill->type === 'active');
+        $passiveSkills = $learnedSkills->filter(fn ($cs) => $cs->skill->type === 'passive');
+
+        // 若前端指定了自动施法技能列表，只从该列表中选技能；被动强化仍按已学习技能自动生效
         if ($requestedSkillIds !== null) {
             $allowedIds = array_flip($requestedSkillIds);
-            $activeSkills = $activeSkills->filter(fn ($cs) => $cs->skill && isset($allowedIds[$cs->skill->id]));
+            $activeSkills = $activeSkills->filter(fn ($cs) => isset($allowedIds[$cs->skill->id]));
         }
 
         // 获取当前怪物信息用于智能选择
@@ -59,13 +62,23 @@ class CombatSkillSelector
             $cooldownEnd = $newCooldowns[$skill->id] ?? 0;
 
             if ($currentMana >= $skill->mana_cost && $cooldownEnd <= $currentRound) {
+                $passiveEffects = $this->getPassiveEffectsForSkill($skill, $passiveSkills);
+                $isAoe = ($skill->target_type ?? 'single') === 'all'
+                    || (($passiveEffects['explosion_radius_bonus'] ?? 0) > 0 && $aliveMonsterCount > 1);
+                $damage = (int) ($skill->damage ?? $skill->base_damage ?? 0);
+                if (($passiveEffects['damage_bonus'] ?? 0) > 0) {
+                    $damage = (int) round($damage * (1 + (float) $passiveEffects['damage_bonus']));
+                }
+
                 $availableSkills[] = [
                     'char_skill' => $charSkill,
                     'skill' => $skill,
-                    'damage' => (int) $skill->damage,
+                    'damage' => $damage,
                     'mana_cost' => (int) $skill->mana_cost,
                     'cooldown' => (int) $skill->cooldown,
-                    'is_aoe' => ($skill->target_type ?? 'single') === 'all',
+                    'is_aoe' => $isAoe,
+                    'passive_effects' => $passiveEffects,
+                    'passive_names' => $this->getPassiveNamesForSkill($skill, $passiveSkills),
                 ];
             }
         }
@@ -94,7 +107,9 @@ class CombatSkillSelector
                 'name' => $skill->name,
                 'icon' => $skill->icon,
                 'effect_key' => $skill->effect_key ?? null,
-                'target_type' => $skill->target_type ?? 'single',
+                'target_type' => $isAoeSkill ? 'all' : ($skill->target_type ?? 'single'),
+                'passive_effects' => $selectedSkill['passive_effects'] ?? [],
+                'passive_names' => $selectedSkill['passive_names'] ?? [],
             ];
 
             return [
@@ -199,6 +214,50 @@ class CombatSkillSelector
             'skills_used_this_round' => [],
             'new_cooldowns' => $cooldowns,
         ];
+    }
+
+    /**
+     * 已学习的同技能线被动强化会改变主动技能的战斗形态。
+     * 例如“强化火球术”的 explosion_radius_bonus 让火球从单体变成可溅射多目标。
+     */
+    private function getPassiveEffectsForSkill(object $activeSkill, $passiveSkills): array
+    {
+        $effects = [];
+        foreach ($passiveSkills as $charSkill) {
+            $passive = $charSkill->skill;
+            if (! $this->isPassiveForActiveSkill($passive, $activeSkill)) {
+                continue;
+            }
+
+            foreach (($passive->effects ?? []) as $key => $value) {
+                $effects[$key] = $value;
+            }
+        }
+
+        return $effects;
+    }
+
+    private function getPassiveNamesForSkill(object $activeSkill, $passiveSkills): array
+    {
+        $names = [];
+        foreach ($passiveSkills as $charSkill) {
+            $passive = $charSkill->skill;
+            if ($this->isPassiveForActiveSkill($passive, $activeSkill)) {
+                $names[] = $passive->name;
+            }
+        }
+
+        return $names;
+    }
+
+    private function isPassiveForActiveSkill(object $passive, object $activeSkill): bool
+    {
+        if (($passive->skill_line ?? null) && ($activeSkill->skill_line ?? null)) {
+            return $passive->skill_line === $activeSkill->skill_line;
+        }
+
+        return ($passive->effect_key ?? null) !== null
+            && $passive->effect_key === ($activeSkill->effect_key ?? null);
     }
 
     /**
