@@ -317,7 +317,7 @@ class GemControllerTest extends TestCase
                 'socket_index' => 0,
             ])
             ->assertStatus(422)
-            ->assertJsonPath('message', '该装备无法取下宝石');
+            ->assertJsonPath('message', '该插槽没有宝石');
 
         $this->actingAs($user)
             ->postJson('/api/rpg/gems/unsocket?character_id=' . $character->id, [

@@ -99,7 +99,6 @@ class GemController extends Controller
 
     /**
      * 从装备卸下宝石
-     * 只有普通(white)品质的装备可以取下宝石，暗金/套装等无法取下
      */
     public function unsocket(UnsocketGemRequest $request): JsonResponse
     {
@@ -110,11 +109,6 @@ class GemController extends Controller
         $equipment = GameItem::where('id', $request->input('item_id'))
             ->where('character_id', $character->id)
             ->firstOrFail();
-
-        // 只有普通品质的装备可以取下宝石
-        if ($equipment->quality !== 'common') {
-            return $this->error('该装备无法取下宝石');
-        }
 
         // 查找宝石
         $gem = GameItemGem::where('item_id', $equipment->id)
