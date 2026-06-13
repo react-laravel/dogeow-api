@@ -3,12 +3,14 @@
 namespace Tests\Feature\Controllers\Game;
 
 use App\Events\Game\GameCombatUpdate;
+use App\Jobs\Game\AutoCombatRoundJob;
 use App\Models\Game\GameCharacter;
 use App\Models\Game\GameMapDefinition;
 use App\Models\Game\GameMonsterDefinition;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Redis;
 use Tests\TestCase;
 
 class MapControllerTest extends TestCase
@@ -85,6 +87,11 @@ class MapControllerTest extends TestCase
         $character = $this->createCharacter($user, ['current_map_id' => 1, 'is_fighting' => false]);
         $map = $this->createMapDefinition();
 
+        Redis::shouldReceive('del')
+            ->once()
+            ->with(AutoCombatRoundJob::redisKey($character->id))
+            ->andReturn(1);
+
         $response = $this->actingAs($user)
             ->postJson('/api/rpg/maps/' . $map->id . '/enter?character_id=' . $character->id);
 
@@ -96,6 +103,8 @@ class MapControllerTest extends TestCase
         Event::fake([GameCombatUpdate::class]);
 
         $user = User::factory()->create();
+        Redis::shouldReceive('del')->once()->andReturn(1);
+
         $deer = $this->createMonsterDefinition(['name' => 'Deer']);
         $goblin = $this->createMonsterDefinition(['name' => 'Goblin']);
         $forest = $this->createMapDefinition(['monster_ids' => [$deer->id]]);
@@ -141,10 +150,29 @@ class MapControllerTest extends TestCase
         $character = $this->createCharacter($user, ['current_map_id' => 1, 'is_fighting' => false]);
         $map = $this->createMapDefinition();
 
+        Redis::shouldReceive('del')
+            ->once()
+            ->with(AutoCombatRoundJob::redisKey($character->id))
+            ->andReturn(1);
+
         $response = $this->actingAs($user)
             ->postJson('/api/rpg/maps/' . $map->id . '/teleport?character_id=' . $character->id);
 
         $response->assertStatus(200);
+    }
+
+    public function test_enter_map_clears_auto_combat_redis_key_so_combat_can_restart(): void
+    {
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, ['current_map_id' => 1, 'is_fighting' => true]);
+        $map = $this->createMapDefinition(['name' => 'Another Map']);
+        $key = AutoCombatRoundJob::redisKey($character->id);
+
+        Redis::shouldReceive('del')->once()->with($key)->andReturn(1);
+
+        $this->actingAs($user)
+            ->postJson('/api/rpg/maps/' . $map->id . '/enter?character_id=' . $character->id)
+            ->assertStatus(200);
     }
 
     public function test_can_get_current_map(): void

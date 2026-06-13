@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api\Game;
 
 use App\Http\Controllers\Concerns\CharacterConcern;
 use App\Http\Controllers\Controller;
+use App\Jobs\Game\AutoCombatRoundJob;
 use App\Models\Game\GameMapDefinition;
 use App\Services\Game\GameCombatService;
 use App\Services\Game\GameMonsterService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Redis;
 
 class MapController extends Controller
 {
@@ -56,6 +58,7 @@ class MapController extends Controller
         $character = $this->getCharacter($request);
         $map = GameMapDefinition::findOrFail($mapId);
 
+        Redis::del(AutoCombatRoundJob::redisKey($character->id));
         $character->clearCombatState();
         $character->current_map_id = $mapId;
         $character->is_fighting = true;
@@ -82,6 +85,7 @@ class MapController extends Controller
 
         // 直接传送到地图，自动开始战斗；若当前未在战斗中则视为复活，只恢复基础生命值与法力值
         $wasNotFighting = ! $character->is_fighting;
+        Redis::del(AutoCombatRoundJob::redisKey($character->id));
         $character->clearCombatState();
         $character->current_map_id = $mapId;
         $character->is_fighting = true;
