@@ -101,10 +101,7 @@ class CombatController extends Controller
 
             // 使用 SET 原子操作：NX 表示仅在 key 不存在时设置，EX 表示设置过期时间
             // 这同时防止了并发请求时的竞态条件，并确保 key 一定会过期
-            $setResult = Redis::set($key, $payload, [
-                'EX' => AutoCombatRoundJob::ttl(),
-                'NX' => true,
-            ]);
+            $setResult = Redis::set($key, $payload, 'EX', AutoCombatRoundJob::ttl(), 'NX');
             if (! $setResult) {
                 // Key 已存在，说明有其他请求已经开始了战斗
                 return $this->error('自动战斗已在运行中，请先停止当前战斗');
