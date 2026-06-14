@@ -18,13 +18,14 @@ class GameFactorySeeder extends Seeder
         GameItemDefinition::factory()->count(24)->create();
         GameSkillDefinition::factory()->count(12)->create();
 
-        $monsters = GameMonsterDefinition::factory()->count(18)->create();
+        $maps = GameMapDefinition::factory()->count(8)->create();
+        $monsters = GameMonsterDefinition::factory()->count($maps->count() * 3)->create();
 
-        GameMapDefinition::factory()->count(8)->create()->each(function (GameMapDefinition $map) use ($monsters): void {
-            $selectionCount = random_int(2, min(4, $monsters->count()));
-
+        $maps->each(function (GameMapDefinition $map, int $index) use ($monsters): void {
             $map->update([
-                'monster_ids' => $monsters->random($selectionCount)->modelKeys(),
+                'monster_ids' => $monsters
+                    ->slice($index * 3, 3)
+                    ->modelKeys(),
             ]);
         });
     }

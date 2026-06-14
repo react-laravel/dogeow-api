@@ -549,6 +549,77 @@ $prompts = [
     'chaos-king' => 'RPG monster portrait, chaos king, final boss, crown, chaos aura, most imposing figure, highly detailed final boss art, square, dark background',
 ];
 
+$maps = require __DIR__ . '/maps.php';
+
+$archetypes = [
+    [
+        'key' => 'boar',
+        'name' => '野猪',
+        'hp_base' => 3,
+        'hp_growth' => 6,
+        'defense_base' => 1,
+        'defense_growth' => 1,
+        'attack_growth' => 2,
+    ],
+    [
+        'key' => 'deer',
+        'name' => '鹿',
+        'hp_base' => 2,
+        'hp_growth' => 4,
+        'defense_base' => 2,
+        'defense_growth' => 2,
+        'attack_growth' => 3,
+    ],
+    [
+        'key' => 'rabbit',
+        'name' => '兔子',
+        'hp_base' => 1,
+        'hp_growth' => 2,
+        'defense_base' => 3,
+        'defense_growth' => 3,
+        'attack_growth' => 1,
+    ],
+];
+
+$requiredMonsterCount = count($maps) * count($archetypes);
+
+for ($index = count($monsters); $index < $requiredMonsterCount; $index++) {
+    $mapIndex = intdiv($index, count($archetypes));
+    $archetype = $archetypes[$index % count($archetypes)];
+    $map = $maps[$mapIndex];
+    $assetKey = sprintf(
+        'map-%02d-%s',
+        $mapIndex + 1,
+        $archetype['key']
+    );
+
+    $monsters[] = [
+        'name' => $map['name'] . $archetype['name'],
+        'type' => 'normal',
+        'level' => $mapIndex + 1,
+        'experience_base' => max(2, ($mapIndex + 1) * 2 + $index % count($archetypes)),
+    ];
+
+    $assetKeys[] = $assetKey;
+    $prompts[$assetKey] = sprintf(
+        'RPG monster portrait, %s themed %s creature, readable silhouette, detailed game character art, square composition, dark background',
+        $map['name'],
+        $archetype['name']
+    );
+}
+
+$applyLayerStats = static function (array $monster, int $index) use ($archetypes): array {
+    $layer = intdiv($index, count($archetypes)) + 1;
+    $archetype = $archetypes[$index % count($archetypes)];
+
+    return array_merge($monster, [
+        'level' => $layer,
+        'hp_base' => $archetype['hp_base'] + ($layer - 1) * $archetype['hp_growth'],
+        'defense_base' => $archetype['defense_base'] + ($layer - 1) * $archetype['defense_growth'],
+        'attack_base' => ($layer - 1) * $archetype['attack_growth'],
+    ]);
+};
+
 $defaultDropTable = static function (array $monster): array {
     $itemTypes = ['weapon', 'helmet', 'armor', 'gloves', 'boots', 'ring', 'amulet', 'belt'];
     $type = $monster['type'] ?? 'normal';
@@ -582,11 +653,15 @@ $defaultDropTable = static function (array $monster): array {
 };
 
 return array_map(
-    fn (array $monster, int $index) => array_merge($monster, [
-        'asset_key' => $assetKeys[$index],
-        'icon_prompt' => $prompts[$assetKeys[$index]],
-        'drop_table' => $monster['drop_table'] ?? $defaultDropTable($monster),
-    ]),
+    static function (array $monster, int $index) use ($applyLayerStats, $assetKeys, $prompts, $defaultDropTable): array {
+        $monster = $applyLayerStats($monster, $index);
+
+        return array_merge($monster, [
+            'asset_key' => $assetKeys[$index],
+            'icon_prompt' => $prompts[$assetKeys[$index]],
+            'drop_table' => $monster['drop_table'] ?? $defaultDropTable($monster),
+        ]);
+    },
     $monsters,
     array_keys($monsters)
 );

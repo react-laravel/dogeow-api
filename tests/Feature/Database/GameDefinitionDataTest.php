@@ -73,6 +73,38 @@ class GameDefinitionDataTest extends TestCase
             $this->assertGreaterThan(0, $monster->drop_table['potion_chance'] ?? 0, "{$monster->name} should be able to drop potions");
             $this->assertNotEmpty($monster->drop_table['item_types'] ?? [], "{$monster->name} should define equipment types");
         }
+
+        $secondMap = GameMapDefinition::query()
+            ->where('name', '幽暗森林')
+            ->where('act', 1)
+            ->firstOrFail();
+
+        $secondLayerMonsters = GameMonsterDefinition::query()
+            ->whereIn('id', $secondMap->monster_ids ?? [])
+            ->get()
+            ->keyBy('id');
+
+        $this->assertSame(
+            [
+                ['hp' => 3, 'defense' => 6, 'attack' => 1],
+                ['hp' => 6, 'defense' => 4, 'attack' => 3],
+                ['hp' => 9, 'defense' => 2, 'attack' => 2],
+            ],
+            collect($secondMap->monster_ids)
+                ->map(fn (int $id): array => [
+                    'hp' => (int) $secondLayerMonsters[$id]->hp_base,
+                    'defense' => (int) $secondLayerMonsters[$id]->defense_base,
+                    'attack' => (int) $secondLayerMonsters[$id]->attack_base,
+                ])
+                ->all()
+        );
+
+        $allMapMonsterIds = GameMapDefinition::query()
+            ->pluck('monster_ids')
+            ->flatMap(fn (?array $ids): array => $ids ?? [])
+            ->values();
+
+        $this->assertSame($allMapMonsterIds->count(), $allMapMonsterIds->unique()->count());
     }
 
     public function test_game_definition_factories_create_valid_related_records(): void
@@ -97,13 +129,20 @@ class GameDefinitionDataTest extends TestCase
 
         $this->assertSame(30, GameItemDefinition::query()->count());
         $this->assertSame(12, GameSkillDefinition::query()->count());
-        $this->assertSame(18, GameMonsterDefinition::query()->count());
+        $this->assertSame(24, GameMonsterDefinition::query()->count());
         $this->assertSame(8, GameMapDefinition::query()->count());
         $this->assertTrue(
             GameMapDefinition::query()->get()->every(
                 fn (GameMapDefinition $map): bool => is_array($map->monster_ids)
-                    && count($map->monster_ids) >= 2
+                    && count($map->monster_ids) === 3
             )
         );
+
+        $allMapMonsterIds = GameMapDefinition::query()
+            ->pluck('monster_ids')
+            ->flatMap(fn (?array $ids): array => $ids ?? [])
+            ->values();
+
+        $this->assertSame($allMapMonsterIds->count(), $allMapMonsterIds->unique()->count());
     }
 }

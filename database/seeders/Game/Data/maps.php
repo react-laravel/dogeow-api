@@ -45,7 +45,7 @@ $mapPrompts = [
     'chaos-king-throne' => 'RPG game background, chaos king throne, final boss arena, lava and void, throne on platform, ultimate battle stage',
 ];
 
-return [
+$maps = [
     ['name' => '新手营地', 'act' => 1, 'monster_ids' => [1, 2, 3], 'description' => '安全的训练场所', 'asset_key' => 'safe-training-camp', 'icon_prompt' => $mapPrompts['safe-training-camp']],
     ['name' => '幽暗森林', 'act' => 1, 'monster_ids' => [5, 6], 'description' => '野狼出没的森林', 'asset_key' => 'dark-enchanted-forest', 'icon_prompt' => $mapPrompts['dark-enchanted-forest']],
     ['name' => '哥布林巢穴', 'act' => 1, 'monster_ids' => [6, 7], 'description' => '哥布林的聚集地', 'asset_key' => 'goblin-cave-lair', 'icon_prompt' => $mapPrompts['goblin-cave-lair']],
@@ -88,3 +88,15 @@ return [
     ['name' => '混沌源点', 'act' => 8, 'monster_ids' => [47, 48], 'description' => '混沌的源头', 'asset_key' => 'chaos-origin-point', 'icon_prompt' => $mapPrompts['chaos-origin-point']],
     ['name' => '混沌王座', 'act' => 8, 'monster_ids' => [48, 49], 'description' => '混沌之王的最终王座', 'asset_key' => 'chaos-king-throne', 'icon_prompt' => $mapPrompts['chaos-king-throne']],
 ];
+
+return array_map(
+    static fn (array $map, int $index): array => array_merge($map, [
+        'monster_ids' => [
+            $index * 3 + 3,
+            $index * 3 + 2,
+            $index * 3 + 1,
+        ],
+    ]),
+    $maps,
+    array_keys($maps)
+);

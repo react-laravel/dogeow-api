@@ -21,10 +21,15 @@ class GameBalanceConfigTest extends TestCase
     {
         $monsters = require base_path('database/seeders/Game/Data/monsters.php');
         $newbieMonsters = array_slice($monsters, 0, 3);
+        $secondLayerMonsters = array_slice($monsters, 3, 3);
 
         $this->assertSame(['猪', '鹿', '兔子'], array_column($newbieMonsters, 'name'));
         $this->assertSame([0, 0, 0], array_column($newbieMonsters, 'attack_base'));
         $this->assertSame([3, 2, 1], array_column($newbieMonsters, 'hp_base'));
         $this->assertSame([1, 2, 3], array_column($newbieMonsters, 'defense_base'));
+
+        $this->assertSame([2, 3, 1], array_column($secondLayerMonsters, 'attack_base'));
+        $this->assertSame([9, 6, 3], array_column($secondLayerMonsters, 'hp_base'));
+        $this->assertSame([2, 4, 6], array_column($secondLayerMonsters, 'defense_base'));
     }
 }
