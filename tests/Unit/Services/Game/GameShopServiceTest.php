@@ -920,10 +920,11 @@ class GameShopServiceTest extends TestCase
 
         $result = $this->service->getShopItems($character);
 
-        // Should only show the highest level HP potion template
         $hpPotions = $result['items']->filter(fn ($item) => $item['type'] === 'potion' && $item['sub_type'] === 'hp');
-        $this->assertGreaterThanOrEqual(1, $hpPotions->count());
-        $this->assertTrue($hpPotions->every(fn (array $item): bool => $item['id'] === $highHpPotion->id));
+        $this->assertEqualsCanonicalizing(
+            [$lowHpPotion->id, $midHpPotion->id, $highHpPotion->id],
+            $hpPotions->pluck('id')->all(),
+        );
     }
 
     public function test_record_purchased_item_adds_to_cache(): void

@@ -205,7 +205,7 @@ class GameShopService
             ->orderByDesc('required_level')
             ->get();
 
-        $potionPool = $potionDefinitions->unique('sub_type')->values();
+        $potionPool = $potionDefinitions->unique('id')->values();
 
         return $this->buildUniqueCategoryListings($potionPool, function (GameItemDefinition $definition): array {
             $randomStats = $this->itemCalculator->generateRandomStats($definition);
@@ -441,9 +441,16 @@ class GameShopService
         return $items
             ->groupBy(fn (array $item): string => (string) ($item['type'] ?? 'unknown'))
             ->flatMap(function (Collection $group) use ($perCategoryMax) {
+                if (($group->first()['type'] ?? null) === 'potion') {
+                    return $group
+                        ->sortByDesc(fn (array $item): int => (int) ($item['buy_price'] ?? 0))
+                        ->values();
+                }
+
                 return $group
                     ->sortByDesc(fn (array $item): int => (int) ($item['buy_price'] ?? 0))
-                    ->take($perCategoryMax);
+                    ->take($perCategoryMax)
+                    ->values();
             })
             ->values();
     }
