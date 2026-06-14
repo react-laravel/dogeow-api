@@ -132,6 +132,40 @@ class GameCharacterServiceTest extends TestCase
         $this->assertCount(1, $refreshed['characters']);
     }
 
+    public function test_create_mage_character_learns_level_one_fireball_by_default(): void
+    {
+        $user = User::factory()->create();
+        $fireball = GameSkillDefinition::create([
+            'name' => '小火球',
+            'description' => 'Starter mage attack skill',
+            'type' => 'active',
+            'class_restriction' => 'mage',
+            'mana_cost' => 8,
+            'cooldown' => 0,
+            'skill_points_cost' => 1,
+            'max_level' => 10,
+            'base_damage' => 16,
+            'damage_per_level' => 2,
+            'mana_cost_per_level' => 0,
+            'icon' => 'fireball',
+            'effect_key' => 'fireball',
+            'effects' => [],
+            'target_type' => 'single',
+            'is_active' => true,
+            'skill_line' => 'mage_fireball',
+            'node_tier' => 0,
+            'unlock_level' => 1,
+        ]);
+
+        $character = $this->service->createCharacter($user->id, 'MageHero', 'mage');
+        $learned = $character->skills()->where('skill_id', $fireball->id)->first();
+
+        $this->assertNotNull($learned);
+        $this->assertSame(1, $learned->level);
+        $this->assertSame(0, $learned->slot_index);
+        $this->assertSame(0, $character->fresh()->skill_points);
+    }
+
     public function test_create_character_validates_name_rules_and_duplicate_names(): void
     {
         $user = User::factory()->create();

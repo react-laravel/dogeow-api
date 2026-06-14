@@ -3,8 +3,8 @@
 use Database\Seeders\Game\Data\Skills\SkillTreeBuilder;
 
 return SkillTreeBuilder::merge(
-    SkillTreeBuilder::line('mage', 'basic', 'mage_fireball', 'fireball', '火球术', [
-        'description' => '单体 110% 魔法伤害',
+    SkillTreeBuilder::line('mage', 'basic', 'mage_fireball', 'fireball', '小火球', [
+        'description' => '单体 110% 攻击伤害',
         'mana_cost' => 8,
         'cooldown' => 0,
         'icon_prompt' => 'RPG skill icon, fireball, flaming orb, magic projectile, wizard spell, detailed fantasy icon, square, dark background',

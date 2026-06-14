@@ -3,6 +3,7 @@
 namespace App\Services\Game;
 
 use App\Models\Game\GameCharacter;
+use App\Models\Game\GameSkillDefinition;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -111,6 +112,7 @@ class GameCharacterService
             ]);
 
             $this->initializeEquipmentSlots($character);
+            $this->grantDefaultSkills($character);
             $this->clearCharacterCache($userId);
 
             return $character;
@@ -262,11 +264,37 @@ class GameCharacterService
     }
 
     /**
+     * Grant default level-1 skills for newly created characters.
+     */
+    private function grantDefaultSkills(GameCharacter $character): void
+    {
+        if ($character->class !== 'mage') {
+            return;
+        }
+
+        $fireball = GameSkillDefinition::query()
+            ->where('class_restriction', 'mage')
+            ->where('skill_line', 'mage_fireball')
+            ->where('node_tier', 0)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $fireball) {
+            return;
+        }
+
+        $character->skills()->firstOrCreate(
+            ['skill_id' => $fireball->id],
+            ['level' => 1, 'slot_index' => 0]
+        );
+    }
+
+    /**
      * Get available skills for character
      */
     private function getAvailableSkills(GameCharacter $character)
     {
-        return \App\Models\Game\GameSkillDefinition::query()
+        return GameSkillDefinition::query()
             ->where('is_active', true)
             ->where(function ($query) use ($character) {
                 $query->where('class_restriction', 'all')

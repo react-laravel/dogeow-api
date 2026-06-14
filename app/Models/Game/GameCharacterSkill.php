@@ -15,6 +15,8 @@ class GameCharacterSkill extends Model
     protected $fillable = [
         'character_id',
         'skill_id',
+        'level',
+        'slot_index',
     ];
 
     /**
