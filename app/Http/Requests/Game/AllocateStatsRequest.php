@@ -27,7 +27,7 @@ class AllocateStatsRequest extends FormRequest
         return [
             'character_id.required' => '角色 ID 不能为空',
             'character_id.exists' => '角色不存在',
-            'strength.min' => '力量不能为负数',
+            'strength.min' => '攻击力不能为负数',
             'dexterity.min' => '敏捷不能为负数',
             'vitality.min' => '体力不能为负数',
             'energy.min' => '能量不能为负数',

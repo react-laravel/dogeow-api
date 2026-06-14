@@ -3,6 +3,7 @@
 namespace Tests\Unit\Models\Game;
 
 use App\Models\Game\GameCharacter;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Tests\TestCase;
 
 class GameCharacterTest extends TestCase
@@ -137,6 +138,22 @@ class GameCharacterTest extends TestCase
         $this->assertEquals(25, $character->getBaseMana());
     }
 
+    public function test_base_attack_uses_strength_for_every_class(): void
+    {
+        config(['game.combat.attack' => ['stat' => 'strength', 'multiplier' => 1]]);
+
+        foreach (['warrior', 'mage', 'ranger'] as $class) {
+            $character = new GameCharacter([
+                'class' => $class,
+                'strength' => 12,
+                'dexterity' => 50,
+                'energy' => 80,
+            ]);
+
+            $this->assertSame(12, $character->getBaseAttack());
+        }
+    }
+
     public function test_get_experience_for_current_level_returns_configured_value(): void
     {
         config(['game.experience_table' => [1 => 0, 2 => 100, 3 => 300]]);
@@ -166,7 +183,7 @@ class GameCharacterTest extends TestCase
     public function test_user_relationship_returns_belongs_to(): void
     {
         $relation = $this->character->user();
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class, $relation);
+        $this->assertInstanceOf(BelongsTo::class, $relation);
     }
 
     public function test_get_difficulty_multipliers_returns_default_for_tier_zero(): void

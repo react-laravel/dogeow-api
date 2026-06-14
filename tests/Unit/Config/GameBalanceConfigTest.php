@@ -10,7 +10,8 @@ class GameBalanceConfigTest extends TestCase
     {
         $this->assertSame(780000, config('game.experience_table.46'));
         $this->assertSame(3, config('game.hp.vitality_multiplier'));
-        $this->assertSame(1, config('game.combat.attack.mage.multiplier'));
+        $this->assertSame('strength', config('game.combat.attack.stat'));
+        $this->assertSame(1, config('game.combat.attack.multiplier'));
         $this->assertSame(1.8, config('game.monster_type_multipliers.elite'));
         $this->assertSame(3, config('game.monster_type_multipliers.boss'));
         $this->assertSame([5, 15], config('game.shop.gem_stat_ranges.max_hp'));
@@ -23,5 +24,7 @@ class GameBalanceConfigTest extends TestCase
 
         $this->assertSame(['猪', '鹿', '兔子'], array_column($newbieMonsters, 'name'));
         $this->assertSame([0, 0, 0], array_column($newbieMonsters, 'attack_base'));
+        $this->assertSame([3, 2, 1], array_column($newbieMonsters, 'hp_base'));
+        $this->assertSame([1, 2, 3], array_column($newbieMonsters, 'defense_base'));
     }
 }

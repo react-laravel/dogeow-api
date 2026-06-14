@@ -53,7 +53,7 @@ class GameCharacterServiceTest extends TestCase
 
         $this->assertCount(1, $result['characters']);
         $this->assertSame('ReconcileHero', $result['characters']->first()['name']);
-        $this->assertSame(2, $character->fresh()->level);
+        $this->assertSame(4, $character->fresh()->level);
     }
 
     public function test_get_character_detail_returns_null_when_no_character_matches(): void
@@ -94,7 +94,7 @@ class GameCharacterServiceTest extends TestCase
         $result = $this->service->getCharacterDetail($user->id);
 
         $this->assertSame($character->id, $result['character']->id);
-        $this->assertSame(2, $result['character']->fresh()->level);
+        $this->assertSame(4, $result['character']->fresh()->level);
         $this->assertArrayHasKey('weapon', $result['equipped_items']);
         $this->assertSame($equippedItem->id, $result['equipped_items']['weapon']->id);
         $this->assertArrayHasKey('attack', $result['combat_stats']);
@@ -439,8 +439,8 @@ class GameCharacterServiceTest extends TestCase
 
             $this->assertTrue($result['available']);
             $this->assertSame(120, $result['offline_seconds']);
-            $this->assertSame(240, $result['experience']);
-            $this->assertSame(120, $result['copper']);
+            $this->assertSame(48, $result['experience']);
+            $this->assertSame(48, $result['copper']);
         } finally {
             Carbon::setTestNow();
         }
@@ -480,9 +480,9 @@ class GameCharacterServiceTest extends TestCase
 
             $fresh = $character->fresh();
             $this->assertTrue($result['level_up']);
-            $this->assertSame(2, $result['new_level']);
-            $this->assertSame(210, $fresh->experience);
-            $this->assertSame(70, $fresh->copper);
+            $this->assertSame(4, $result['new_level']);
+            $this->assertSame(114, $fresh->experience);
+            $this->assertSame(34, $fresh->copper);
             $this->assertNotNull($fresh->claimed_offline_at);
 
             $recheck = $this->service->checkOfflineRewards($fresh);

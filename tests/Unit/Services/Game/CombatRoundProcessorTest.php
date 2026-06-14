@@ -131,6 +131,7 @@ class CombatRoundProcessorTest extends TestCase
             'name' => 'Fireball',
             'icon' => 'flame',
             'effect_key' => 'fireball',
+            'type' => 'active',
             'target_type' => 'single',
             'mana_cost' => 10,
             'damage' => 120,
@@ -140,7 +141,6 @@ class CombatRoundProcessorTest extends TestCase
         $charSkill = (object) ['skill' => $skill];
 
         $skillsRelation = \Mockery::mock(HasMany::class);
-        $skillsRelation->shouldReceive('whereHas')->once()->andReturnSelf();
         $skillsRelation->shouldReceive('with')->once()->andReturnSelf();
         $skillsRelation->shouldReceive('get')->once()->andReturn(collect([$charSkill]));
 
@@ -182,6 +182,7 @@ class CombatRoundProcessorTest extends TestCase
             'name' => 'Fireball',
             'icon' => 'flame',
             'effect_key' => 'fireball',
+            'type' => 'active',
             'target_type' => 'single',
             'mana_cost' => 10,
             'damage' => 120,
@@ -191,7 +192,6 @@ class CombatRoundProcessorTest extends TestCase
         $charSkill = (object) ['skill' => $skill];
 
         $skillsRelation = \Mockery::mock(HasMany::class);
-        $skillsRelation->shouldReceive('whereHas')->once()->andReturnSelf();
         $skillsRelation->shouldReceive('with')->once()->andReturnSelf();
         $skillsRelation->shouldReceive('get')->once()->andReturn(collect([$charSkill]));
 
@@ -1456,6 +1456,7 @@ class CombatRoundProcessorTest extends TestCase
             'name' => 'AOE Skill',
             'icon' => 'aoe',
             'effect_key' => 'aoe_blast',
+            'type' => 'active',
             'target_type' => 'all',
             'mana_cost' => 20,
             'damage' => 80,
@@ -1466,6 +1467,7 @@ class CombatRoundProcessorTest extends TestCase
             'name' => 'Single Skill',
             'icon' => 'single',
             'effect_key' => null,
+            'type' => 'active',
             'target_type' => 'single',
             'mana_cost' => 10,
             'damage' => 20,
@@ -1476,7 +1478,6 @@ class CombatRoundProcessorTest extends TestCase
         $charSkillB = (object) ['skill' => $skillB];
 
         $skillsRelation = \Mockery::mock(HasMany::class);
-        $skillsRelation->shouldReceive('whereHas')->once()->andReturnSelf();
         $skillsRelation->shouldReceive('with')->once()->andReturnSelf();
         $skillsRelation->shouldReceive('get')->once()->andReturn(collect([$charSkillA, $charSkillB]));
 

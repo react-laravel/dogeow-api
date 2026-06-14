@@ -65,9 +65,8 @@ trait CharacterCombatStats
     public function getBaseAttack(): int
     {
         $attackConfig = config('game.combat.attack', []);
-        $classConfig = $attackConfig[$this->class] ?? ($attackConfig['default'] ?? ['stat' => 'strength', 'multiplier' => 1]);
-        $stat = $classConfig['stat'] ?? 'strength';
-        $multiplier = (float) ($classConfig['multiplier'] ?? 1);
+        $stat = $attackConfig['stat'] ?? 'strength';
+        $multiplier = (float) ($attackConfig['multiplier'] ?? 1);
 
         return (int) ($this->{$stat} * $multiplier);
     }

@@ -238,22 +238,20 @@ return [
     |--------------------------------------------------------------------------
     | 战斗属性计算(攻击/防御/暴击)
     |--------------------------------------------------------------------------
-    | 敏捷 (dexterity) 在战斗中的用途：
-    | - 攻击：仅游侠以敏捷为主属性(见 attack.ranger)，其他职业不参与攻击计算。
+    | 基础攻击统一由 strength 字段决定（前端显示为“攻击力”）：
+    | - 攻击：所有职业基础攻击 = strength × attack.multiplier。
     | - 防御：全职业参与，防御 = 体力×vitality_multiplier + 敏捷×dexterity_multiplier。
     | - 暴击率：全职业参与，基础暴击 = 敏捷×dexterity_multiplier，总暴击率有 cap 上限。
-    | 暴击封顶后敏捷仍可提升防御(及游侠攻击)，部分装备有 required_dexterity 穿戴需求。
+    | 暴击封顶后敏捷仍可提升防御，部分装备有 required_dexterity 穿戴需求。
     |--------------------------------------------------------------------------
     */
     'combat' => [
         // 怪物属性刷新间隔(秒)，定期从数据库重新读取怪物属性
         'monster_refresh_interval' => env('COMBAT_MONSTER_REFRESH_INTERVAL', 60),
-        // 攻击：每职业主属性及倍数(战士力量、游侠敏捷、法师能量)
+        // 攻击：所有职业统一使用 strength 字段；前端显示为“攻击力”
         'attack' => [
-            'warrior' => ['stat' => 'strength', 'multiplier' => 1],
-            'ranger' => ['stat' => 'dexterity', 'multiplier' => 1],
-            'mage' => ['stat' => 'energy', 'multiplier' => 1],
-            'default' => ['stat' => 'strength', 'multiplier' => 1],
+            'stat' => 'strength',
+            'multiplier' => 1,
         ],
         // 防御：体力与敏捷系数
         'defense' => [

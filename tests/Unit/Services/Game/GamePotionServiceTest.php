@@ -49,8 +49,8 @@ class GamePotionServiceTest extends TestCase
         $this->assertNull(GameItem::find($majorHp->id));
         $this->assertSame(1, $majorMp->fresh()->quantity);
         $this->assertSame(2, $minorHp->fresh()->quantity);
-        $this->assertSame(70, $character->fresh()->current_hp);
-        $this->assertSame(40, $character->fresh()->current_mana);
+        $this->assertSame(50, $character->fresh()->current_hp);
+        $this->assertSame(30, $character->fresh()->current_mana);
     }
 
     public function test_try_auto_use_potions_returns_empty_when_disabled_or_above_threshold(): void

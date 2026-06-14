@@ -76,6 +76,6 @@ class AllocateStatsRequestTest extends TestCase
         $messages = $this->request->messages();
 
         $this->assertStringContainsString('角色 ID', $messages['character_id.required']);
-        $this->assertStringContainsString('力量', $messages['strength.min']);
+        $this->assertStringContainsString('攻击力', $messages['strength.min']);
     }
 }

@@ -57,12 +57,15 @@ class GameDefinitionDataTest extends TestCase
             ['猪', '鹿', '兔子'],
             $newbieMonsters->sortBy('id')->pluck('name')->values()->all()
         );
-        $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '猪')?->attack_base);
-        $this->assertSame(2, (int) $newbieMonsters->firstWhere('name', '猪')?->defense_base);
-        $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '鹿')?->attack_base);
-        $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '鹿')?->defense_base);
+        $this->assertSame(0, (int) $newbieMonsters->firstWhere('name', '猪')?->attack_base);
+        $this->assertSame(3, (int) $newbieMonsters->firstWhere('name', '猪')?->hp_base);
+        $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '猪')?->defense_base);
+        $this->assertSame(0, (int) $newbieMonsters->firstWhere('name', '鹿')?->attack_base);
+        $this->assertSame(2, (int) $newbieMonsters->firstWhere('name', '鹿')?->hp_base);
+        $this->assertSame(2, (int) $newbieMonsters->firstWhere('name', '鹿')?->defense_base);
         $this->assertSame(0, (int) $newbieMonsters->firstWhere('name', '兔子')?->attack_base);
-        $this->assertSame(0, (int) $newbieMonsters->firstWhere('name', '兔子')?->defense_base);
+        $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '兔子')?->hp_base);
+        $this->assertSame(3, (int) $newbieMonsters->firstWhere('name', '兔子')?->defense_base);
 
         foreach ($newbieMonsters as $monster) {
             $this->assertIsArray($monster->drop_table, "{$monster->name} should have an RPG drop table");

@@ -207,7 +207,7 @@ class GameShopService
 
         $potionPool = $potionDefinitions->unique('sub_type')->values();
 
-        return $this->buildCategoryListings($potionPool, function (GameItemDefinition $definition): array {
+        return $this->buildUniqueCategoryListings($potionPool, function (GameItemDefinition $definition): array {
             $randomStats = $this->itemCalculator->generateRandomStats($definition);
             $buyPrice = $this->itemCalculator->calculateBuyPrice($definition, $randomStats);
             $previewItem = new GameItem([
@@ -253,7 +253,7 @@ class GameShopService
             ->unique(fn (GameItemDefinition $definition): string => $this->resolveGemStatKey($definition))
             ->values();
 
-        return $this->buildCategoryListings($gemPool, function (GameItemDefinition $definition): array {
+        return $this->buildUniqueCategoryListings($gemPool, function (GameItemDefinition $definition): array {
             $rolledStats = $this->itemCalculator->rollGemStats($definition);
             $buyPrice = $this->itemCalculator->calculateBuyPrice($definition, $rolledStats);
             $sellPrice = $this->itemCalculator->calculateGemSellPriceFromStats($rolledStats);
@@ -357,6 +357,30 @@ class GameShopService
             $listing = $buildListing($definition);
             $category = $listingCategory ?? (string) ($listing['type'] ?? $definition->type);
             $listing['listing_id'] = $this->makeListingId($category, $definition->id, $index);
+            $result->push($listing);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  Collection<int, GameItemDefinition>  $pool
+     * @param  callable(GameItemDefinition): array<string, mixed>  $buildListing
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function buildUniqueCategoryListings(
+        Collection $pool,
+        callable $buildListing,
+        ?string $listingCategory = null,
+    ): Collection {
+        /** @var Collection<int, array<string, mixed>> $result */
+        $result = new Collection;
+
+        foreach ($pool->values() as $index => $definition) {
+            /** @var GameItemDefinition $definition */
+            $listing = $buildListing($definition);
+            $category = $listingCategory ?? (string) ($listing['type'] ?? $definition->type);
+            $listing['listing_id'] = $this->makeListingId($category, $definition->id, (int) $index);
             $result->push($listing);
         }
 
