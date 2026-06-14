@@ -81,16 +81,16 @@ class CombatRewardCalculatorTest extends TestCase
     }
 
     #[Test]
-    public function calculate_monster_copper_loot_returns_layer_times_per_layer_when_chance_succeeds(): void
+    public function calculate_monster_copper_loot_returns_map_layer_times_per_layer_when_chance_succeeds(): void
     {
         config([
             'game.copper_drop.chance' => 1.0,
             'game.copper_drop.per_layer' => 1,
         ]);
 
-        $result = $this->calculator->calculateMonsterCopperLoot(['level' => 7]);
+        $result = $this->calculator->calculateMonsterCopperLoot(['level' => 7, 'reward_layer' => 1]);
 
-        $this->assertSame(7, $result);
+        $this->assertSame(1, $result);
     }
 
     #[Test]
@@ -111,8 +111,8 @@ class CombatRewardCalculatorTest extends TestCase
     {
         config(['game.copper_drop.chance' => 1.0]);
 
-        $result = $this->calculator->calculateMonsterCopperLoot(['level' => 2]);
+        $result = $this->calculator->calculateMonsterCopperLoot(['level' => 2, 'map_layer' => 4]);
 
-        $this->assertSame(2, $result);
+        $this->assertSame(4, $result);
     }
 }
