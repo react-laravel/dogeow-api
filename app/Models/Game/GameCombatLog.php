@@ -58,9 +58,9 @@ class GameCombatLog extends Model
         'monster_defense_reduction',
         'monster_counter_damage',
         // 战斗详情
-        'round_number',
         'monsters_alive_count',
         'monsters_killed_count',
+        'is_crit',
         // 难度相关
         'difficulty_tier',
         'difficulty_multiplier',
@@ -100,9 +100,9 @@ class GameCombatLog extends Model
             'total_damage_to_monsters' => 'integer',
             'monster_defense_reduction' => 'float',
             'monster_counter_damage' => 'integer',
-            'round_number' => 'integer',
             'monsters_alive_count' => 'integer',
             'monsters_killed_count' => 'integer',
+            'is_crit' => 'boolean',
             'difficulty_tier' => 'integer',
             'difficulty_multiplier' => 'float',
         ];

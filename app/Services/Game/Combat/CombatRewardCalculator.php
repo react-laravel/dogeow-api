@@ -43,39 +43,45 @@ class CombatRewardCalculator
     }
 
     /**
-     * 根据怪物定义计算铜币掉落
+     * 根据怪物层数计算铜币掉落（概率与数量见 config game.copper_drop）
      */
     public function calculateMonsterCopperLoot(array $monster): int
     {
-        $monsterId = $monster['id'] ?? null;
-        if (! $monsterId) {
-            return rand(1, 10);
-        }
-
-        $definition = GameMonsterDefinition::query()->find($monsterId);
-        if (! $definition) {
-            return rand(1, 10);
-        }
-
-        $dropTable = $definition->drop_table ?? [];
-        $level = $monster['level'] ?? $definition->level;
-
-        $copperConfig = config('game.copper_drop');
-        if (! empty($dropTable['copper_chance'])) {
-            $copperChance = $dropTable['copper_chance'];
-            $copperBase = (int) ($dropTable['copper_base'] ?? $copperConfig['base']);
-            $copperRange = (int) ($dropTable['copper_range'] ?? $copperConfig['range']);
-        } else {
-            $copperChance = $copperConfig['chance'];
-            $copperBase = (int) $copperConfig['base'];
-            $copperRange = (int) $copperConfig['range'];
-        }
+        $copperConfig = config('game.copper_drop', []);
+        $copperChance = (float) ($copperConfig['chance'] ?? 0.1);
+        $perLayer = (int) ($copperConfig['per_layer'] ?? 1);
 
         if (! $this->rollChance($copperChance)) {
             return 0;
         }
 
-        return random_int($copperBase, $copperBase + $copperRange);
+        $layer = $this->resolveMonsterLayer($monster);
+
+        return max(0, $layer * $perLayer);
+    }
+
+    /**
+     * 解析怪物层数（优先战斗实例 level，否则读定义）
+     */
+    private function resolveMonsterLayer(array $monster): int
+    {
+        $layer = (int) ($monster['level'] ?? 0);
+        if ($layer > 0) {
+            return $layer;
+        }
+
+        $monsterId = $monster['id'] ?? null;
+        if (! $monsterId) {
+            return 1;
+        }
+
+        $definition = GameMonsterDefinition::query()->find($monsterId);
+
+        if ($definition === null) {
+            return 1;
+        }
+
+        return max(1, (int) $definition->level);
     }
 
     /**
@@ -83,6 +89,20 @@ class CombatRewardCalculator
      */
     private function rollChance(float $chance): bool
     {
+        if ($this->isTestMode()) {
+            $chanceMultiplier = config('game.test_mode.copper_drop_chance', 10);
+            $chance = min(1.0, $chance * $chanceMultiplier);
+        }
+
         return mt_rand() / mt_getrandmax() < $chance;
+    }
+
+    private function isTestMode(): bool
+    {
+        if (config('game.test_mode.enabled', false)) {
+            return true;
+        }
+
+        return in_array(config('app.env'), ['testing', 'sandbox'], true);
     }
 }

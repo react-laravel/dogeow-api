@@ -313,4 +313,28 @@ class GameCharacterTest extends TestCase
         $character = new GameCharacter(['current_mana' => 45]);
         $this->assertEquals(45, $character->getCurrentMana());
     }
+
+    public function test_get_creation_hp_uses_class_base_vitality_without_equipment(): void
+    {
+        $character = new GameCharacter([
+            'class' => 'warrior',
+            'vitality' => 20,
+        ]);
+
+        $this->assertSame(35, $character->getCreationHp());
+    }
+
+    public function test_apply_revive_resources_restores_creation_hp_and_preserves_mana(): void
+    {
+        $character = new GameCharacter([
+            'class' => 'mage',
+            'current_hp' => 0,
+            'current_mana' => 33,
+        ]);
+
+        $character->applyReviveResources();
+
+        $this->assertSame(19, $character->current_hp);
+        $this->assertSame(33, $character->current_mana);
+    }
 }

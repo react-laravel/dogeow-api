@@ -28,6 +28,7 @@ class GameCombatLogTest extends TestCase
         $this->assertContains('loot_dropped', $fillable);
         $this->assertContains('experience_gained', $fillable);
         $this->assertContains('copper_gained', $fillable);
+        $this->assertContains('is_crit', $fillable);
     }
 
     public function test_model_uses_correct_casts(): void
@@ -36,8 +37,10 @@ class GameCombatLogTest extends TestCase
         $this->assertArrayHasKey('victory', $casts);
         $this->assertArrayHasKey('loot_dropped', $casts);
         $this->assertArrayHasKey('skills_used', $casts);
+        $this->assertArrayHasKey('is_crit', $casts);
         $this->assertEquals('boolean', $casts['victory']);
         $this->assertEquals('array', $casts['loot_dropped']);
+        $this->assertEquals('boolean', $casts['is_crit']);
     }
 
     public function test_character_relationship_exists(): void

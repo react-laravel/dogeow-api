@@ -57,7 +57,6 @@ class SkillController extends Controller
             $row['is_learned'] = $characterSkill !== null;
             if ($characterSkill !== null) {
                 $row['character_skill_id'] = $characterSkill->id;
-                $row['level'] = $characterSkill->level ?? 1;
                 $row['slot_index'] = $characterSkill->slot_index;
             }
 

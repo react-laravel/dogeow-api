@@ -173,6 +173,56 @@ class CombatDamageCalculatorTest extends TestCase
     }
 
     #[Test]
+    public function skill_damage_is_not_reduced_below_its_own_value_by_monster_defense(): void
+    {
+        $monsters = [
+            ['hp' => 100, 'defense' => 3, 'position' => 0, 'name' => '兔子'],
+        ];
+        $targetMonsters = [['position' => 0]];
+
+        $context = new DamageContext(
+            monsters: $monsters,
+            targetMonsters: $targetMonsters,
+            charAttack: 1,
+            skillDamage: 10,
+            isCrit: false,
+            charCritDamage: 1.5,
+            useAoe: false,
+        );
+
+        [$updatedMonsters, $totalDamage] = $this->calculator->applyCharacterDamageToMonsters($context);
+
+        $this->assertSame(10, $totalDamage);
+        $this->assertSame(90, $updatedMonsters[0]['hp']);
+        $this->assertSame(10, $updatedMonsters[0]['damage_taken']);
+    }
+
+    #[Test]
+    public function damage_taken_is_capped_by_monster_current_hp(): void
+    {
+        $monsters = [
+            ['hp' => 2, 'defense' => 0, 'position' => 0, 'name' => '残血怪物'],
+        ];
+        $targetMonsters = [['position' => 0]];
+
+        $context = new DamageContext(
+            monsters: $monsters,
+            targetMonsters: $targetMonsters,
+            charAttack: 18,
+            skillDamage: 0,
+            isCrit: false,
+            charCritDamage: 1.5,
+            useAoe: false,
+        );
+
+        [$updatedMonsters, $totalDamage] = $this->calculator->applyCharacterDamageToMonsters($context);
+
+        $this->assertSame(2, $totalDamage);
+        $this->assertSame(0, $updatedMonsters[0]['hp']);
+        $this->assertSame(2, $updatedMonsters[0]['damage_taken']);
+    }
+
+    #[Test]
     public function compute_base_attack_damage_applies_crit_when_is_crit_true(): void
     {
         // Arrange

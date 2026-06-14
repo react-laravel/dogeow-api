@@ -51,13 +51,90 @@ class CombatSkillSelectorTest extends TestCase
     #[Test]
     public function resolve_round_skill_filters_by_requested_skill_ids(): void
     {
-        $this->markTestSkipped('Skill creation uses non-existent damage column in table');
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user);
+        $character->combat_monsters = [['hp' => 100, 'max_hp' => 100]];
+        $character->save();
+
+        $firstSkill = $this->createSkillDefinition(['base_damage' => 30]);
+        $secondSkill = $this->createSkillDefinition(['base_damage' => 50]);
+        $this->attachSkillToCharacter($character, $firstSkill);
+        $this->attachSkillToCharacter($character, $secondSkill);
+
+        $result = $this->selector->resolveRoundSkill(
+            $character,
+            [$firstSkill->id],
+            currentRound: 1,
+            currentMana: 100,
+            skillCooldowns: []
+        );
+
+        $this->assertSame(30, $result['skill_damage']);
+        $this->assertSame($firstSkill->id, $result['skills_used_this_round'][0]['skill_id']);
     }
 
     #[Test]
     public function resolve_round_skill_returns_correct_structure(): void
     {
-        $this->markTestSkipped('Skill creation uses non-existent damage column in table');
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user);
+        $character->combat_monsters = [['hp' => 100, 'max_hp' => 100]];
+        $character->save();
+
+        $skill = $this->createSkillDefinition(['base_damage' => 30]);
+        $this->attachSkillToCharacter($character, $skill);
+
+        $result = $this->selector->resolveRoundSkill(
+            $character,
+            null,
+            currentRound: 1,
+            currentMana: 100,
+            skillCooldowns: []
+        );
+
+        $this->assertArrayHasKey('mana', $result);
+        $this->assertArrayHasKey('is_aoe', $result);
+        $this->assertArrayHasKey('skill_damage', $result);
+        $this->assertArrayHasKey('skills_used_this_round', $result);
+        $this->assertArrayHasKey('new_cooldowns', $result);
+        $this->assertSame(90, $result['mana']);
+        $this->assertSame(30, $result['skill_damage']);
+        $this->assertSame($skill->id, $result['skills_used_this_round'][0]['skill_id']);
+    }
+
+    #[Test]
+    public function resolve_round_skill_treats_empty_requested_skill_ids_as_no_restriction(): void
+    {
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, [
+            'class' => 'mage',
+            'strength' => 1,
+            'energy' => 3,
+        ]);
+        $character->combat_monsters = [['hp' => 1, 'max_hp' => 1]];
+        $character->save();
+
+        $skill = $this->createSkillDefinition([
+            'name' => '小火球',
+            'class_restriction' => 'mage',
+            'skill_line' => 'mage_fireball',
+            'base_damage' => 2,
+            'mana_cost' => 8,
+            'effect_key' => 'fireball',
+        ]);
+        $this->attachSkillToCharacter($character, $skill);
+
+        $result = $this->selector->resolveRoundSkill(
+            $character,
+            [],
+            currentRound: 1,
+            currentMana: 20,
+            skillCooldowns: []
+        );
+
+        $this->assertSame(12, $result['mana']);
+        $this->assertSame(2, $result['skill_damage']);
+        $this->assertSame('小火球', $result['skills_used_this_round'][0]['name']);
     }
 
     #[Test]
@@ -185,7 +262,7 @@ class CombatSkillSelectorTest extends TestCase
             'class_restriction' => 'all',
             'mana_cost' => 10,
             'cooldown' => 0,
-            'damage' => 30,
+            'base_damage' => 30,
             'effect_key' => 'skill_' . $counter,
             'target_type' => 'single',
             'is_active' => true,

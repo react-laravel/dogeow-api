@@ -237,9 +237,8 @@ class GameCharacter extends Model
     public function getExperienceToNextLevel(): int
     {
         $table = config('game.experience_table', []);
-        $fallback = (int) config('game.experience_fallback_per_level', 5000);
 
-        return $table[$this->level + 1] ?? ($this->level * $fallback);
+        return $table[$this->level + 1] ?? $this->calculateExperienceThresholdForLevel($this->level + 1);
     }
 
     /**
@@ -250,6 +249,18 @@ class GameCharacter extends Model
         $table = config('game.experience_table', []);
 
         return $table[$this->level] ?? 0;
+    }
+
+    private function calculateExperienceThresholdForLevel(int $level): int
+    {
+        $multiplier = (int) config('game.experience_fallback_multiplier', 50);
+        $total = 0;
+
+        for ($currentLevel = 1; $currentLevel < $level; $currentLevel++) {
+            $total += $multiplier * ($currentLevel ** 2);
+        }
+
+        return $total;
     }
 
     /**

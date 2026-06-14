@@ -33,7 +33,6 @@ class GameSkillDefinitionTest extends TestCase
         $this->assertArrayHasKey('effects', $casts);
         $this->assertArrayHasKey('is_active', $casts);
         $this->assertArrayHasKey('cooldown', $casts);
-        $this->assertArrayHasKey('max_level', $casts);
         $this->assertArrayHasKey('base_damage', $casts);
         $this->assertEquals('array', $casts['effects']);
         $this->assertEquals('boolean', $casts['is_active']);

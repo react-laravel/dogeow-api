@@ -60,12 +60,15 @@ class GameDefinitionDataTest extends TestCase
         $this->assertSame(0, (int) $newbieMonsters->firstWhere('name', '猪')?->attack_base);
         $this->assertSame(3, (int) $newbieMonsters->firstWhere('name', '猪')?->hp_base);
         $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '猪')?->defense_base);
+        $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '猪')?->experience_base);
         $this->assertSame(0, (int) $newbieMonsters->firstWhere('name', '鹿')?->attack_base);
         $this->assertSame(2, (int) $newbieMonsters->firstWhere('name', '鹿')?->hp_base);
         $this->assertSame(2, (int) $newbieMonsters->firstWhere('name', '鹿')?->defense_base);
+        $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '鹿')?->experience_base);
         $this->assertSame(0, (int) $newbieMonsters->firstWhere('name', '兔子')?->attack_base);
         $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '兔子')?->hp_base);
         $this->assertSame(3, (int) $newbieMonsters->firstWhere('name', '兔子')?->defense_base);
+        $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '兔子')?->experience_base);
 
         foreach ($newbieMonsters as $monster) {
             $this->assertIsArray($monster->drop_table, "{$monster->name} should have an RPG drop table");
@@ -86,15 +89,16 @@ class GameDefinitionDataTest extends TestCase
 
         $this->assertSame(
             [
-                ['hp' => 3, 'defense' => 6, 'attack' => 1],
-                ['hp' => 6, 'defense' => 4, 'attack' => 3],
-                ['hp' => 9, 'defense' => 2, 'attack' => 2],
+                ['hp' => 3, 'defense' => 6, 'attack' => 1, 'experience' => 4],
+                ['hp' => 6, 'defense' => 4, 'attack' => 3, 'experience' => 4],
+                ['hp' => 9, 'defense' => 2, 'attack' => 2, 'experience' => 4],
             ],
             collect($secondMap->monster_ids)
                 ->map(fn (int $id): array => [
                     'hp' => (int) $secondLayerMonsters[$id]->hp_base,
                     'defense' => (int) $secondLayerMonsters[$id]->defense_base,
                     'attack' => (int) $secondLayerMonsters[$id]->attack_base,
+                    'experience' => (int) $secondLayerMonsters[$id]->experience_base,
                 ])
                 ->all()
         );

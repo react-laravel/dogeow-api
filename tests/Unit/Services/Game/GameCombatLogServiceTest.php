@@ -77,9 +77,9 @@ class GameCombatLogServiceTest extends TestCase
                     'monster_counter' => 12,
                 ],
                 'battle' => [
-                    'round' => 4,
                     'alive_count' => 2,
                     'killed_count' => 1,
+                    'is_crit' => true,
                 ],
                 'difficulty' => [
                     'tier' => 3,
@@ -103,7 +103,7 @@ class GameCombatLogServiceTest extends TestCase
         $this->assertSame(8, $fresh->monster_level);
         $this->assertSame(10, $fresh->monster_hp);
         $this->assertSame(12, $fresh->monster_counter_damage);
-        $this->assertSame(4, $fresh->round_number);
+        $this->assertTrue($fresh->is_crit);
         $this->assertSame(3, $fresh->difficulty_tier);
     }
 
@@ -154,7 +154,7 @@ class GameCombatLogServiceTest extends TestCase
                 'hp' => 17,
                 'max_hp' => 90,
             ],
-        ], 6);
+        ]);
 
         $this->assertFalse($log->victory);
         $this->assertEquals(120, $log->duration_seconds);
@@ -255,9 +255,9 @@ class GameCombatLogServiceTest extends TestCase
             'total_damage_to_monsters' => 45,
             'monster_defense_reduction' => 0.2,
             'monster_counter_damage' => 20,
-            'round_number' => 3,
             'monsters_alive_count' => 0,
             'monsters_killed_count' => 1,
+            'is_crit' => true,
             'difficulty_tier' => 1,
             'difficulty_multiplier' => 1.75,
         ]);
@@ -268,7 +268,10 @@ class GameCombatLogServiceTest extends TestCase
         $this->assertSame($map->name, $detail['log']['map']['name']);
         $this->assertSame($monster->name, $detail['log']['monster']['name']);
         $this->assertSame(11, $detail['log']['monster_stats']['copper']);
+        $this->assertSame(7, $detail['log']['copper_gained']);
         $this->assertSame(45, $detail['log']['damage_detail']['total']);
+        $this->assertSame(20.0, $detail['log']['damage_detail']['defense_reduction_percent']);
+        $this->assertTrue($detail['log']['battle']['is_crit']);
         $this->assertSame(1.75, (float) $detail['log']['difficulty']['multiplier']);
         $this->assertSame($log->created_at->toISOString(), $detail['log']['created_at']);
     }
@@ -281,6 +284,29 @@ class GameCombatLogServiceTest extends TestCase
         $this->expectExceptionMessage('日志不存在');
 
         $this->service->getCombatLogDetail($character, 999999);
+    }
+
+    public function test_get_combat_log_detail_omits_zero_copper_gained(): void
+    {
+        $character = $this->createCharacter();
+        $map = $this->createMap();
+        $monster = $this->createMonster();
+        $log = GameCombatLog::create([
+            'character_id' => $character->id,
+            'map_id' => $map->id,
+            'monster_id' => $monster->id,
+            'damage_dealt' => 5,
+            'damage_taken' => 1,
+            'victory' => true,
+            'experience_gained' => 2,
+            'copper_gained' => 0,
+            'duration_seconds' => 1,
+            'skills_used' => [],
+        ]);
+
+        $detail = $this->service->getCombatLogDetail($character, $log->id);
+
+        $this->assertArrayNotHasKey('copper_gained', $detail['log']);
     }
 
     public function test_get_combat_stats_aggregates_counts_sums_and_looted_items(): void
@@ -365,9 +391,9 @@ class GameCombatLogServiceTest extends TestCase
             'total_damage_to_monsters' => 20,
             'monster_defense_reduction' => 0.1,
             'monster_counter_damage' => 9,
-            'round_number' => 2,
             'monsters_alive_count' => 0,
             'monsters_killed_count' => 1,
+            'is_crit' => true,
             'difficulty_tier' => 0,
             'difficulty_multiplier' => 1.0,
         ]);
@@ -379,10 +405,37 @@ class GameCombatLogServiceTest extends TestCase
         $this->assertSame($log->id, $result[0]['id']);
         $this->assertSame($monster->name, $result[0]['monster']);
         $this->assertSame($map->name, $result[0]['map']);
+        $this->assertSame(6, $result[0]['copper_gained']);
         $this->assertSame(4, $result[0]['monster_copper']);
         $this->assertSame(20, $result[0]['total_damage_to_monsters']);
+        $this->assertSame(10.0, $result[0]['monster_defense_reduction_percent']);
+        $this->assertTrue($result[0]['is_crit']);
         $this->assertSame(1.0, (float) $result[0]['difficulty_multiplier']);
         $this->assertSame($log->created_at->toISOString(), $result[0]['created_at']);
+    }
+
+    public function test_format_logs_for_response_omits_zero_copper_gained(): void
+    {
+        $character = $this->createCharacter();
+        $map = $this->createMap();
+        $monster = $this->createMonster();
+        $log = GameCombatLog::create([
+            'character_id' => $character->id,
+            'map_id' => $map->id,
+            'monster_id' => $monster->id,
+            'damage_dealt' => 20,
+            'damage_taken' => 9,
+            'victory' => true,
+            'experience_gained' => 12,
+            'copper_gained' => 0,
+            'duration_seconds' => 4,
+            'skills_used' => [],
+        ]);
+        $log->load(['monster', 'map']);
+
+        $result = $this->service->formatLogsForResponse(collect([$log]));
+
+        $this->assertArrayNotHasKey('copper_gained', $result[0]);
     }
 
     private function createCharacter(array $attributes = []): GameCharacter

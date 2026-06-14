@@ -285,7 +285,7 @@ class GameCharacterService
 
         $character->skills()->firstOrCreate(
             ['skill_id' => $fireball->id],
-            ['level' => 1, 'slot_index' => 0]
+            ['slot_index' => 0]
         );
     }
 

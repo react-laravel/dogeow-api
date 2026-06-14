@@ -122,7 +122,7 @@ class CombatRoundProcessorTest extends TestCase
         $this->assertIsArray($result['skills_used_this_round']);
     }
 
-    public function test_process_one_round_with_explicit_empty_skill_list_disables_skills(): void
+    public function test_process_one_round_with_explicit_empty_skill_list_keeps_default_skill_selection(): void
     {
         $skillSelector = new CombatSkillSelector;
 
@@ -168,9 +168,9 @@ class CombatRoundProcessorTest extends TestCase
             []
         );
 
-        $this->assertSame([], $result['skills_used_this_round']);
-        $this->assertSame(100, $result['mana']);
-        $this->assertSame(0, $result['skill_damage']);
+        $this->assertSame(101, $result['skills_used_this_round'][0]['skill_id']);
+        $this->assertSame(90, $result['mana']);
+        $this->assertSame(120, $result['skill_damage']);
     }
 
     public function test_process_one_round_with_null_skill_list_keeps_default_skill_selection(): void
@@ -920,21 +920,22 @@ class CombatRoundProcessorTest extends TestCase
         $this->assertSame(0, $selected['mana_cost']);
     }
 
-    public function test_calculate_round_death_rewards_uses_drop_table_and_difficulty_multiplier(): void
+    public function test_calculate_round_death_rewards_uses_layer_copper_and_difficulty_multiplier(): void
     {
+        config([
+            'game.copper_drop.chance' => 1.0,
+            'game.copper_drop.per_layer' => 1,
+        ]);
+
         $monsterDefinition = GameMonsterDefinition::create([
             'name' => 'Copper Slime',
             'type' => 'normal',
-            'level' => 1,
+            'level' => 7,
             'hp_base' => 10,
             'attack_base' => 1,
             'defense_base' => 0,
             'experience_base' => 10,
-            'drop_table' => [
-                'copper_chance' => 1.0,
-                'copper_base' => 7,
-                'copper_range' => 0,
-            ],
+            'drop_table' => [],
             'is_active' => true,
         ]);
 
@@ -943,7 +944,7 @@ class CombatRoundProcessorTest extends TestCase
         [$experience, $copper] = $rewardCalculator->calculateRoundDeathRewards(
             [[
                 'id' => $monsterDefinition->id,
-                'level' => 1,
+                'level' => 7,
                 'hp' => 0,
                 'experience' => 10,
             ]],
@@ -1049,7 +1050,36 @@ class CombatRoundProcessorTest extends TestCase
             'level' => 1,
         ]);
 
-        $this->assertGreaterThan(0, $copper);
+        $this->assertSame(1, $copper);
+    }
+
+    public function test_calculate_monster_copper_loot_uses_layer_times_multiplier(): void
+    {
+        config([
+            'game.copper_drop.chance' => 1.0,
+            'game.copper_drop.per_layer' => 1,
+        ]);
+
+        $monsterDefinition = GameMonsterDefinition::create([
+            'name' => 'Layer Slime',
+            'type' => 'normal',
+            'level' => 12,
+            'hp_base' => 10,
+            'attack_base' => 1,
+            'defense_base' => 0,
+            'experience_base' => 10,
+            'drop_table' => [],
+            'is_active' => true,
+        ]);
+
+        $rewardCalculator = new CombatRewardCalculator;
+
+        $copper = $rewardCalculator->calculateMonsterCopperLoot([
+            'id' => $monsterDefinition->id,
+            'level' => 12,
+        ]);
+
+        $this->assertSame(12, $copper);
     }
 
     public function test_roll_chance_for_processor_always_returns_true_when_chance_is_one(): void

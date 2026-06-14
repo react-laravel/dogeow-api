@@ -44,6 +44,11 @@ class GameCombatLootServiceTest extends TestCase
 
     public function test_process_death_loot_discovers_dead_monster_and_creates_item_and_potion(): void
     {
+        config([
+            'game.potion_drop.chance' => 1.0,
+            'game.equipment_drop.chance' => 1.0,
+        ]);
+
         $character = $this->createCharacter(['level' => 10]);
         $weaponDefinition = $this->createItemDefinition([
             'name' => 'Loot Sword',

@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int|null $slot_index
- * @property int|null $level
  * @property GameSkillDefinition|null $skill
  */
 class GameCharacterSkill extends Model
@@ -15,7 +14,6 @@ class GameCharacterSkill extends Model
     protected $fillable = [
         'character_id',
         'skill_id',
-        'level',
         'slot_index',
     ];
 
@@ -40,7 +38,6 @@ class GameCharacterSkill extends Model
         return [
             'character_id' => 'integer',
             'skill_id' => 'integer',
-            'level' => 'integer',
             'slot_index' => 'integer',
         ];
     }

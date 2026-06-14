@@ -372,7 +372,7 @@ class GameCombatService
         $character->is_fighting = false;
 
         // 创建失败日志
-        $combatLog = $this->combatLogService->createDefeatLog($character, $map, $defeatContext->monster, $roundResult, $currentRound);
+        $combatLog = $this->combatLogService->createDefeatLog($character, $map, $defeatContext->monster, $roundResult);
 
         // 清除战斗状态并保存
         $character->clearCombatState();

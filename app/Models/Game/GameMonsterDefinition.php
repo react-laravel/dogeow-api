@@ -128,8 +128,8 @@ class GameMonsterDefinition extends Model
             return [];
         }
 
-        // 药水掉落
-        $potionDropChance = $dropTable['potion_chance'] ?? 0.1;
+        // 药水掉落（全局配置，默认 10%）
+        $potionDropChance = (float) config('game.potion_drop.chance', 0.1);
         if ($this->rollChance($potionDropChance)) {
             $potionType = $this->weightedRandom(['hp' => 0.6, 'mp' => 0.4]);
             $potionLevel = match (true) {
@@ -146,8 +146,8 @@ class GameMonsterDefinition extends Model
             ];
         }
 
-        // 装备掉落
-        $dropChance = $dropTable['item_chance'] ?? 0.05;
+        // 装备掉落（全局配置，默认 1%）
+        $dropChance = (float) config('game.equipment_drop.chance', 0.01);
         if ($this->rollChance($dropChance)) {
             $itemTypes = $dropTable['item_types'] ?? ['weapon', 'helmet', 'armor', 'gloves', 'boots', 'ring', 'amulet', 'belt'];
             $itemType = $itemTypes[array_rand($itemTypes)];

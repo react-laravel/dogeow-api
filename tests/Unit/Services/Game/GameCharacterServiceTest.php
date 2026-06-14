@@ -53,7 +53,7 @@ class GameCharacterServiceTest extends TestCase
 
         $this->assertCount(1, $result['characters']);
         $this->assertSame('ReconcileHero', $result['characters']->first()['name']);
-        $this->assertSame(4, $character->fresh()->level);
+        $this->assertSame(2, $character->fresh()->level);
     }
 
     public function test_get_character_detail_returns_null_when_no_character_matches(): void
@@ -94,7 +94,7 @@ class GameCharacterServiceTest extends TestCase
         $result = $this->service->getCharacterDetail($user->id);
 
         $this->assertSame($character->id, $result['character']->id);
-        $this->assertSame(4, $result['character']->fresh()->level);
+        $this->assertSame(2, $result['character']->fresh()->level);
         $this->assertArrayHasKey('weapon', $result['equipped_items']);
         $this->assertSame($equippedItem->id, $result['equipped_items']['weapon']->id);
         $this->assertArrayHasKey('attack', $result['combat_stats']);
@@ -132,7 +132,31 @@ class GameCharacterServiceTest extends TestCase
         $this->assertCount(1, $refreshed['characters']);
     }
 
-    public function test_create_mage_character_learns_level_one_fireball_by_default(): void
+    public function test_create_character_uses_configured_class_base_stats(): void
+    {
+        $user = User::factory()->create();
+
+        $warrior = $this->service->createCharacter($user->id, 'WarriorHero', 'warrior');
+        $mage = $this->service->createCharacter($user->id, 'MageHero2', 'mage');
+        $ranger = $this->service->createCharacter($user->id, 'RangerHero', 'ranger');
+
+        $this->assertSame(5, $warrior->strength);
+        $this->assertSame(3, $warrior->dexterity);
+        $this->assertSame(5, $warrior->vitality);
+        $this->assertSame(3, $warrior->energy);
+
+        $this->assertSame(3, $mage->strength);
+        $this->assertSame(4, $mage->dexterity);
+        $this->assertSame(3, $mage->vitality);
+        $this->assertSame(5, $mage->energy);
+
+        $this->assertSame(4, $ranger->strength);
+        $this->assertSame(5, $ranger->dexterity);
+        $this->assertSame(4, $ranger->vitality);
+        $this->assertSame(4, $ranger->energy);
+    }
+
+    public function test_create_mage_character_learns_fireball_by_default(): void
     {
         $user = User::factory()->create();
         $fireball = GameSkillDefinition::create([
@@ -143,10 +167,7 @@ class GameCharacterServiceTest extends TestCase
             'mana_cost' => 8,
             'cooldown' => 0,
             'skill_points_cost' => 1,
-            'max_level' => 10,
-            'base_damage' => 16,
-            'damage_per_level' => 2,
-            'mana_cost_per_level' => 0,
+            'base_damage' => 2,
             'icon' => 'fireball',
             'effect_key' => 'fireball',
             'effects' => [],
@@ -161,7 +182,6 @@ class GameCharacterServiceTest extends TestCase
         $learned = $character->skills()->where('skill_id', $fireball->id)->first();
 
         $this->assertNotNull($learned);
-        $this->assertSame(1, $learned->level);
         $this->assertSame(0, $learned->slot_index);
         $this->assertSame(0, $character->fresh()->skill_points);
     }
@@ -323,10 +343,7 @@ class GameCharacterServiceTest extends TestCase
             'mana_cost' => 0,
             'cooldown' => 1,
             'skill_points_cost' => 1,
-            'max_level' => 10,
             'base_damage' => 12,
-            'damage_per_level' => 2,
-            'mana_cost_per_level' => 0,
             'icon' => 'slash',
             'effects' => [],
             'target_type' => 'single',
@@ -340,10 +357,7 @@ class GameCharacterServiceTest extends TestCase
             'mana_cost' => 5,
             'cooldown' => 1,
             'skill_points_cost' => 1,
-            'max_level' => 10,
             'base_damage' => 20,
-            'damage_per_level' => 4,
-            'mana_cost_per_level' => 1,
             'icon' => 'burst',
             'effects' => [],
             'target_type' => 'single',
@@ -357,10 +371,7 @@ class GameCharacterServiceTest extends TestCase
             'mana_cost' => 0,
             'cooldown' => 1,
             'skill_points_cost' => 1,
-            'max_level' => 10,
             'base_damage' => 5,
-            'damage_per_level' => 1,
-            'mana_cost_per_level' => 0,
             'icon' => 'disabled',
             'effects' => [],
             'target_type' => 'single',
@@ -371,7 +382,6 @@ class GameCharacterServiceTest extends TestCase
             'character_id' => $character->id,
             'skill_id' => $warriorSkill->id,
         ]);
-        $characterSkill->level = 2;
         $characterSkill->slot_index = 1;
         $characterSkill->save();
 
@@ -471,7 +481,7 @@ class GameCharacterServiceTest extends TestCase
             $user = User::factory()->create();
             $character = $this->createCharacter($user, [
                 'level' => 1,
-                'experience' => 90,
+                'experience' => 40,
                 'copper' => 10,
                 'last_online' => now()->subMinutes(2),
             ]);
@@ -480,8 +490,8 @@ class GameCharacterServiceTest extends TestCase
 
             $fresh = $character->fresh();
             $this->assertTrue($result['level_up']);
-            $this->assertSame(4, $result['new_level']);
-            $this->assertSame(114, $fresh->experience);
+            $this->assertSame(2, $result['new_level']);
+            $this->assertSame(64, $fresh->experience);
             $this->assertSame(34, $fresh->copper);
             $this->assertNotNull($fresh->claimed_offline_at);
 

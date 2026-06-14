@@ -65,17 +65,18 @@ class CombatDamageCalculator
 
             $mDefense = (int) ($m['defense'] ?? 0);
             $defenseReduction = config('game.combat.defense_reduction', 0.5);
-            $baseDamage = $charAttack - $mDefense * $defenseReduction;
+            $baseDamage = max(0, $charAttack - $mDefense * $defenseReduction);
             $damage = $skillDamage > 0
                 ? (int) ($baseDamage + $skillDamage)
                 : (int) ($baseDamage * ($isCrit ? $charCritDamage : 1));
             $aoeMultiplier = config('game.combat.aoe_damage_multiplier', 0.7);
             $targetDamage = $useAoe ? (int) ($damage * $aoeMultiplier) : $damage;
+            $actualDamage = min($targetDamage, (int) $m['hp']);
 
-            $m['hp'] = max(0, $m['hp'] - $targetDamage);
-            $m['damage_taken'] = $targetDamage;
+            $m['hp'] = max(0, $m['hp'] - $actualDamage);
+            $m['damage_taken'] = $actualDamage;
             $m['was_attacked'] = true;
-            $totalDamageDealt += $targetDamage;
+            $totalDamageDealt += $actualDamage;
             $monstersUpdated[$idx] = $m;
         }
 

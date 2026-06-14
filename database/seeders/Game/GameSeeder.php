@@ -62,7 +62,9 @@ class GameSeeder extends Seeder
             unset($skill['parent_ref']);
 
             $isActiveSkill = ($skill['type'] ?? 'active') === 'active';
-            $baseDamage = $isActiveSkill ? max(10, (int) ($skill['mana_cost'] ?? 0) * 2) : 0;
+            $baseDamage = $isActiveSkill
+                ? (int) ($skill['base_damage'] ?? max(10, (int) ($skill['mana_cost'] ?? 0) * 2))
+                : 0;
 
             $record = GameSkillDefinition::updateOrCreate(
                 [
@@ -81,10 +83,7 @@ class GameSeeder extends Seeder
                         ? $skill['effect_key'] . '.png'
                         : 'skill_' . strtolower(str_replace(' ', '_', $skill['name'])) . '.png',
                     'is_active' => true,
-                    'max_level' => 10,
                     'base_damage' => $baseDamage,
-                    'damage_per_level' => $isActiveSkill ? 5 : 0,
-                    'mana_cost_per_level' => $isActiveSkill ? 2 : 0,
                 ])
             );
 

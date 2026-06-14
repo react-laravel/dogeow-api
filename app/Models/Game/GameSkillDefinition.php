@@ -15,7 +15,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property mixed $type
  * @property mixed $target_type
  * @property mixed $base_damage
- * @property mixed $damage_per_level
  * @property string|null $icon
  */
 class GameSkillDefinition extends Model
@@ -36,10 +35,7 @@ class GameSkillDefinition extends Model
         'effects',
         'target_type',
         'is_active',
-        'max_level',
         'base_damage',
-        'damage_per_level',
-        'mana_cost_per_level',
         'skill_points_cost',
         'branch',
         'tier',
@@ -58,10 +54,7 @@ class GameSkillDefinition extends Model
             'effects' => 'array',
             'is_active' => 'boolean',
             'cooldown' => 'float',
-            'max_level' => 'integer',
             'base_damage' => 'integer',
-            'damage_per_level' => 'integer',
-            'mana_cost_per_level' => 'integer',
             'tier' => 'integer',
             'node_tier' => 'integer',
             'unlock_level' => 'integer',

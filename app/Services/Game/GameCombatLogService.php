@@ -63,9 +63,9 @@ class GameCombatLogService
             'monster_defense_reduction' => $roundDetails['damage']['defense_reduction'] ?? null,
             'monster_counter_damage' => $roundDetails['damage']['monster_counter'] ?? null,
             // 战斗详情
-            'round_number' => $roundDetails['battle']['round'] ?? null,
             'monsters_alive_count' => $roundDetails['battle']['alive_count'] ?? null,
             'monsters_killed_count' => $roundDetails['battle']['killed_count'] ?? null,
+            'is_crit' => $roundDetails['battle']['is_crit'] ?? null,
             // 难度相关
             'difficulty_tier' => $roundDetails['difficulty']['tier'] ?? null,
             'difficulty_multiplier' => $roundDetails['difficulty']['multiplier'] ?? null,
@@ -79,8 +79,7 @@ class GameCombatLogService
         GameCharacter $character,
         GameMapDefinition $map,
         GameMonsterDefinition $monster,
-        array $roundResult,
-        int $currentRound
+        array $roundResult
     ): GameCombatLog {
         $startTime = $character->combat_started_at ?? now();
         $charStats = $character->getCombatStats();
@@ -112,8 +111,6 @@ class GameCombatLogService
             'monster_attack' => $roundResult['monster']['attack'] ?? $monster->attack_base ?? null,
             'monster_defense' => $roundResult['monster']['defense'] ?? $monster->defense_base ?? null,
             'monster_experience' => $roundResult['monster']['experience'] ?? $monster->experience_base ?? null,
-            // 战斗详情
-            'round_number' => $currentRound,
             // 难度相关
             'difficulty_tier' => $character->difficulty_tier ?? 0,
             'difficulty_multiplier' => $difficulty['reward'],
@@ -149,68 +146,71 @@ class GameCombatLogService
             throw GameException::invalidOperation('日志不存在');
         }
 
-        return [
-            'log' => [
-                'id' => $log->id,
-                'map' => [
-                    'id' => $log->map_id,
-                    'name' => $log->map?->name,
-                ],
-                'monster' => [
-                    'id' => $log->monster_id,
-                    'name' => $log->monster?->name,
-                ],
-                'victory' => $log->victory,
-                'damage_dealt' => $log->damage_dealt,
-                'damage_taken' => $log->damage_taken,
-                'experience_gained' => $log->experience_gained,
-                'copper_gained' => $log->copper_gained,
-                'duration_seconds' => $log->duration_seconds,
-                'skills_used' => $log->skills_used,
-                'loot_dropped' => $log->loot_dropped,
-                'potion_used' => $log->potion_used,
-                'created_at' => $log->created_at->toISOString(),
-                // 角色属性
-                'character' => [
-                    'level' => $log->character_level,
-                    'class' => $log->character_class,
-                    'attack' => $log->character_attack,
-                    'defense' => $log->character_defense,
-                    'crit_rate' => $log->character_crit_rate,
-                    'crit_damage' => $log->character_crit_damage,
-                ],
-                // 怪物属性
-                'monster_stats' => [
-                    'level' => $log->monster_level,
-                    'hp' => $log->monster_hp,
-                    'max_hp' => $log->monster_max_hp,
-                    'attack' => $log->monster_attack,
-                    'defense' => $log->monster_defense,
-                    'experience' => $log->monster_experience,
-                    'copper' => $log->monster_copper,
-                ],
-                // 伤害详情
-                'damage_detail' => [
-                    'base_attack' => $log->base_attack_damage,
-                    'skill_damage' => $log->skill_damage,
-                    'crit_damage' => $log->crit_damage,
-                    'aoe_damage' => $log->aoe_damage,
-                    'total' => $log->total_damage_to_monsters,
-                    'defense_reduction' => $log->monster_defense_reduction,
-                    'counter_damage' => $log->monster_counter_damage,
-                ],
-                // 战斗详情
-                'battle' => [
-                    'round' => $log->round_number,
-                    'alive_count' => $log->monsters_alive_count,
-                    'killed_count' => $log->monsters_killed_count,
-                ],
-                // 难度
-                'difficulty' => [
-                    'tier' => $log->difficulty_tier,
-                    'multiplier' => $log->difficulty_multiplier,
-                ],
+        $payload = [
+            'id' => $log->id,
+            'map' => [
+                'id' => $log->map_id,
+                'name' => $log->map?->name,
             ],
+            'monster' => [
+                'id' => $log->monster_id,
+                'name' => $log->monster?->name,
+            ],
+            'victory' => $log->victory,
+            'damage_dealt' => $log->damage_dealt,
+            'damage_taken' => $log->damage_taken,
+            'experience_gained' => $log->experience_gained,
+            'duration_seconds' => $log->duration_seconds,
+            'skills_used' => $log->skills_used,
+            'loot_dropped' => $log->loot_dropped,
+            'potion_used' => $log->potion_used,
+            'created_at' => $log->created_at->toISOString(),
+            // 角色属性
+            'character' => [
+                'level' => $log->character_level,
+                'class' => $log->character_class,
+                'attack' => $log->character_attack,
+                'defense' => $log->character_defense,
+                'crit_rate' => $log->character_crit_rate,
+                'crit_damage' => $log->character_crit_damage,
+            ],
+            // 怪物属性
+            'monster_stats' => [
+                'level' => $log->monster_level,
+                'hp' => $log->monster_hp,
+                'max_hp' => $log->monster_max_hp,
+                'attack' => $log->monster_attack,
+                'defense' => $log->monster_defense,
+                'experience' => $log->monster_experience,
+                'copper' => $log->monster_copper,
+            ],
+            // 伤害详情
+            'damage_detail' => [
+                'base_attack' => $log->base_attack_damage,
+                'skill_damage' => $log->skill_damage,
+                'crit_damage' => $log->crit_damage,
+                'aoe_damage' => $log->aoe_damage,
+                'total' => $log->total_damage_to_monsters,
+                'defense_reduction' => $log->monster_defense_reduction,
+                'defense_reduction_percent' => $this->toPercent($log->monster_defense_reduction),
+                'counter_damage' => $log->monster_counter_damage,
+            ],
+            // 战斗详情
+            'battle' => [
+                'alive_count' => $log->monsters_alive_count,
+                'killed_count' => $log->monsters_killed_count,
+                'is_crit' => $log->is_crit,
+            ],
+            // 难度
+            'difficulty' => [
+                'tier' => $log->difficulty_tier,
+                'multiplier' => $log->difficulty_multiplier,
+            ],
+        ];
+        $this->addCopperGainedIfPositive($payload, $log->copper_gained);
+
+        return [
+            'log' => $payload,
         ];
     }
 
@@ -241,7 +241,7 @@ class GameCombatLogService
     public function formatLogsForResponse(Collection $logs): array
     {
         return $logs->map(function ($log) {
-            return [
+            $payload = [
                 'id' => $log->id,
                 'monster' => $log->monster?->name,
                 'map' => $log->map?->name,
@@ -249,7 +249,6 @@ class GameCombatLogService
                 'damage_taken' => $log->damage_taken,
                 'victory' => $log->victory,
                 'experience_gained' => $log->experience_gained,
-                'copper_gained' => $log->copper_gained,
                 'loot_dropped' => $log->loot_dropped,
                 'duration_seconds' => $log->duration_seconds,
                 'created_at' => $log->created_at->toISOString(),
@@ -275,15 +274,35 @@ class GameCombatLogService
                 'aoe_damage' => $log->aoe_damage,
                 'total_damage_to_monsters' => $log->total_damage_to_monsters,
                 'monster_defense_reduction' => $log->monster_defense_reduction,
+                'monster_defense_reduction_percent' => $this->toPercent($log->monster_defense_reduction),
                 'monster_counter_damage' => $log->monster_counter_damage,
                 // 战斗详情
-                'round_number' => $log->round_number,
                 'monsters_alive_count' => $log->monsters_alive_count,
                 'monsters_killed_count' => $log->monsters_killed_count,
+                'is_crit' => $log->is_crit,
                 // 难度相关
                 'difficulty_tier' => $log->difficulty_tier,
                 'difficulty_multiplier' => $log->difficulty_multiplier,
             ];
+            $this->addCopperGainedIfPositive($payload, $log->copper_gained);
+
+            return $payload;
         })->toArray();
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function addCopperGainedIfPositive(array &$payload, mixed $copperGained): void
+    {
+        $copper = (int) $copperGained;
+        if ($copper > 0) {
+            $payload['copper_gained'] = $copper;
+        }
+    }
+
+    private function toPercent(?float $value): ?float
+    {
+        return $value === null ? null : round($value * 100, 2);
     }
 }

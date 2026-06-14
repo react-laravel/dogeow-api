@@ -37,7 +37,7 @@ class CombatSkillSelector
         $passiveSkills = $learnedSkills->filter(fn ($cs) => $cs->skill->type === 'passive');
 
         // 若前端指定了自动施法技能列表，只从该列表中选技能；被动强化仍按已学习技能自动生效
-        if ($requestedSkillIds !== null) {
+        if ($requestedSkillIds !== null && $requestedSkillIds !== []) {
             $allowedIds = array_flip($requestedSkillIds);
             $activeSkills = $activeSkills->filter(fn ($cs) => isset($allowedIds[$cs->skill->id]));
         }

@@ -3,6 +3,7 @@
 namespace Tests\Unit\Models\Game;
 
 use App\Models\Game\GameMonsterDefinition;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Tests\TestCase;
 
 class GameMonsterDefinitionTest extends TestCase
@@ -101,6 +102,11 @@ class GameMonsterDefinitionTest extends TestCase
 
     public function test_generate_loot_with_potion_chance(): void
     {
+        config([
+            'game.potion_drop.chance' => 1.0,
+            'game.equipment_drop.chance' => 0.0,
+        ]);
+
         $monster = new GameMonsterDefinition([
             'level' => 10,
             'drop_table' => [
@@ -115,6 +121,11 @@ class GameMonsterDefinitionTest extends TestCase
 
     public function test_generate_loot_with_item_chance(): void
     {
+        config([
+            'game.potion_drop.chance' => 0.0,
+            'game.equipment_drop.chance' => 1.0,
+        ]);
+
         $monster = new GameMonsterDefinition([
             'level' => 10,
             'drop_table' => [
@@ -130,6 +141,11 @@ class GameMonsterDefinitionTest extends TestCase
 
     public function test_generate_loot_potion_level_based_on_monster_level(): void
     {
+        config([
+            'game.potion_drop.chance' => 1.0,
+            'game.equipment_drop.chance' => 0.0,
+        ]);
+
         $monster = new GameMonsterDefinition([
             'level' => 5,
             'drop_table' => [
@@ -197,7 +213,7 @@ class GameMonsterDefinitionTest extends TestCase
     {
         $monster = new GameMonsterDefinition;
         $relation = $monster->combatLogs();
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class, $relation);
+        $this->assertInstanceOf(HasMany::class, $relation);
     }
 
     public function test_is_test_mode_returns_true_when_config_enabled(): void

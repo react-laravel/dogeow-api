@@ -90,9 +90,7 @@ class MapController extends Controller
         $character->current_map_id = $mapId;
         $character->is_fighting = true;
         if ($wasNotFighting) {
-            // 复活时恢复满血满蓝
-            $character->current_hp = $character->getMaxHp();
-            $character->current_mana = $character->getMaxMana();
+            $character->applyReviveResources();
         }
         $character->save();
 

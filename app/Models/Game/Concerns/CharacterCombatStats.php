@@ -35,6 +35,29 @@ trait CharacterCombatStats
     }
 
     /**
+     * 角色创建完成时的生命值（职业基础体力，不含后续加点与装备）
+     */
+    public function getCreationHp(): int
+    {
+        $hpConfig = config('game.hp', []);
+        $base = $hpConfig['base'] ?? [];
+        $baseHp = $base[$this->class] ?? ($base['default'] ?? 15);
+        $multiplier = $hpConfig['vitality_multiplier'] ?? 5;
+        $classStats = config("game.class_base_stats.{$this->class}", []);
+        $vitality = (int) ($classStats['vitality'] ?? 5);
+
+        return (int) ($baseHp + $vitality * $multiplier);
+    }
+
+    /**
+     * 复活：HP 恢复为创建时数值，MP 保持死亡前不变
+     */
+    public function applyReviveResources(): void
+    {
+        $this->current_hp = $this->getCreationHp();
+    }
+
+    /**
      * 法力值基础值
      */
     public function getBaseMana(): int

@@ -71,50 +71,48 @@ class CombatRewardCalculatorTest extends TestCase
     }
 
     #[Test]
-    public function calculate_monster_copper_loot_returns_random_when_no_monster_id(): void
+    public function calculate_monster_copper_loot_returns_zero_when_no_monster_id_and_chance_fails(): void
     {
-        // Arrange
-        $monster = [];
+        config(['game.copper_drop.chance' => 0.0]);
 
-        // Act
-        $result = $this->calculator->calculateMonsterCopperLoot($monster);
+        $result = $this->calculator->calculateMonsterCopperLoot(['level' => 3]);
 
-        // Assert
-        $this->assertIsInt($result);
-        $this->assertGreaterThanOrEqual(0, $result);
+        $this->assertSame(0, $result);
     }
 
     #[Test]
-    public function calculate_monster_copper_loot_returns_zero_when_chance_fails(): void
+    public function calculate_monster_copper_loot_returns_layer_times_per_layer_when_chance_succeeds(): void
     {
-        // Arrange - monster with copper_chance of 0 should return 0
-        $monster = [
-            'id' => 999, // non-existent ID to avoid DB lookup
-            'level' => 1,
-        ];
+        config([
+            'game.copper_drop.chance' => 1.0,
+            'game.copper_drop.per_layer' => 1,
+        ]);
 
-        // Act
-        $result = $this->calculator->calculateMonsterCopperLoot($monster);
+        $result = $this->calculator->calculateMonsterCopperLoot(['level' => 7]);
 
-        // Assert - result should be an integer (either 0 or random 1-10)
-        $this->assertIsInt($result);
-        $this->assertGreaterThanOrEqual(0, $result);
+        $this->assertSame(7, $result);
+    }
+
+    #[Test]
+    public function calculate_monster_copper_loot_defaults_layer_to_one_without_level(): void
+    {
+        config([
+            'game.copper_drop.chance' => 1.0,
+            'game.copper_drop.per_layer' => 1,
+        ]);
+
+        $result = $this->calculator->calculateMonsterCopperLoot([]);
+
+        $this->assertSame(1, $result);
     }
 
     #[Test]
     public function roll_chance_returns_boolean(): void
     {
-        // This tests the private method via public interface
-        // We can verify behavior through multiple calls to calculateMonsterCopperLoot
-        // which internally uses rollChance with different probabilities
+        config(['game.copper_drop.chance' => 1.0]);
 
-        // Test with 100% chance - should always return something
-        $monster = ['id' => null]; // No ID triggers random 1-10
-        $result = $this->calculator->calculateMonsterCopperLoot($monster);
+        $result = $this->calculator->calculateMonsterCopperLoot(['level' => 2]);
 
-        // Result should be integer between 1 and 10
-        $this->assertIsInt($result);
-        $this->assertGreaterThanOrEqual(1, $result);
-        $this->assertLessThanOrEqual(10, $result);
+        $this->assertSame(2, $result);
     }
 }

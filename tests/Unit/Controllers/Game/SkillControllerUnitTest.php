@@ -73,7 +73,7 @@ class SkillControllerUnitTest extends TestCase
         $this->assertFalse($skillsById->has($this->getSkillIdByName($data['skills'], 'Disabled')));
         $this->assertFalse($skillsById[$sharedSkill->id]['is_learned']);
         $this->assertTrue($skillsById[$classSkill->id]['is_learned']);
-        $this->assertSame(1, $skillsById[$classSkill->id]['level']);
+        $this->assertArrayNotHasKey('level', $skillsById[$classSkill->id]);
     }
 
     public function test_learn_returns_error_when_skill_points_are_insufficient(): void

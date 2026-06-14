@@ -597,7 +597,6 @@ for ($index = count($monsters); $index < $requiredMonsterCount; $index++) {
         'name' => $map['name'] . $archetype['name'],
         'type' => 'normal',
         'level' => $mapIndex + 1,
-        'experience_base' => max(2, ($mapIndex + 1) * 2 + $index % count($archetypes)),
     ];
 
     $assetKeys[] = $assetKey;
@@ -617,6 +616,7 @@ $applyLayerStats = static function (array $monster, int $index) use ($archetypes
         'hp_base' => $archetype['hp_base'] + ($layer - 1) * $archetype['hp_growth'],
         'defense_base' => $archetype['defense_base'] + ($layer - 1) * $archetype['defense_growth'],
         'attack_base' => ($layer - 1) * $archetype['attack_growth'],
+        'experience_base' => $layer ** 2,
     ]);
 };
 
@@ -627,26 +627,26 @@ $defaultDropTable = static function (array $monster): array {
 
     if ($level <= 2) {
         return [
-            'item_chance' => 0.35,
-            'potion_chance' => 0.35,
+            'item_chance' => 0.01,
+            'potion_chance' => 0.1,
             'item_types' => $itemTypes,
         ];
     }
 
     return match ($type) {
         'boss' => [
-            'item_chance' => 0.5,
-            'potion_chance' => 0.3,
+            'item_chance' => 0.01,
+            'potion_chance' => 0.1,
             'item_types' => $itemTypes,
         ],
         'elite' => [
-            'item_chance' => 0.3,
-            'potion_chance' => 0.25,
+            'item_chance' => 0.01,
+            'potion_chance' => 0.1,
             'item_types' => $itemTypes,
         ],
         default => [
-            'item_chance' => 0.2,
-            'potion_chance' => 0.2,
+            'item_chance' => 0.01,
+            'potion_chance' => 0.1,
             'item_types' => $itemTypes,
         ],
     };
