@@ -43,7 +43,7 @@ class CombatRewardCalculator
     }
 
     /**
-     * 根据怪物层数计算铜币掉落（概率与数量见 config game.copper_drop）
+     * 根据地图层数计算铜币掉落（概率与数量见 config game.copper_drop）
      */
     public function calculateMonsterCopperLoot(array $monster): int
     {
@@ -61,10 +61,20 @@ class CombatRewardCalculator
     }
 
     /**
-     * 解析怪物层数（优先战斗实例 level，否则读定义）
+     * 解析金币层数：优先使用生成怪物时写入的地图层数，旧缓存才回退到怪物等级。
      */
     private function resolveMonsterLayer(array $monster): int
     {
+        $rewardLayer = (int) ($monster['reward_layer'] ?? 0);
+        if ($rewardLayer > 0) {
+            return $rewardLayer;
+        }
+
+        $mapLayer = (int) ($monster['map_layer'] ?? 0);
+        if ($mapLayer > 0) {
+            return $mapLayer;
+        }
+
         $layer = (int) ($monster['level'] ?? 0);
         if ($layer > 0) {
             return $layer;
