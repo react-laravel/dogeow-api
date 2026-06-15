@@ -266,7 +266,11 @@ return [
             'magic' => 2, // 魔法装备概率 ×2
         ],
         // 铜币掉落概率加成
-        'copper_drop_chance' => 10, // 掉落概率 ×10(原本 10%变成 100%)
+        'copper_drop_chance_multiplier' => 10, // 掉落概率 ×10(原本 10%变成 100%)
+        // 药水掉落概率加成
+        'potion_drop_chance_multiplier' => 10,
+        // 装备掉落概率加成
+        'equipment_drop_chance_multiplier' => 10,
         // 铜币掉落数量加成
         'copper_amount_multiplier' => 10,
         // 经验获取加成
@@ -285,10 +289,10 @@ return [
         'manual_refresh_enabled' => false,
         // 商店宝石各属性随机范围 [min, max]（与战斗掉落类似，每日刷新时重新掷骰）
         'gem_stat_ranges' => [
-            'attack' => [2, 6],
-            'defense' => [1, 4],
-            'max_hp' => [5, 15],
-            'max_mana' => [3, 10],
+            'attack' => [1, 3],
+            'defense' => [1, 2],
+            'max_hp' => [2, 8],
+            'max_mana' => [1, 5],
             'crit_rate' => [0.004, 0.012],
             'crit_damage' => [0.02, 0.08],
         ],
@@ -319,28 +323,28 @@ return [
         // 基础价格(按装备类型)
         'type_base_price' => [
             'potion' => 10,
-            'weapon' => 50,
-            'helmet' => 30,
-            'armor' => 40,
-            'gloves' => 20,
-            'boots' => 20,
-            'belt' => 25,
-            'ring' => 35,
-            'amulet' => 45,
+            'weapon' => 12,
+            'helmet' => 8,
+            'armor' => 10,
+            'gloves' => 6,
+            'boots' => 6,
+            'belt' => 8,
+            'ring' => 10,
+            'amulet' => 12,
         ],
         // 属性价格计算系数
         'stat_price' => [
-            'attack' => 5,
-            'defense' => 4,
-            'max_hp' => 0.5,
-            'max_mana' => 0.5,
-            'crit_rate' => 100,
+            'attack' => 2,
+            'defense' => 2,
+            'max_hp' => 0.3,
+            'max_mana' => 0.3,
+            'crit_rate' => 80,
             'crit_damage' => 2,
-            'strength' => 10,
-            'dexterity' => 10,
-            'vitality' => 10,
-            'energy' => 10,
-            'all_stats' => 40,
+            'strength' => 5,
+            'dexterity' => 5,
+            'vitality' => 5,
+            'energy' => 5,
+            'all_stats' => 20,
         ],
         // 商店刷新装备品质概率(基于需求等级)
         // 格式: [品质 => [基础概率, 每级增加]]

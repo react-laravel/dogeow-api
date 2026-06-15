@@ -214,6 +214,53 @@ class GameCombatLootServiceTest extends TestCase
         }
     }
 
+    public function test_create_item_keeps_minimum_positive_base_stats_after_scaling(): void
+    {
+        $character = $this->createCharacter();
+        $definition = $this->createItemDefinition([
+            'name' => 'Cloth Gloves',
+            'type' => 'gloves',
+            'sub_type' => 'cloth',
+            'base_stats' => ['defense' => 1],
+            'required_level' => 1,
+        ]);
+
+        srand(15);
+        $item = $this->service->createItem($character, [
+            'type' => 'gloves',
+            'quality' => 'common',
+            'level' => 1,
+        ]);
+
+        $this->assertInstanceOf(GameItem::class, $item);
+        $this->assertSame($definition->id, $item->definition_id);
+        $this->assertSame(1, $item->stats['defense'] ?? null);
+    }
+
+    public function test_create_item_preserves_fractional_base_stats_after_scaling(): void
+    {
+        $character = $this->createCharacter();
+        $definition = $this->createItemDefinition([
+            'name' => 'Leather Gloves',
+            'type' => 'gloves',
+            'sub_type' => 'leather',
+            'base_stats' => ['defense' => 1, 'crit_rate' => 0.007],
+            'required_level' => 5,
+        ]);
+
+        srand(15);
+        $item = $this->service->createItem($character, [
+            'type' => 'gloves',
+            'quality' => 'common',
+            'level' => 5,
+        ]);
+
+        $this->assertInstanceOf(GameItem::class, $item);
+        $this->assertSame($definition->id, $item->definition_id);
+        $this->assertSame(1, $item->stats['defense'] ?? null);
+        $this->assertGreaterThan(0, $item->stats['crit_rate'] ?? 0);
+    }
+
     public function test_create_item_creates_rare_equipment_with_affixes_and_sockets(): void
     {
         $character = $this->createCharacter();
@@ -259,8 +306,8 @@ class GameCombatLootServiceTest extends TestCase
             'name' => '轻型生命药水',
             'type' => 'potion',
             'sub_type' => 'hp',
-            'base_stats' => ['max_hp' => 50],
-            'gem_stats' => ['restore' => 50],
+            'base_stats' => ['max_hp' => 25],
+            'gem_stats' => ['restore' => 25],
             'icon' => 'potion',
         ]);
         $existingPotion = GameItem::create([
@@ -317,8 +364,8 @@ class GameCombatLootServiceTest extends TestCase
         $this->assertInstanceOf(GameItem::class, $potion);
         $this->assertSame('potion', $potion->definition->type);
         $this->assertSame('hp', $potion->definition->sub_type);
-        $this->assertSame(['max_hp' => 50], $potion->definition->base_stats);
-        $this->assertSame(['restore' => 50], $potion->definition->gem_stats);
+        $this->assertSame(['max_hp' => 25], $potion->definition->base_stats);
+        $this->assertSame(['restore' => 25], $potion->definition->gem_stats);
         $this->assertSame(0, $potion->slot_index);
         $this->assertGreaterThan(0, $potion->sell_price);
         $this->assertTrue($character->fresh()->hasDiscoveredItem($potion->definition_id));

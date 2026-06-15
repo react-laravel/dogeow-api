@@ -245,6 +245,7 @@ class GameShopServiceTest extends TestCase
         ]);
         $expensive = $this->createItemDefinition([
             'buy_price' => 100,
+            'base_stats' => ['price' => 100],
         ]);
 
         try {
@@ -383,6 +384,12 @@ class GameShopServiceTest extends TestCase
 
     public function test_get_shop_items_limits_each_category_to_five_items(): void
     {
+        Cache::flush();
+        config([
+            'game.shop.items_per_category_min' => 3,
+            'game.shop.items_per_category_max' => 5,
+        ]);
+        $this->service = new GameShopService;
         $character = $this->createCharacter(['level' => 20]);
 
         foreach (range(1, 8) as $index) {
@@ -577,11 +584,11 @@ class GameShopServiceTest extends TestCase
             'name' => '已装备长剑',
             'type' => 'weapon',
             'sub_type' => 'sword',
-            'base_stats' => ['attack' => 30],
+            'base_stats' => ['attack' => 5],
         ]);
         $equippedItem = $this->createItem($character, $equippedDefinition, [
-            'stats' => ['attack' => 30],
-            'quality' => 'rare',
+            'stats' => ['attack' => 5],
+            'quality' => 'common',
             'slot_index' => 0,
         ]);
         $character->equipment()->where('slot', 'weapon')->update(['item_id' => $equippedItem->id]);
@@ -662,10 +669,10 @@ class GameShopServiceTest extends TestCase
             'name' => '已装备长剑',
             'type' => 'weapon',
             'sub_type' => 'sword',
-            'base_stats' => ['attack' => 20],
+            'base_stats' => ['attack' => 10],
         ]);
         $equippedItem = $this->createItem($character, $equippedDefinition, [
-            'stats' => ['attack' => 20],
+            'stats' => ['attack' => 10],
             'quality' => 'common',
             'slot_index' => 0,
         ]);
@@ -1444,7 +1451,7 @@ class GameShopServiceTest extends TestCase
         $buyPrice = $calculator->calculateBuyPrice($item, ['attack' => 10], 'common');
         $sellPrice = $calculator->calculateSellPrice($gameItem);
 
-        $this->assertSame(76, $buyPrice);
-        $this->assertSame(38, $sellPrice);
+        $this->assertSame(30, $buyPrice);
+        $this->assertSame(15, $sellPrice);
     }
 }

@@ -100,7 +100,10 @@ class CombatRewardCalculator
     private function rollChance(float $chance): bool
     {
         if ($this->isTestMode()) {
-            $chanceMultiplier = config('game.test_mode.copper_drop_chance', 10);
+            $chanceMultiplier = config(
+                'game.test_mode.copper_drop_chance_multiplier',
+                config('game.test_mode.copper_drop_chance', 10)
+            );
             $chance = min(1.0, $chance * $chanceMultiplier);
         }
 

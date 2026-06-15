@@ -332,8 +332,8 @@ class InventoryItemCalculatorTest extends TestCase
         $item = new GameItem;
         $item->definition = $definition;
 
-        $this->assertSame(50, $this->calculator->calculateSellPrice($item));
-        $this->assertSame(100, $this->calculator->calculateBuyPrice($definition));
+        $this->assertSame(20, $this->calculator->calculateSellPrice($item));
+        $this->assertSame(40, $this->calculator->calculateBuyPrice($definition));
     }
 
     public function test_ensure_stats_meet_value_floor_scales_weapon_stats_within_ceiling(): void
@@ -343,13 +343,13 @@ class InventoryItemCalculatorTest extends TestCase
         $definition->required_level = 5;
         $definition->base_stats = ['attack' => 1];
 
-        $weakStats = ['attack' => 5];
-        $floor = 500;
+        $weakStats = ['attack' => 1];
+        $floor = 20;
         $adjusted = $this->calculator->ensureStatsMeetValueFloor($definition, $weakStats, 'common', $floor);
         $adjustedValue = $this->calculator->calculateEquipmentValue($definition, $adjusted, 'common');
         $ceiling = $this->calculator->resolveMaxShopStats($definition, 'common');
 
-        $this->assertGreaterThan(5, $adjusted['attack']);
+        $this->assertGreaterThan(1, $adjusted['attack']);
         $this->assertLessThanOrEqual($ceiling['attack'], $adjusted['attack']);
         $this->assertLessThan($floor, $adjustedValue);
     }

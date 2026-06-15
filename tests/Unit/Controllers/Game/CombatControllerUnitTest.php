@@ -206,10 +206,7 @@ class CombatControllerUnitTest extends TestCase
         // Redis::set with NX returns false when key already exists
         Redis::shouldReceive('set')
             ->once()
-            ->with($key, Mockery::any(), [
-                'EX' => AutoCombatRoundJob::ttl(),
-                'NX' => true,
-            ])
+            ->with($key, Mockery::any(), 'EX', AutoCombatRoundJob::ttl(), 'NX')
             ->andReturn(false);
 
         $response = $this->controller->start($this->makeRequest($user, $character));
@@ -233,10 +230,7 @@ class CombatControllerUnitTest extends TestCase
         // Redis::set with NX returns true when key is successfully set
         Redis::shouldReceive('set')
             ->once()
-            ->with($key, $payload, [
-                'EX' => AutoCombatRoundJob::ttl(),
-                'NX' => true,
-            ])
+            ->with($key, $payload, 'EX', AutoCombatRoundJob::ttl(), 'NX')
             ->andReturn(true);
 
         $response = $this->controller->start($request);
@@ -261,10 +255,7 @@ class CombatControllerUnitTest extends TestCase
         // Redis::set with NX returns true when key is successfully set
         Redis::shouldReceive('set')
             ->once()
-            ->with($key, $payload, [
-                'EX' => AutoCombatRoundJob::ttl(),
-                'NX' => true,
-            ])
+            ->with($key, $payload, 'EX', AutoCombatRoundJob::ttl(), 'NX')
             ->andReturn(true);
 
         $response = $this->controller->start($this->makeRequest($user, $character));
@@ -284,10 +275,7 @@ class CombatControllerUnitTest extends TestCase
 
         Redis::shouldReceive('set')
             ->once()
-            ->with(AutoCombatRoundJob::redisKey($character->id), Mockery::any(), [
-                'EX' => AutoCombatRoundJob::ttl(),
-                'NX' => true,
-            ])
+            ->with(AutoCombatRoundJob::redisKey($character->id), Mockery::any(), 'EX', AutoCombatRoundJob::ttl(), 'NX')
             ->andThrow(new \RuntimeException(''));
 
         $response = $this->controller->start($this->makeRequest($user, $character));

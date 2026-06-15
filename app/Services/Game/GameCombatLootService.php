@@ -144,8 +144,16 @@ class GameCombatLootService
             unset($baseStatsArr['max_hp']);
         }
         foreach ($baseStatsArr as $stat => $value) {
-            $statValue = (int) ($value * $qualityMultiplier * (0.8 + rand(0, 40) / 100));
-            if ($statValue !== 0) {
+            if (! is_numeric($value)) {
+                continue;
+            }
+
+            $scaledValue = (float) $value * $qualityMultiplier * (0.8 + rand(0, 40) / 100);
+            $statValue = in_array($stat, ['crit_rate', 'crit_damage'], true)
+                ? round($scaledValue, 4)
+                : ($scaledValue > 0 ? max(1, (int) round($scaledValue)) : (int) round($scaledValue));
+
+            if ($statValue !== 0 && $statValue !== 0.0) {
                 $stats[$stat] = $statValue;
             }
         }
@@ -162,12 +170,12 @@ class GameCombatLootService
                 default => 0,
             };
             $possibleAffixes = [
-                ['attack' => rand(5, 20)],
-                ['defense' => rand(3, 15)],
+                ['attack' => rand(1, 4)],
+                ['defense' => rand(1, 3)],
                 ['crit_rate' => rand(1, 5) / 100],
                 ['crit_damage' => rand(10, 30) / 100],
-                ['max_hp' => rand(20, 100)],
-                ['max_mana' => rand(10, 50)],
+                ['max_hp' => rand(2, 10)],
+                ['max_mana' => rand(1, 6)],
             ];
             if ($definition->type === 'weapon') {
                 $possibleAffixes = array_values(array_filter(
@@ -217,16 +225,16 @@ class GameCombatLootService
     {
         $potionConfigs = [
             'hp' => [
-                'minor' => ['name' => '轻型生命药水', 'restore' => 50],
-                'light' => ['name' => '生命药水', 'restore' => 100],
-                'medium' => ['name' => '强效生命药水', 'restore' => 200],
-                'full' => ['name' => '超级生命药水', 'restore' => 400],
+                'minor' => ['name' => '轻型生命药水', 'restore' => 25],
+                'light' => ['name' => '生命药水', 'restore' => 50],
+                'medium' => ['name' => '强效生命药水', 'restore' => 100],
+                'full' => ['name' => '超级生命药水', 'restore' => 200],
             ],
             'mp' => [
-                'minor' => ['name' => '轻型法力药水', 'restore' => 30],
-                'light' => ['name' => '法力药水', 'restore' => 60],
-                'medium' => ['name' => '强效法力药水', 'restore' => 120],
-                'full' => ['name' => '超级法力药水', 'restore' => 240],
+                'minor' => ['name' => '轻型法力药水', 'restore' => 15],
+                'light' => ['name' => '法力药水', 'restore' => 30],
+                'medium' => ['name' => '强效法力药水', 'restore' => 60],
+                'full' => ['name' => '超级法力药水', 'restore' => 120],
             ],
         ];
         $type = $potionData['sub_type'];
@@ -300,10 +308,10 @@ class GameCombatLootService
     public function createGem(GameCharacter $character, int $level): ?GameItem
     {
         $gemTypes = [
-            ['attack' => rand(5, 15), 'name' => '攻击宝石'],
-            ['defense' => rand(3, 10), 'name' => '防御宝石'],
-            ['max_hp' => rand(20, 50), 'name' => '生命宝石'],
-            ['max_mana' => rand(10, 30), 'name' => '法力宝石'],
+            ['attack' => rand(2, 5), 'name' => '攻击宝石'],
+            ['defense' => rand(1, 3), 'name' => '防御宝石'],
+            ['max_hp' => rand(3, 8), 'name' => '生命宝石'],
+            ['max_mana' => rand(2, 6), 'name' => '法力宝石'],
             ['crit_rate' => rand(1, 3) / 100, 'name' => '暴击宝石'],
             ['crit_damage' => rand(5, 15) / 100, 'name' => '暴伤宝石'],
         ];

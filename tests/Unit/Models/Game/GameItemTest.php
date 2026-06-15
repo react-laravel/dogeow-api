@@ -273,7 +273,7 @@ class GameItemTest extends TestCase
 
         $price = $item->calculateSellPrice();
 
-        $this->assertSame(50, $price);
+        $this->assertSame(20, $price);
     }
 
     public function test_calculate_sell_price_matches_inventory_calculator_for_equipment(): void

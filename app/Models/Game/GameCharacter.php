@@ -273,7 +273,7 @@ class GameCharacter extends Model
         while ($this->experience >= $this->getExperienceToNextLevel()) {
             $this->level++;
             $this->skill_points += config('game.skill_points_per_level', 1);
-            $this->stat_points += config('game.stat_points_per_level', 5);
+            $this->stat_points += config('game.stat_points_per_level', 1);
             $levelsGained++;
         }
 
@@ -297,7 +297,7 @@ class GameCharacter extends Model
         while ($this->experience >= $this->getExperienceToNextLevel()) {
             $this->level++;
             $this->skill_points += config('game.skill_points_per_level', 1);
-            $this->stat_points += config('game.stat_points_per_level', 5);
+            $this->stat_points += config('game.stat_points_per_level', 1);
             $levelsGained++;
         }
 

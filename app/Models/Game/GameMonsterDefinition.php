@@ -130,7 +130,7 @@ class GameMonsterDefinition extends Model
 
         // 药水掉落（全局配置，默认 10%）
         $potionDropChance = (float) config('game.potion_drop.chance', 0.1);
-        if ($this->rollChance($potionDropChance)) {
+        if ($this->rollChance($potionDropChance, 'potion_drop_chance_multiplier')) {
             $potionType = $this->weightedRandom(['hp' => 0.6, 'mp' => 0.4]);
             $potionLevel = match (true) {
                 $this->level <= 10 => 'minor',
@@ -148,7 +148,7 @@ class GameMonsterDefinition extends Model
 
         // 装备掉落（全局配置，默认 1%）
         $dropChance = (float) config('game.equipment_drop.chance', 0.01);
-        if ($this->rollChance($dropChance)) {
+        if ($this->rollChance($dropChance, 'equipment_drop_chance_multiplier')) {
             $itemTypes = $dropTable['item_types'] ?? ['weapon', 'helmet', 'armor', 'gloves', 'boots', 'ring', 'amulet', 'belt'];
             $itemType = $itemTypes[array_rand($itemTypes)];
 
@@ -195,11 +195,14 @@ class GameMonsterDefinition extends Model
     /**
      * 随机概率判断
      */
-    private function rollChance(float $chance): bool
+    private function rollChance(float $chance, string $testModeMultiplierKey = 'copper_drop_chance_multiplier'): bool
     {
         // 测试模式：掉落概率大幅提升
         if ($this->isTestMode()) {
-            $chanceMultiplier = config('game.test_mode.copper_drop_chance', 10);
+            $chanceMultiplier = config(
+                "game.test_mode.{$testModeMultiplierKey}",
+                config('game.test_mode.copper_drop_chance', 10)
+            );
             $chance = min(1.0, $chance * $chanceMultiplier);
         }
 

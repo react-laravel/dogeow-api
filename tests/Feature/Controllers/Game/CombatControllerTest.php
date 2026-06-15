@@ -73,11 +73,11 @@ class CombatControllerTest extends TestCase
 
         Redis::shouldReceive('set')
             ->once()
-            ->withArgs(function ($key, $value, $options) use ($character) {
+            ->withArgs(function ($key, $value, $ex, $ttl, $nx) use ($character) {
                 return str_ends_with($key, (string) $character->id)
-                    && is_array($options)
-                    && ($options['EX'] ?? null) === AutoCombatRoundJob::ttl()
-                    && ($options['NX'] ?? false) === true;
+                    && $ex === 'EX'
+                    && $ttl === AutoCombatRoundJob::ttl()
+                    && $nx === 'NX';
             })
             ->andReturn(true);
 

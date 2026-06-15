@@ -610,10 +610,17 @@ for ($index = count($monsters); $index < $requiredMonsterCount; $index++) {
 $applyLayerStats = static function (array $monster, int $index) use ($archetypes): array {
     $layer = intdiv($index, count($archetypes)) + 1;
     $archetype = $archetypes[$index % count($archetypes)];
+    $type = $monster['type'] ?? 'normal';
+    $hpMultiplier = match ($type) {
+        'boss' => 4.0,
+        'elite' => 2.2,
+        default => 1.0,
+    };
+    $baseHp = $archetype['hp_base'] + ($layer - 1) * $archetype['hp_growth'];
 
     return array_merge($monster, [
         'level' => $layer,
-        'hp_base' => $archetype['hp_base'] + ($layer - 1) * $archetype['hp_growth'],
+        'hp_base' => max(1, (int) round($baseHp * $hpMultiplier)),
         'defense_base' => $archetype['defense_base'] + ($layer - 1) * $archetype['defense_growth'],
         'attack_base' => ($layer - 1) * $archetype['attack_growth'],
         'experience_base' => $layer ** 2,

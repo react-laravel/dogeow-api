@@ -280,42 +280,42 @@ class InventoryItemCalculator
 
         $maxStats = match ($definition->type) {
             'weapon' => [
-                'attack' => max((int) ($baseStats['attack'] ?? 0), 15 + $level * 2),
+                'attack' => max((int) ($baseStats['attack'] ?? 0), 4 + (int) floor($level / 8)),
                 'crit_rate' => 0.1,
                 'crit_damage' => 0.5,
             ],
             'helmet', 'armor' => [
-                'defense' => max((int) ($baseStats['defense'] ?? 0), 10 + $level),
-                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 30 + $level * 5),
+                'defense' => max((int) ($baseStats['defense'] ?? 0), 3 + (int) floor($level / 10)),
+                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 6 + (int) floor($level / 5)),
                 'crit_rate' => 0.05,
             ],
             'gloves' => [
-                'attack' => max((int) ($baseStats['attack'] ?? 0), 6 + $level),
+                'attack' => max((int) ($baseStats['attack'] ?? 0), 3 + (int) floor($level / 10)),
                 'crit_rate' => 0.08,
             ],
             'boots' => [
-                'defense' => max((int) ($baseStats['defense'] ?? 0), 5 + $level),
-                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 20 + $level * 3),
+                'defense' => max((int) ($baseStats['defense'] ?? 0), 2 + (int) floor($level / 12)),
+                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 4 + (int) floor($level / 6)),
                 'dexterity' => max((int) ($baseStats['dexterity'] ?? 0), 3),
             ],
             'belt' => [
-                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 40 + $level * 4),
-                'max_mana' => max((int) ($baseStats['max_mana'] ?? 0), 30 + $level * 3),
+                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 8 + (int) floor($level / 4)),
+                'max_mana' => max((int) ($baseStats['max_mana'] ?? 0), 6 + (int) floor($level / 5)),
             ],
             'ring' => [
-                'attack' => max((int) ($baseStats['attack'] ?? 0), 12 + $level * 2),
-                'defense' => max((int) ($baseStats['defense'] ?? 0), 12 + $level * 2),
-                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 12 + $level * 2),
-                'max_mana' => max((int) ($baseStats['max_mana'] ?? 0), 12 + $level * 2),
+                'attack' => max((int) ($baseStats['attack'] ?? 0), 4 + (int) floor($level / 6)),
+                'defense' => max((int) ($baseStats['defense'] ?? 0), 4 + (int) floor($level / 6)),
+                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 4 + (int) floor($level / 6)),
+                'max_mana' => max((int) ($baseStats['max_mana'] ?? 0), 4 + (int) floor($level / 6)),
                 'crit_rate' => 0.08,
-                'strength' => max((int) ($baseStats['strength'] ?? 0), 12 + $level * 2),
-                'dexterity' => max((int) ($baseStats['dexterity'] ?? 0), 12 + $level * 2),
-                'energy' => max((int) ($baseStats['energy'] ?? 0), 12 + $level * 2),
+                'strength' => max((int) ($baseStats['strength'] ?? 0), 4 + (int) floor($level / 6)),
+                'dexterity' => max((int) ($baseStats['dexterity'] ?? 0), 4 + (int) floor($level / 6)),
+                'energy' => max((int) ($baseStats['energy'] ?? 0), 4 + (int) floor($level / 6)),
             ],
             'amulet' => [
-                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 50 + $level * 5),
-                'max_mana' => max((int) ($baseStats['max_mana'] ?? 0), 40 + $level * 4),
-                'defense' => max((int) ($baseStats['defense'] ?? 0), 15),
+                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 10 + (int) floor($level / 4)),
+                'max_mana' => max((int) ($baseStats['max_mana'] ?? 0), 8 + (int) floor($level / 5)),
+                'defense' => max((int) ($baseStats['defense'] ?? 0), 4),
             ],
             default => [],
         };
@@ -598,7 +598,7 @@ class InventoryItemCalculator
 
         switch ($type) {
             case 'weapon':
-                $stats['attack'] = rand(5, 15) + $definition->required_level * 2;
+                $stats['attack'] = rand(1, 4) + (int) floor($definition->required_level / 8);
                 if (rand(1, 100) <= 30) {
                     $stats['crit_rate'] = (float) bcdiv((string) rand(1, 10), '100', 4);
                 }
@@ -609,29 +609,29 @@ class InventoryItemCalculator
 
             case 'helmet':
             case 'armor':
-                $stats['defense'] = rand(3, 10) + $definition->required_level;
-                $stats['max_hp'] = rand(10, 30) + $definition->required_level * 5;
+                $stats['defense'] = rand(1, 3) + (int) floor($definition->required_level / 10);
+                $stats['max_hp'] = rand(2, 6) + (int) floor($definition->required_level / 5);
                 if (rand(1, 100) <= 25) {
                     $stats['crit_rate'] = (float) bcdiv((string) rand(1, 5), '100', 4);
                 }
                 break;
 
             case 'gloves':
-                $stats['attack'] = rand(2, 6) + $definition->required_level;
+                $stats['attack'] = rand(1, 3) + (int) floor($definition->required_level / 10);
                 $stats['crit_rate'] = (float) bcdiv((string) rand(2, 8), '100', 4);
                 break;
 
             case 'boots':
-                $stats['defense'] = rand(1, 5) + $definition->required_level;
-                $stats['max_hp'] = rand(5, 20) + $definition->required_level * 3;
+                $stats['defense'] = rand(1, 2) + (int) floor($definition->required_level / 12);
+                $stats['max_hp'] = rand(1, 4) + (int) floor($definition->required_level / 6);
                 if (rand(1, 100) <= 30) {
                     $stats['dexterity'] = rand(1, 3);
                 }
                 break;
 
             case 'belt':
-                $stats['max_hp'] = rand(15, 40) + $definition->required_level * 4;
-                $stats['max_mana'] = rand(10, 30) + $definition->required_level * 3;
+                $stats['max_hp'] = rand(3, 8) + (int) floor($definition->required_level / 4);
+                $stats['max_mana'] = rand(2, 6) + (int) floor($definition->required_level / 5);
                 break;
 
             case 'ring':
@@ -640,23 +640,23 @@ class InventoryItemCalculator
                 if ($selectedStat === 'crit_rate') {
                     $stats[$selectedStat] = (float) bcdiv((string) rand(1, 8), '100', 4);
                 } else {
-                    $stats[$selectedStat] = rand(3, 12) + $definition->required_level * 2;
+                    $stats[$selectedStat] = rand(1, 4) + (int) floor($definition->required_level / 6);
                 }
                 if (rand(1, 100) <= 40) {
                     $secondStat = $ringStats[array_rand($ringStats)];
                     if ($secondStat === 'crit_rate') {
                         $stats[$secondStat] = (float) bcdiv((string) rand(1, 5), '100', 4);
                     } else {
-                        $stats[$secondStat] = rand(2, 8) + $definition->required_level;
+                        $stats[$secondStat] = rand(1, 3) + (int) floor($definition->required_level / 8);
                     }
                 }
                 break;
 
             case 'amulet':
-                $stats['max_hp'] = rand(20, 50) + $definition->required_level * 5;
-                $stats['max_mana'] = rand(15, 40) + $definition->required_level * 4;
+                $stats['max_hp'] = rand(4, 10) + (int) floor($definition->required_level / 4);
+                $stats['max_mana'] = rand(3, 8) + (int) floor($definition->required_level / 5);
                 if (rand(1, 100) <= 30) {
-                    $stats['defense'] = rand(5, 15);
+                    $stats['defense'] = rand(1, 4);
                 }
                 break;
 
