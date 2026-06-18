@@ -15,7 +15,7 @@ class GameFactorySeeder extends Seeder
      */
     public function run(): void
     {
-        GameItemDefinition::factory()->count(24)->create();
+        GameItemDefinition::factory()->count(30)->create();
         GameSkillDefinition::factory()->count(12)->create();
 
         $maps = GameMapDefinition::factory()->count(8)->create();

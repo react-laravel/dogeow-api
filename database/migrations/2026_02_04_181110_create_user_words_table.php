@@ -33,6 +33,9 @@ return new class extends Migration
             $table->index(['user_id', 'status']);
             $table->index(['user_id', 'is_favorite']);
             $table->index('next_review_at');
+            $table->unique(['user_id', 'word_id', 'word_book_id'], 'user_words_unique_learning_item');
+            $table->index(['user_id', 'word_book_id', 'status'], 'user_words_user_book_status_idx');
+            $table->index(['user_id', 'next_review_at'], 'user_words_user_next_review_idx');
         });
     }
 

@@ -19,6 +19,8 @@ return new class extends Migration
             $table->string('description')->nullable()->comment('分类描述');
             $table->timestamps();
             $table->softDeletes();
+
+            $table->unique(['user_id', 'name'], 'note_categories_user_name_unique');
         });
         if (DB::connection()->getDriverName() === 'mysql') {
             DB::statement("ALTER TABLE note_categories COMMENT = '笔记分类表'");

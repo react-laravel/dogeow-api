@@ -19,6 +19,8 @@ return new class extends Migration
             $table->string('color')->default('#3b82f6')->comment('标签颜色（默认蓝色）');
             $table->timestamps();
             $table->softDeletes();
+
+            $table->unique(['user_id', 'name'], 'note_tags_user_name_unique');
         });
         if (DB::connection()->getDriverName() === 'mysql') {
             DB::statement("ALTER TABLE note_tags COMMENT = '笔记标签表'");

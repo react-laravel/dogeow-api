@@ -46,6 +46,11 @@ return new class extends Migration
             $table->unsignedBigInteger('spot_id')->nullable();
             $table->boolean('is_public')->default(false);
             $table->timestamps();
+
+            $table->index(['user_id', 'status'], 'thing_items_user_status_idx');
+            $table->index(['user_id', 'category_id'], 'thing_items_user_category_idx');
+            $table->index(['user_id', 'area_id', 'room_id', 'spot_id'], 'thing_items_user_location_idx');
+            $table->index(['user_id', 'expiry_date'], 'thing_items_user_expiry_idx');
         });
     }
 

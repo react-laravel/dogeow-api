@@ -68,6 +68,7 @@ return new class extends Migration
             $table->integer('hp_potion_threshold')->default(30)->comment('生命药水使用阈值百分比');
             $table->boolean('auto_use_mp_potion')->default(false)->comment('自动使用法力药水');
             $table->integer('mp_potion_threshold')->default(30)->comment('法力药水使用阈值百分比');
+            $table->unsignedInteger('auto_recycle_max_value')->nullable()->comment('自动回收价值上限(铜)，单价≤此值的背包装备将自动出售');
             $table->timestamps();
 
             $table->unique(['user_id', 'name']);
@@ -114,6 +115,10 @@ return new class extends Migration
             $table->unsignedInteger('sockets')->default(0)->comment('宝石插槽数量');
             $table->unsignedInteger('sell_price')->nullable()->comment('出售价格');
             $table->timestamps();
+
+            $table->unique(['character_id', 'is_in_storage', 'slot_index'], 'game_items_character_storage_slot_unique');
+            $table->index(['character_id', 'is_equipped'], 'game_items_character_equipped_idx');
+            $table->index(['character_id', 'definition_id'], 'game_items_character_definition_idx');
         });
         $this->setTableComment('game_items', '角色背包物品表');
 
@@ -129,6 +134,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['character_id', 'slot']);
+            $table->unique('item_id', 'game_equipment_item_unique');
         });
         $this->setTableComment('game_equipment', '角色装备表');
 
@@ -141,6 +147,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index('item_id');
+            $table->unique(['item_id', 'socket_index'], 'game_item_gems_item_socket_unique');
         });
         $this->setTableComment('game_item_gems', '宝石镶嵌表');
 
@@ -151,6 +158,11 @@ return new class extends Migration
             $table->text('description')->nullable()->comment('技能描述');
             $table->enum('type', ['active', 'passive'])->default('active')->comment('技能类型：active 主动/passive 被动');
             $table->enum('class_restriction', ['warrior', 'mage', 'ranger', 'all'])->default('all')->comment('职业限制');
+            $table->string('skill_stage', 32)->nullable()->comment('阶段：basic/core/defensive/special/ultimate/key_passive');
+            $table->string('skill_line', 64)->nullable()->comment('技能线标识，同线节点共享');
+            $table->unsignedTinyInteger('node_tier')->nullable()->comment('节点层级：0本体/1强化/2专精');
+            $table->string('spec_branch', 1)->nullable()->comment('专精分支：a/b');
+            $table->unsignedTinyInteger('unlock_level')->default(1)->comment('阶段解锁所需角色等级');
             $table->string('branch', 32)->nullable()->comment('技能分支/流派：fire/ice/lightning/warrior/ranger/passive');
             $table->unsignedTinyInteger('tier')->default(1)->comment('技能层级：1 基础/2 中级/3 高级');
             $table->unsignedBigInteger('prerequisite_skill_id')->nullable()->comment('前置技能 ID');
@@ -158,10 +170,7 @@ return new class extends Migration
             $table->unsignedSmallInteger('mana_cost')->default(0)->comment('法力消耗');
             $table->unsignedTinyInteger('cooldown')->default(0)->comment('冷却时间(秒)');
             $table->unsignedTinyInteger('skill_points_cost')->default(1)->comment('学习消耗技能点数');
-            $table->unsignedTinyInteger('max_level')->default(10)->comment('最大等级');
             $table->unsignedSmallInteger('base_damage')->default(10)->comment('基础伤害');
-            $table->unsignedSmallInteger('damage_per_level')->default(5)->comment('每级伤害加成');
-            $table->unsignedSmallInteger('mana_cost_per_level')->default(0)->comment('每级法力消耗加成');
             $table->string('icon', 64)->nullable()->comment('图标');
             $table->string('effect_key', 32)->nullable()->comment('前端技能特效标识');
             $table->text('icon_prompt')->nullable()->comment('AI生成技能图标提示词');
@@ -177,11 +186,11 @@ return new class extends Migration
             $table->id()->comment('角色技能 ID');
             $table->unsignedBigInteger('character_id')->index()->comment('所属角色 ID');
             $table->unsignedBigInteger('skill_id')->index()->comment('技能定义 ID');
-            $table->unsignedMediumInteger('level')->default(1)->comment('技能等级');
             $table->unsignedTinyInteger('slot_index')->nullable()->comment('技能栏索引');
             $table->timestamps();
 
             $table->unique(['character_id', 'skill_id']);
+            $table->unique(['character_id', 'slot_index'], 'game_character_skills_slot_unique');
         });
         $this->setTableComment('game_character_skills', '角色已学技能表');
 
@@ -264,15 +273,16 @@ return new class extends Migration
             $table->decimal('monster_defense_reduction', 5, 2)->nullable()->comment('怪物防御减伤(%)');
             $table->unsignedInteger('monster_counter_damage')->nullable()->comment('怪物反击伤害');
 
-            $table->unsignedSmallInteger('round_number')->nullable()->comment('回合数');
             $table->unsignedTinyInteger('monsters_alive_count')->nullable()->comment('存活怪物数');
             $table->unsignedTinyInteger('monsters_killed_count')->nullable()->comment('杀死怪物数');
+            $table->boolean('is_crit')->nullable()->comment('本回合是否暴击');
 
             $table->unsignedTinyInteger('difficulty_tier')->nullable()->comment('难度等级');
             $table->decimal('difficulty_multiplier', 5, 2)->nullable()->comment('难度系数');
             $table->timestamps();
 
             $table->index(['character_id', 'created_at']);
+            $table->index(['character_id', 'victory', 'created_at'], 'game_combat_logs_character_result_idx');
         });
         $this->setTableComment('game_combat_logs', '战斗日志表');
     }

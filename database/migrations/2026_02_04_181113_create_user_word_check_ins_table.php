@@ -22,6 +22,7 @@ return new class extends Migration
 
             $table->unique(['user_id', 'check_in_date']);
             $table->index('check_in_date');
+            $table->index(['user_id', 'check_in_date'], 'user_word_checkins_user_date_idx');
         });
     }
 

@@ -19,6 +19,8 @@ return new class extends Migration
             $table->text('data')->comment('通知数据（JSON）');
             $table->timestamp('read_at')->nullable()->comment('读取时间（null 表示未读）');
             $table->timestamps();
+
+            $table->index(['notifiable_type', 'notifiable_id', 'read_at'], 'notifications_notifiable_read_idx');
         });
         if (DB::connection()->getDriverName() === 'mysql') {
             DB::statement("ALTER TABLE notifications COMMENT = 'Laravel 数据库通知表'");
