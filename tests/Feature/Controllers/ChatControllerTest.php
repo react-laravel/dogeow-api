@@ -308,7 +308,7 @@ class ChatControllerTest extends TestCase
 
         $response->assertStatus(200);
         $data = $response->json();
-        $this->assertEquals('Cleaned up 0 inactive users', $data['message']);
+        $this->assertEquals('No inactive users to clean up', $data['message']);
     }
 
     #[Test]

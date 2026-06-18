@@ -115,17 +115,23 @@ class ChatCacheServiceRedisTest extends TestCase
 
         $redisMock = Mockery::mock();
 
-        // Expect keys call with the pattern and return specific keys
-        $redisMock->shouldReceive('keys')->once()->with($pattern)->andReturn([
+        $matchedKeys = [
             "chat:room:messages:{$roomId}:page:1",
             "chat:room:messages:{$roomId}:page:2",
-        ]);
+        ];
+
+        // scan($iterator, $pattern) returns keys on first call, empty array on second to end the loop
+        // Note: Mockery passes arguments by value, so $iterator is always null. We track state via closure.
+        $scanCallCount = 0;
+        $redisMock->shouldReceive('scan')
+            ->andReturnUsing(function ($iterator) use ($matchedKeys, &$scanCallCount) {
+                $scanCallCount++;
+
+                return $scanCallCount === 1 ? $matchedKeys : [];
+            });
 
         // Expect del to be called with the list of keys
-        $redisMock->shouldReceive('del')->once()->with([
-            "chat:room:messages:{$roomId}:page:1",
-            "chat:room:messages:{$roomId}:page:2",
-        ])->andReturn(2);
+        $redisMock->shouldReceive('del')->once()->with($matchedKeys)->andReturn(2);
 
         Redis::shouldReceive('connection')->andReturn($redisMock);
 
