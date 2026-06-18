@@ -219,18 +219,29 @@ class GameCombatLogService
      */
     public function getCombatStats(GameCharacter $character): array
     {
-        $combatLogs = $character->combatLogs();
+        $stats = $character->combatLogs()
+            ->selectRaw('
+                COUNT(*) as total_battles,
+                SUM(CASE WHEN victory = 1 THEN 1 ELSE 0 END) as total_victories,
+                SUM(CASE WHEN victory = 0 THEN 1 ELSE 0 END) as total_defeats,
+                COALESCE(SUM(damage_dealt), 0) as total_damage_dealt,
+                COALESCE(SUM(damage_taken), 0) as total_damage_taken,
+                COALESCE(SUM(experience_gained), 0) as total_experience_gained,
+                COALESCE(SUM(copper_gained), 0) as total_copper_gained,
+                SUM(CASE WHEN loot_dropped IS NOT NULL THEN 1 ELSE 0 END) as total_items_looted
+            ')
+            ->first();
 
         return [
             'stats' => [
-                'total_battles' => $combatLogs->count(),
-                'total_victories' => (clone $combatLogs)->where('victory', true)->count(),
-                'total_defeats' => (clone $combatLogs)->where('victory', false)->count(),
-                'total_damage_dealt' => $combatLogs->sum('damage_dealt'),
-                'total_damage_taken' => $combatLogs->sum('damage_taken'),
-                'total_experience_gained' => $combatLogs->sum('experience_gained'),
-                'total_copper_gained' => $combatLogs->sum('copper_gained'),
-                'total_items_looted' => (clone $combatLogs)->whereNotNull('loot_dropped')->count(),
+                'total_battles' => (int) ($stats->total_battles ?? 0),
+                'total_victories' => (int) ($stats->total_victories ?? 0),
+                'total_defeats' => (int) ($stats->total_defeats ?? 0),
+                'total_damage_dealt' => (int) ($stats->total_damage_dealt ?? 0),
+                'total_damage_taken' => (int) ($stats->total_damage_taken ?? 0),
+                'total_experience_gained' => (int) ($stats->total_experience_gained ?? 0),
+                'total_copper_gained' => (int) ($stats->total_copper_gained ?? 0),
+                'total_items_looted' => (int) ($stats->total_items_looted ?? 0),
             ],
         ];
     }

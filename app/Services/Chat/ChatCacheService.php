@@ -5,6 +5,7 @@ namespace App\Services\Chat;
 use App\Models\Chat\ChatMessage;
 use App\Models\Chat\ChatRoom;
 use App\Models\Chat\ChatRoomUser;
+use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
@@ -94,27 +95,41 @@ class ChatCacheService
                 return [];
             }
 
-            $totalUsers = ChatRoomUser::where('room_id', $roomId)->count();
-            $onlineUsers = ChatRoomUser::where('room_id', $roomId)->where('is_online', true)->count();
+            // Single query for user counts (total + online)
+            $userCounts = ChatRoomUser::where('room_id', $roomId)
+                ->selectRaw('
+                    COUNT(*) as total_users,
+                    SUM(CASE WHEN is_online = 1 THEN 1 ELSE 0 END) as online_users
+                ')
+                ->first();
 
-            $messageStats = [
-                'total_messages' => ChatMessage::where('room_id', $roomId)->count(),
-                'text_messages' => ChatMessage::where('room_id', $roomId)->where('message_type', 'text')->count(),
-                'system_messages' => ChatMessage::where('room_id', $roomId)->where('message_type', 'system')->count(),
-            ];
+            // Single query for message stats (total + by type)
+            $messageStats = ChatMessage::where('room_id', $roomId)
+                ->selectRaw('
+                    COUNT(*) as total_messages,
+                    SUM(CASE WHEN message_type = ? THEN 1 ELSE 0 END) as text_messages,
+                    SUM(CASE WHEN message_type = ? THEN 1 ELSE 0 END) as system_messages
+                ', ['text', 'system'])
+                ->first();
 
-            $recentActivity = ChatMessage::where('room_id', $roomId)
+            $recentActivity = (int) ChatMessage::where('room_id', $roomId)
                 ->where('created_at', '>=', now()->subHours(24))
                 ->count();
 
+            $lastMessage = ChatMessage::where('room_id', $roomId)->latest()->first();
+
             return [
                 'room' => $room,
-                'total_users' => $totalUsers,
-                'online_users' => $onlineUsers,
-                'messages' => $messageStats,
+                'total_users' => (int) ($userCounts->total_users ?? 0),
+                'online_users' => (int) ($userCounts->online_users ?? 0),
+                'messages' => [
+                    'total_messages' => (int) ($messageStats->total_messages ?? 0),
+                    'text_messages' => (int) ($messageStats->text_messages ?? 0),
+                    'system_messages' => (int) ($messageStats->system_messages ?? 0),
+                ],
                 'recent_activity_24h' => $recentActivity,
                 'created_at' => $room->created_at,
-                'last_activity' => ChatMessage::where('room_id', $roomId)->latest()->first()?->created_at,
+                'last_activity' => $lastMessage?->created_at,
             ];
         });
 
@@ -150,7 +165,7 @@ class ChatCacheService
 
             $list = new Collection;
             foreach ($roomUsers as $roomUser) {
-                /** @var \App\Models\User|null $user */
+                /** @var User|null $user */
                 $user = $roomUser->user;
                 if ($user === null) {
                     continue;
@@ -339,8 +354,8 @@ class ChatCacheService
         try {
             if (config('cache.default') === 'redis') {
                 $redis = Redis::connection();
-                $keys = $redis->keys($pattern);
-                if (! empty($keys)) {
+                $iterator = null;
+                while ($keys = $redis->scan($iterator, $pattern)) {
                     $redis->del($keys);
                 }
             } else {

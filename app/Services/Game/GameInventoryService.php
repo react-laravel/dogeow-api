@@ -76,14 +76,6 @@ class GameInventoryService
             ->get()
             ->keyBy('slot');
 
-        $this->ensureItemsSellPrice($inventory);
-        $this->ensureItemsSellPrice($storage);
-        foreach ($equipment as $eq) {
-            if (isset($eq->item) && $eq->item instanceof GameItem) {
-                $this->ensureItemsSellPrice(collect([$eq->item]));
-            }
-        }
-
         return [
             'inventory' => $inventory,
             'storage' => $storage,
@@ -452,9 +444,10 @@ class GameInventoryService
         return DB::transaction(function () use ($character, $items) {
             $totalPrice = 0;
             $count = 0;
+            $equippedItemIds = $character->equipment()->pluck('item_id');
 
             foreach ($items as $item) {
-                if ($this->equipmentHelper->isItemEquipped($character, $item->id)) {
+                if ($equippedItemIds->contains($item->id)) {
                     continue;
                 }
 
@@ -518,6 +511,8 @@ class GameInventoryService
         string $type,
         ?string $subType = null,
     ): ?array {
+        $equippedItemIds = $character->equipment()->pluck('item_id');
+
         /** @var \Illuminate\Database\Eloquent\Collection<int, GameItem> $items */
         $items = $character->items()
             ->where('is_in_storage', false)
@@ -532,14 +527,15 @@ class GameInventoryService
             })
             ->with('definition')
             ->get()
-            ->filter(function ($item) use ($character): bool {
+            ->filter(function ($item) use ($equippedItemIds): bool {
                 if (! $item instanceof GameItem) {
                     return false;
                 }
 
-                return ! $this->equipmentHelper->isItemEquipped($character, $item->id);
+                return ! $equippedItemIds->contains($item->id);
             });
 
+        /** @var \Illuminate\Database\Eloquent\Collection<int, GameItem> $items */
         if ($items->isEmpty()) {
             return null;
         }
@@ -607,9 +603,10 @@ class GameInventoryService
         return DB::transaction(function () use ($character, $items) {
             $totalPrice = 0;
             $count = 0;
+            $equippedItemIds = $character->equipment()->pluck('item_id');
 
             foreach ($items as $item) {
-                if ($this->equipmentHelper->isItemEquipped($character, $item->id)) {
+                if ($equippedItemIds->contains($item->id)) {
                     continue;
                 }
 

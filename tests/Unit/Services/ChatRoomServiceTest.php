@@ -11,6 +11,7 @@ use App\Services\Chat\ChatMessageService;
 use App\Services\Chat\ChatPaginationService;
 use App\Services\Chat\ChatRoomService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Mockery;
 use Tests\TestCase;
 
@@ -25,8 +26,9 @@ class ChatRoomServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Cache::flush();
 
-        $this->cacheService = Mockery::mock(ChatCacheService::class);
+        $this->cacheService = Mockery::mock(ChatCacheService::class)->makePartial();
         $this->service = new ChatRoomService(
             new ChatMessageService(new ChatPaginationService),
             $this->cacheService

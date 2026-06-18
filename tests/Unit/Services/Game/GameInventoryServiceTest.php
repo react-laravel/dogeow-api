@@ -65,9 +65,12 @@ class GameInventoryServiceTest extends TestCase
         $this->assertSame($equippedItem->id, $result['equipment']['weapon']->item->id);
         $this->assertSame(GameInventoryService::INVENTORY_SIZE, $result['inventory_size']);
         $this->assertSame(GameInventoryService::STORAGE_SIZE, $result['storage_size']);
-        $this->assertGreaterThan(0, $inventoryItem->fresh()->sell_price);
-        $this->assertGreaterThan(0, $storageItem->fresh()->sell_price);
-        $this->assertGreaterThan(0, $equippedItem->fresh()->sell_price);
+        // sell_price is no longer auto-calculated on read; verify on-demand calculation works
+        $this->assertGreaterThan(0, $inventoryItem->calculateSellPrice());
+        $this->assertGreaterThan(0, $storageItem->calculateSellPrice());
+        $equippedFromResult = $result['equipment']['weapon']->item;
+        $this->assertNotNull($equippedFromResult);
+        $this->assertGreaterThan(0, $equippedFromResult->calculateSellPrice());
     }
 
     public function test_get_inventory_for_broadcast_returns_serializable_arrays_with_empty_slots(): void

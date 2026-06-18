@@ -268,13 +268,25 @@ class ChatPresenceService
                 ->where('last_seen_at', '<', $timeoutThreshold)
                 ->get();
 
-            $cleanedCount = 0;
+            if ($inactiveUsers->isEmpty()) {
+                return [
+                    'success' => true,
+                    'cleaned_count' => 0,
+                    'message' => 'No inactive users to clean up',
+                ];
+            }
+
+            // Bulk update all inactive users to offline (1 query instead of N)
+            ChatRoomUser::whereIn('id', $inactiveUsers->pluck('id'))
+                ->update(['is_online' => false]);
+
+            // Pre-load user names in a single query to avoid N+1
+            $userIds = $inactiveUsers->pluck('user_id')->unique();
+            $users = User::whereIn('id', $userIds)->get()->keyBy('id');
 
             foreach ($inactiveUsers as $roomUser) {
-                $roomUser->update(['is_online' => false]);
+                $user = $users->get($roomUser->user_id);
 
-                // Create system message for user going offline due to inactivity
-                $user = User::find($roomUser->user_id);
                 if ($user) {
                     $this->messageService->createSystemMessage(
                         $roomUser->room_id,
@@ -282,14 +294,12 @@ class ChatPresenceService
                         $roomUser->user_id
                     );
                 }
-
-                $cleanedCount++;
             }
 
             return [
                 'success' => true,
-                'cleaned_count' => $cleanedCount,
-                'message' => "Cleaned up {$cleanedCount} inactive users",
+                'cleaned_count' => $inactiveUsers->count(),
+                'message' => "Cleaned up {$inactiveUsers->count()} inactive users",
             ];
 
         } catch (\Exception $e) {

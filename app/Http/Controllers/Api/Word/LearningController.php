@@ -244,25 +244,21 @@ class LearningController extends Controller
         }
         $totalWords = $book->total_words;
 
-        $learnedWords = UserWord::where('user_id', $user->id)
+        // Single query for all status counts (was 4 separate count queries)
+        $statusCounts = UserWord::where('user_id', $user->id)
             ->where('word_book_id', $bookId)
-            ->where('status', '!=', 0)
-            ->count();
+            ->selectRaw('
+                SUM(CASE WHEN status != 0 THEN 1 ELSE 0 END) as learned_words,
+                SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as mastered_words,
+                SUM(CASE WHEN status = 3 THEN 1 ELSE 0 END) as difficult_words,
+                SUM(CASE WHEN status = 4 THEN 1 ELSE 0 END) as simple_words
+            ')
+            ->first();
 
-        $masteredWords = UserWord::where('user_id', $user->id)
-            ->where('word_book_id', $bookId)
-            ->where('status', 2)
-            ->count();
-
-        $difficultWords = UserWord::where('user_id', $user->id)
-            ->where('word_book_id', $bookId)
-            ->where('status', 3)
-            ->count();
-
-        $simpleWords = UserWord::where('user_id', $user->id)
-            ->where('word_book_id', $bookId)
-            ->where('status', 4)
-            ->count();
+        $learnedWords = (int) ($statusCounts->learned_words ?? 0);
+        $masteredWords = (int) ($statusCounts->mastered_words ?? 0);
+        $difficultWords = (int) ($statusCounts->difficult_words ?? 0);
+        $simpleWords = (int) ($statusCounts->simple_words ?? 0);
 
         $progressPercentage = $totalWords > 0
             ? round(($learnedWords / $totalWords) * 100, 2)
@@ -382,9 +378,16 @@ class LearningController extends Controller
         $count = $setting->daily_new_words;
 
         // 获取已学习的单词(排除未学习和简单词，且必须有例句)
+        // 使用 whereHas 在数据库层面过滤，避免全量加载
         $userWords = UserWord::where('user_id', $user->id)
             ->whereNotIn('status', [0, 4]) // 排除未学习和简单词
+            ->whereHas('word', function ($query) {
+                $query->whereNotNull('example_sentences')
+                    ->where('example_sentences', '!=', '[]')
+                    ->where('example_sentences', '!=', '');
+            })
             ->with(['word.educationLevels'])
+            ->limit($count * 3)
             ->get();
 
         // 过滤出有例句的单词

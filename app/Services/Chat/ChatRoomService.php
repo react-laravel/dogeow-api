@@ -7,6 +7,7 @@ use App\Models\Chat\ChatRoom;
 use App\Models\Chat\ChatRoomUser;
 use App\Models\User;
 use Dogeow\PhpHelpers\CharLength;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class ChatRoomService
@@ -307,23 +308,18 @@ class ChatRoomService
 
     /**
      * Get room statistics and analytics
+     *
+     * Delegates to ChatCacheService for core stats (cached), adds peak_hours analysis.
      */
     public function getRoomStats(int $roomId): array
     {
-        $room = ChatRoom::with('creator:id,name,email')->find($roomId);
+        $stats = $this->cacheService->getRoomStats($roomId);
 
-        if (! $room) {
+        if (empty($stats)) {
             return [];
         }
 
-        $totalUsers = ChatRoomUser::where('room_id', $roomId)->count();
-        $onlineUsers = ChatRoomUser::where('room_id', $roomId)->where('is_online', true)->count();
-        $messageStats = $this->messageService->getMessageStats($roomId);
-
-        $recentActivity = ChatMessage::forRoom($roomId)
-            ->where('created_at', '>=', now()->subHours(24))
-            ->count();
-
+        // Add peak hours analysis (not cached - real-time analytics)
         $hourExpression = DB::getDriverName() === 'sqlite'
             ? "CAST(strftime('%H', created_at) AS INTEGER)"
             : 'HOUR(created_at)';
@@ -335,23 +331,16 @@ class ChatRoomService
             ->limit(3)
             ->get();
 
-        return [
-            'room' => $room,
-            'total_users' => $totalUsers,
-            'online_users' => $onlineUsers,
-            'messages' => $messageStats,
-            'recent_activity_24h' => $recentActivity,
-            'peak_hours' => $peakHours,
-            'created_at' => $room->created_at,
-            'last_activity' => ChatMessage::forRoom($roomId)->latest()->first()?->created_at,
-        ];
+        $stats['peak_hours'] = $peakHours;
+
+        return $stats;
     }
 
     /**
      * Get active rooms list with basic stats.
      * When $userId is set, only returns public rooms or rooms the user is a member of.
      */
-    public function getActiveRooms(?int $userId = null): \Illuminate\Support\Collection
+    public function getActiveRooms(?int $userId = null): Collection
     {
         return $this->cacheService->getRoomList($userId);
     }
