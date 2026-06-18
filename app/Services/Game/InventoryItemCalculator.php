@@ -287,16 +287,13 @@ class InventoryItemCalculator
             'helmet', 'armor' => [
                 'defense' => max((int) ($baseStats['defense'] ?? 0), 3 + (int) floor($level / 10)),
                 'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 6 + (int) floor($level / 5)),
-                'crit_rate' => 0.05,
             ],
             'gloves' => [
-                'attack' => max((int) ($baseStats['attack'] ?? 0), 3 + (int) floor($level / 10)),
-                'crit_rate' => 0.08,
+                'defense' => max((int) ($baseStats['defense'] ?? 0), 3 + (int) floor($level / 10)),
             ],
             'boots' => [
                 'defense' => max((int) ($baseStats['defense'] ?? 0), 2 + (int) floor($level / 12)),
                 'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 4 + (int) floor($level / 6)),
-                'dexterity' => max((int) ($baseStats['dexterity'] ?? 0), 3),
             ],
             'belt' => [
                 'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 8 + (int) floor($level / 4)),
@@ -304,18 +301,13 @@ class InventoryItemCalculator
             ],
             'ring' => [
                 'attack' => max((int) ($baseStats['attack'] ?? 0), 4 + (int) floor($level / 6)),
-                'defense' => max((int) ($baseStats['defense'] ?? 0), 4 + (int) floor($level / 6)),
-                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 4 + (int) floor($level / 6)),
-                'max_mana' => max((int) ($baseStats['max_mana'] ?? 0), 4 + (int) floor($level / 6)),
                 'crit_rate' => 0.08,
-                'strength' => max((int) ($baseStats['strength'] ?? 0), 4 + (int) floor($level / 6)),
-                'dexterity' => max((int) ($baseStats['dexterity'] ?? 0), 4 + (int) floor($level / 6)),
-                'energy' => max((int) ($baseStats['energy'] ?? 0), 4 + (int) floor($level / 6)),
+                'crit_damage' => 0.5,
             ],
             'amulet' => [
-                'max_hp' => max((int) ($baseStats['max_hp'] ?? 0), 10 + (int) floor($level / 4)),
-                'max_mana' => max((int) ($baseStats['max_mana'] ?? 0), 8 + (int) floor($level / 5)),
-                'defense' => max((int) ($baseStats['defense'] ?? 0), 4),
+                'attack' => max((int) ($baseStats['attack'] ?? 0), 4 + (int) floor($level / 6)),
+                'crit_rate' => 0.08,
+                'crit_damage' => 0.5,
             ],
             default => [],
         };
@@ -587,89 +579,292 @@ class InventoryItemCalculator
     }
 
     /**
-     * 生成随机属性
+     * 生成随机属性（按部位分类：防御部位仅生成防御属性，攻击部位仅生成攻击属性）
      *
      * @return array<string,int|float>
      */
     public function generateRandomStats(GameItemDefinition $definition): array
     {
-        $stats = [];
         $type = $definition->type;
+        $level = max(1, (int) $definition->required_level);
+        $qualityMultiplier = 1.0;
 
         switch ($type) {
             case 'weapon':
-                $stats['attack'] = rand(1, 4) + (int) floor($definition->required_level / 8);
-                if (rand(1, 100) <= 30) {
-                    $stats['crit_rate'] = (float) bcdiv((string) rand(1, 10), '100', 4);
-                }
-                if (rand(1, 100) <= 20) {
-                    $stats['crit_damage'] = (float) bcdiv((string) rand(5, 20), '100', 4);
-                }
+                $stats = $this->generateWeaponStats($level, $qualityMultiplier);
                 break;
-
             case 'helmet':
             case 'armor':
-                $stats['defense'] = rand(1, 3) + (int) floor($definition->required_level / 10);
-                $stats['max_hp'] = rand(2, 6) + (int) floor($definition->required_level / 5);
-                if (rand(1, 100) <= 25) {
-                    $stats['crit_rate'] = (float) bcdiv((string) rand(1, 5), '100', 4);
-                }
+                $stats = $this->generateDefenseStats($level, $qualityMultiplier, 2);
                 break;
-
             case 'gloves':
-                $stats['attack'] = rand(1, 3) + (int) floor($definition->required_level / 10);
-                $stats['crit_rate'] = (float) bcdiv((string) rand(2, 8), '100', 4);
+                $stats = $this->generateGlovesStats($level, $qualityMultiplier);
                 break;
-
             case 'boots':
-                $stats['defense'] = rand(1, 2) + (int) floor($definition->required_level / 12);
-                $stats['max_hp'] = rand(1, 4) + (int) floor($definition->required_level / 6);
-                if (rand(1, 100) <= 30) {
-                    $stats['dexterity'] = rand(1, 3);
-                }
+                $stats = $this->generateBootsStats($level, $qualityMultiplier);
                 break;
-
             case 'belt':
-                $stats['max_hp'] = rand(3, 8) + (int) floor($definition->required_level / 4);
-                $stats['max_mana'] = rand(2, 6) + (int) floor($definition->required_level / 5);
+                $stats = $this->generateBeltStats($level, $qualityMultiplier);
                 break;
-
             case 'ring':
-                $ringStats = ['attack', 'defense', 'max_hp', 'max_mana', 'crit_rate', 'strength', 'dexterity', 'energy'];
-                $selectedStat = $ringStats[array_rand($ringStats)];
-                if ($selectedStat === 'crit_rate') {
-                    $stats[$selectedStat] = (float) bcdiv((string) rand(1, 8), '100', 4);
-                } else {
-                    $stats[$selectedStat] = rand(1, 4) + (int) floor($definition->required_level / 6);
-                }
-                if (rand(1, 100) <= 40) {
-                    $secondStat = $ringStats[array_rand($ringStats)];
-                    if ($secondStat === 'crit_rate') {
-                        $stats[$secondStat] = (float) bcdiv((string) rand(1, 5), '100', 4);
-                    } else {
-                        $stats[$secondStat] = rand(1, 3) + (int) floor($definition->required_level / 8);
-                    }
-                }
+                $stats = $this->generateRingStats($level, $qualityMultiplier);
                 break;
-
             case 'amulet':
-                $stats['max_hp'] = rand(4, 10) + (int) floor($definition->required_level / 4);
-                $stats['max_mana'] = rand(3, 8) + (int) floor($definition->required_level / 5);
-                if (rand(1, 100) <= 30) {
-                    $stats['defense'] = rand(1, 4);
-                }
+                $stats = $this->generateAmuletStats($level, $qualityMultiplier);
                 break;
-
             case 'potion':
-                $potionTypes = ['hp', 'mp'];
-                $potionType = $potionTypes[array_rand($potionTypes)];
-                $restoreAmount = rand(30, 100) + $definition->required_level * 10;
-                $stats[$potionType === 'hp' ? 'max_hp' : 'max_mana'] = $restoreAmount;
-                $stats['restore'] = $restoreAmount;
+                $stats = $this->generatePotionStats($definition);
                 break;
+            default:
+                $stats = [];
         }
 
         return $stats;
+    }
+
+    /**
+     * 获取攻击属性池
+     *
+     * @return array<int, array{stat: string, weight: int}>
+     */
+    private function getOffenseStatPool(): array
+    {
+        return [
+            ['stat' => 'attack', 'weight' => 50],
+            ['stat' => 'crit_rate', 'weight' => 20],
+            ['stat' => 'crit_damage', 'weight' => 15],
+            ['stat' => 'strength', 'weight' => 8],
+            ['stat' => 'dexterity', 'weight' => 4],
+            ['stat' => 'energy', 'weight' => 3],
+        ];
+    }
+
+    /**
+     * 获取防御属性池
+     *
+     * @return array<int, array{stat: string, weight: int}>
+     */
+    private function getDefenseStatPool(): array
+    {
+        return [
+            ['stat' => 'defense', 'weight' => 50],
+            ['stat' => 'max_hp', 'weight' => 35],
+            ['stat' => 'max_mana', 'weight' => 15],
+        ];
+    }
+
+    /**
+     * 按权重随机选择一个属性键
+     */
+    private function rollStatKey(array $pool): string
+    {
+        $totalWeight = array_sum(array_column($pool, 'weight'));
+        $roll = rand(1, $totalWeight);
+
+        foreach ($pool as $entry) {
+            $roll -= $entry['weight'];
+            if ($roll <= 0) {
+                return $entry['stat'];
+            }
+        }
+
+        return $pool[0]['stat'];
+    }
+
+    /**
+     * 生成属性值（整数属性向上取整，率类属性保留4位小数）
+     */
+    private function rollStatValue(string $stat, int $level, float $multiplier): int|float
+    {
+        $scaled = $this->rollBaseValue($stat, $level) * $multiplier;
+
+        return in_array($stat, ['crit_rate', 'crit_damage'], true)
+            ? round($scaled, 4)
+            : max(1, (int) round($scaled));
+    }
+
+    /**
+     * 按属性类型生成基础随机值
+     */
+    private function rollBaseValue(string $stat, int $level): int|float
+    {
+        return match ($stat) {
+            'attack' => rand(1, 4) + (int) floor($level / 8),
+            'defense' => rand(1, 3) + (int) floor($level / 10),
+            'crit_rate' => (float) bcdiv((string) rand(1, 10), '100', 4),
+            'crit_damage' => (float) bcdiv((string) rand(5, 20), '100', 4),
+            'max_hp' => rand(2, 6) + (int) floor($level / 5),
+            'max_mana' => rand(1, 4) + (int) floor($level / 6),
+            'strength' => rand(1, 3) + (int) floor($level / 8),
+            'dexterity' => rand(1, 3) + (int) floor($level / 10),
+            'energy' => rand(1, 2) + (int) floor($level / 10),
+            default => rand(1, 3),
+        };
+    }
+
+    // ==================== 各部位属性生成 ====================
+
+    /**
+     * 武器：仅攻击属性（attack + 可选 crit_rate / crit_damage）
+     */
+    private function generateWeaponStats(int $level, float $multiplier): array
+    {
+        $stats = [
+            'attack' => $this->rollStatValue('attack', $level, $multiplier),
+        ];
+
+        if (rand(1, 100) <= 30) {
+            $stats['crit_rate'] = $this->rollStatValue('crit_rate', $level, $multiplier);
+        }
+        if (rand(1, 100) <= 20) {
+            $stats['crit_damage'] = $this->rollStatValue('crit_damage', $level, $multiplier);
+        }
+
+        return $stats;
+    }
+
+    /**
+     * 通用防御部位：仅防御属性（defense + max_hp + 可选 max_mana）
+     */
+    private function generateDefenseStats(int $level, float $multiplier, int $statCount = 2): array
+    {
+        $pool = $this->getDefenseStatPool();
+        $stats = [];
+
+        $stats['defense'] = $this->rollStatValue('defense', $level, $multiplier);
+        $stats['max_hp'] = $this->rollStatValue('max_hp', $level, $multiplier);
+
+        $extraCount = $statCount - 2;
+        $usedKeys = ['defense', 'max_hp'];
+        for ($i = 0; $i < $extraCount; $i++) {
+            $available = array_filter($pool, fn ($e) => ! in_array($e['stat'], $usedKeys, true));
+            if ($available === []) {
+                break;
+            }
+            $key = $this->rollStatKey($available);
+            $stats[$key] = $this->rollStatValue($key, $level, $multiplier);
+            $usedKeys[] = $key;
+        }
+
+        return $stats;
+    }
+
+    /**
+     * 手套：仅防御属性（defense + 可选 max_hp）
+     */
+    private function generateGlovesStats(int $level, float $multiplier): array
+    {
+        return [
+            'defense' => $this->rollStatValue('defense', $level, $multiplier),
+        ];
+    }
+
+    /**
+     * 靴子：仅防御属性（defense + max_hp）
+     */
+    private function generateBootsStats(int $level, float $multiplier): array
+    {
+        return [
+            'defense' => $this->rollStatValue('defense', $level, $multiplier),
+            'max_hp' => $this->rollStatValue('max_hp', $level, $multiplier),
+        ];
+    }
+
+    /**
+     * 腰带：仅防御属性（max_hp + 可选 max_mana）
+     */
+    private function generateBeltStats(int $level, float $multiplier): array
+    {
+        $stats = [
+            'max_hp' => $this->rollStatValue('max_hp', $level, $multiplier),
+        ];
+
+        if (rand(1, 100) <= 50) {
+            $stats['max_mana'] = $this->rollStatValue('max_mana', $level, $multiplier);
+        }
+
+        return $stats;
+    }
+
+    /**
+     * 戒指：仅攻击属性（attack + 1~2 个额外攻击属性）
+     */
+    private function generateRingStats(int $level, float $multiplier): array
+    {
+        $pool = $this->getOffenseStatPool();
+        $stats = [
+            'attack' => $this->rollStatValue('attack', $level, $multiplier),
+        ];
+
+        $extraCount = rand(1, 2);
+        $usedKeys = ['attack'];
+        for ($i = 0; $i < $extraCount; $i++) {
+            $available = array_filter($pool, fn ($e) => ! in_array($e['stat'], $usedKeys, true));
+            if ($available === []) {
+                break;
+            }
+            $key = $this->rollStatKey($available);
+            $stats[$key] = $this->rollStatValue($key, $level, $multiplier);
+            $usedKeys[] = $key;
+        }
+
+        return $stats;
+    }
+
+    /**
+     * 项链/护符：仅攻击属性（attack + 可选 crit_rate / crit_damage）
+     */
+    private function generateAmuletStats(int $level, float $multiplier): array
+    {
+        $stats = [
+            'attack' => $this->rollStatValue('attack', $level, $multiplier),
+        ];
+
+        $offenseStats = ['crit_rate', 'crit_damage'];
+        $extraCount = rand(0, 2);
+        $usedKeys = ['attack'];
+        for ($i = 0; $i < $extraCount; $i++) {
+            $available = array_filter($offenseStats, fn ($s) => ! in_array($s, $usedKeys, true));
+            if ($available === []) {
+                break;
+            }
+            $key = $available[array_rand($available)];
+            $stats[$key] = $this->rollStatValue($key, $level, $multiplier);
+            $usedKeys[] = $key;
+        }
+
+        return $stats;
+    }
+
+    /**
+     * 药水属性
+     */
+    private function generatePotionStats(GameItemDefinition $definition): array
+    {
+        $baseStats = $definition->base_stats ?? [];
+
+        // 优先使用定义表的基础属性
+        if (is_array($baseStats) && ($baseStats['max_hp'] ?? 0) > 0) {
+            $hp = (int) $baseStats['max_hp'];
+            $stats = ['max_hp' => $hp, 'restore' => $hp];
+
+            if (isset($baseStats['max_mana']) && is_numeric($baseStats['max_mana']) && (int) $baseStats['max_mana'] > 0) {
+                $stats['max_mana'] = (int) $baseStats['max_mana'];
+            }
+
+            return $stats;
+        }
+        if (is_array($baseStats) && ($baseStats['max_mana'] ?? 0) > 0) {
+            return ['max_mana' => (int) $baseStats['max_mana']];
+        }
+
+        // 兜底：无基础属性时随机生成
+        $potionTypes = ['hp', 'mp'];
+        $potionType = $potionTypes[array_rand($potionTypes)];
+        $restoreAmount = rand(30, 100) + $definition->required_level * 10;
+        $statKey = $potionType === 'hp' ? 'max_hp' : 'max_mana';
+
+        return [$statKey => $restoreAmount, 'restore' => $restoreAmount];
     }
 
     /**

@@ -241,23 +241,25 @@ class GameCombatLootServiceTest extends TestCase
     {
         $character = $this->createCharacter();
         $definition = $this->createItemDefinition([
-            'name' => 'Leather Gloves',
-            'type' => 'gloves',
-            'sub_type' => 'leather',
-            'base_stats' => ['defense' => 1, 'crit_rate' => 0.007],
-            'required_level' => 5,
+            'name' => 'Rune Sword',
+            'type' => 'weapon',
+            'sub_type' => 'sword',
+            'base_stats' => ['attack' => 20, 'crit_rate' => 0.0175],
+            'required_level' => 1,
         ]);
 
         srand(15);
         $item = $this->service->createItem($character, [
-            'type' => 'gloves',
+            'type' => 'weapon',
             'quality' => 'common',
             'level' => 5,
         ]);
 
         $this->assertInstanceOf(GameItem::class, $item);
         $this->assertSame($definition->id, $item->definition_id);
-        $this->assertSame(1, $item->stats['defense'] ?? null);
+        // srand(15) → random factor = 0.8, so attack = 20 * 0.8 = 16
+        $this->assertSame(16, $item->stats['attack'] ?? null);
+        // crit_rate = 0.0175 * 0.8 = 0.014, rounded to 4 decimals
         $this->assertGreaterThan(0, $item->stats['crit_rate'] ?? 0);
     }
 

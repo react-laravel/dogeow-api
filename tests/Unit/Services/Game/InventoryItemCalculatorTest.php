@@ -242,6 +242,10 @@ class InventoryItemCalculatorTest extends TestCase
 
         $this->assertArrayHasKey('attack', $stats);
         $this->assertIsNumeric($stats['attack']);
+        // 武器不应生成防御属性
+        $this->assertArrayNotHasKey('defense', $stats);
+        $this->assertArrayNotHasKey('max_hp', $stats);
+        $this->assertArrayNotHasKey('max_mana', $stats);
     }
 
     public function test_generate_random_stats_for_helmet(): void
@@ -254,6 +258,87 @@ class InventoryItemCalculatorTest extends TestCase
 
         $this->assertArrayHasKey('defense', $stats);
         $this->assertArrayHasKey('max_hp', $stats);
+        // 头盔不应生成攻击属性
+        $this->assertArrayNotHasKey('attack', $stats);
+        $this->assertArrayNotHasKey('crit_rate', $stats);
+        $this->assertArrayNotHasKey('crit_damage', $stats);
+    }
+
+    public function test_generate_random_stats_for_gloves_generates_only_defense(): void
+    {
+        $definition = new GameItemDefinition;
+        $definition->type = 'gloves';
+        $definition->required_level = 5;
+
+        $stats = $this->calculator->generateRandomStats($definition);
+
+        $this->assertArrayHasKey('defense', $stats);
+        // 手套不应生成攻击或暴击属性
+        $this->assertArrayNotHasKey('attack', $stats);
+        $this->assertArrayNotHasKey('crit_rate', $stats);
+        $this->assertArrayNotHasKey('crit_damage', $stats);
+    }
+
+    public function test_generate_random_stats_for_boots_generates_only_defense(): void
+    {
+        $definition = new GameItemDefinition;
+        $definition->type = 'boots';
+        $definition->required_level = 5;
+
+        $stats = $this->calculator->generateRandomStats($definition);
+
+        $this->assertArrayHasKey('defense', $stats);
+        $this->assertArrayHasKey('max_hp', $stats);
+        // 靴子不应生成攻击或敏捷属性
+        $this->assertArrayNotHasKey('attack', $stats);
+        $this->assertArrayNotHasKey('crit_rate', $stats);
+        $this->assertArrayNotHasKey('crit_damage', $stats);
+        $this->assertArrayNotHasKey('dexterity', $stats);
+    }
+
+    public function test_generate_random_stats_for_ring_generates_only_offense(): void
+    {
+        $definition = new GameItemDefinition;
+        $definition->type = 'ring';
+        $definition->required_level = 5;
+
+        $stats = $this->calculator->generateRandomStats($definition);
+
+        $this->assertArrayHasKey('attack', $stats);
+        // 戒指不应生成防御属性
+        $this->assertArrayNotHasKey('defense', $stats);
+        $this->assertArrayNotHasKey('max_hp', $stats);
+        $this->assertArrayNotHasKey('max_mana', $stats);
+    }
+
+    public function test_generate_random_stats_for_amulet_generates_only_offense(): void
+    {
+        $definition = new GameItemDefinition;
+        $definition->type = 'amulet';
+        $definition->required_level = 5;
+
+        $stats = $this->calculator->generateRandomStats($definition);
+
+        $this->assertArrayHasKey('attack', $stats);
+        // 项链不应生成防御属性
+        $this->assertArrayNotHasKey('defense', $stats);
+        $this->assertArrayNotHasKey('max_hp', $stats);
+        $this->assertArrayNotHasKey('max_mana', $stats);
+    }
+
+    public function test_generate_random_stats_for_belt_generates_only_defense(): void
+    {
+        $definition = new GameItemDefinition;
+        $definition->type = 'belt';
+        $definition->required_level = 5;
+
+        $stats = $this->calculator->generateRandomStats($definition);
+
+        $this->assertArrayHasKey('max_hp', $stats);
+        // 腰带不应生成攻击或暴击属性
+        $this->assertArrayNotHasKey('attack', $stats);
+        $this->assertArrayNotHasKey('crit_rate', $stats);
+        $this->assertArrayNotHasKey('crit_damage', $stats);
     }
 
     public function test_generate_random_stats_for_potion(): void

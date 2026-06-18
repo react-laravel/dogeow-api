@@ -1083,6 +1083,9 @@ class GameShopServiceTest extends TestCase
         $this->assertNotNull($helmetItem);
         $this->assertArrayHasKey('defense', $helmetItem['base_stats']);
         $this->assertArrayHasKey('max_hp', $helmetItem['base_stats']);
+        // 头盔不应有攻击属性
+        $this->assertArrayNotHasKey('attack', $helmetItem['base_stats']);
+        $this->assertArrayNotHasKey('crit_rate', $helmetItem['base_stats']);
     }
 
     public function test_generate_random_stats_for_armor(): void
@@ -1119,6 +1122,9 @@ class GameShopServiceTest extends TestCase
         $this->assertNotNull($bootsItem);
         $this->assertArrayHasKey('defense', $bootsItem['base_stats']);
         $this->assertArrayHasKey('max_hp', $bootsItem['base_stats']);
+        // 靴子不应有敏捷或攻击属性
+        $this->assertArrayNotHasKey('dexterity', $bootsItem['base_stats']);
+        $this->assertArrayNotHasKey('attack', $bootsItem['base_stats']);
     }
 
     public function test_generate_random_stats_for_belt(): void
@@ -1136,7 +1142,9 @@ class GameShopServiceTest extends TestCase
         $beltItem = $result['items']->firstWhere('id', $belt->id);
         $this->assertNotNull($beltItem);
         $this->assertArrayHasKey('max_hp', $beltItem['base_stats']);
-        $this->assertArrayHasKey('max_mana', $beltItem['base_stats']);
+        // 腰带不应有攻击或暴击属性
+        $this->assertArrayNotHasKey('attack', $beltItem['base_stats']);
+        $this->assertArrayNotHasKey('crit_rate', $beltItem['base_stats']);
     }
 
     public function test_get_shop_items_clears_expired_purchased_cache(): void
@@ -1241,7 +1249,11 @@ class GameShopServiceTest extends TestCase
             'required_level' => 8,
         ]);
         $ringStats = $calculator->generateRandomStats($ring);
-        $this->assertNotEmpty($ringStats);
+        $this->assertArrayHasKey('attack', $ringStats);
+        // 戒指不应有防御属性
+        $this->assertArrayNotHasKey('defense', $ringStats);
+        $this->assertArrayNotHasKey('max_hp', $ringStats);
+        $this->assertArrayNotHasKey('max_mana', $ringStats);
 
         $amulet = $this->createItemDefinition([
             'name' => '测试项链',
@@ -1249,8 +1261,11 @@ class GameShopServiceTest extends TestCase
             'required_level' => 8,
         ]);
         $amuletStats = $calculator->generateRandomStats($amulet);
-        $this->assertArrayHasKey('max_hp', $amuletStats);
-        $this->assertArrayHasKey('max_mana', $amuletStats);
+        $this->assertArrayHasKey('attack', $amuletStats);
+        // 项链不应有防御属性
+        $this->assertArrayNotHasKey('defense', $amuletStats);
+        $this->assertArrayNotHasKey('max_hp', $amuletStats);
+        $this->assertArrayNotHasKey('max_mana', $amuletStats);
 
         $potion = $this->createItemDefinition([
             'name' => '测试药水',
@@ -1378,56 +1393,55 @@ class GameShopServiceTest extends TestCase
             'type' => 'amulet',
             'required_level' => 10,
         ]);
+        $gloves = $this->createItemDefinition([
+            'name' => '随机手套',
+            'type' => 'gloves',
+            'required_level' => 10,
+        ]);
 
-        $helmetCrit = false;
-        $ringFirstCrit = false;
-        $ringSecondCrit = false;
-        $ringSecondNonCrit = false;
-        $bootsDexterity = false;
-        $amuletDefense = false;
+        $helmetHasOffense = false;
+        $ringHasDefense = false;
+        $bootsHasOffense = false;
+        $bootsHasDexterity = false;
+        $amuletHasDefense = false;
+        $glovesHasOffense = false;
 
         for ($i = 0; $i < 500; $i++) {
             $helmetStats = $calculator->generateRandomStats($helmet);
-            if (isset($helmetStats['crit_rate'])) {
-                $helmetCrit = true;
+            if (isset($helmetStats['attack']) || isset($helmetStats['crit_rate']) || isset($helmetStats['crit_damage'])) {
+                $helmetHasOffense = true;
             }
 
             $ringStats = $calculator->generateRandomStats($ring);
-            if ((array_key_first($ringStats) === 'crit_rate')) {
-                $ringFirstCrit = true;
-            }
-            if (count($ringStats) >= 2) {
-                $keys = array_keys($ringStats);
-                $secondKey = $keys[1] ?? null;
-                if ($secondKey === 'crit_rate') {
-                    $ringSecondCrit = true;
-                }
-                if ($secondKey !== null && $secondKey !== 'crit_rate') {
-                    $ringSecondNonCrit = true;
-                }
+            if (isset($ringStats['defense']) || isset($ringStats['max_hp']) || isset($ringStats['max_mana'])) {
+                $ringHasDefense = true;
             }
 
             $bootsStats = $calculator->generateRandomStats($boots);
+            if (isset($bootsStats['attack']) || isset($bootsStats['crit_rate']) || isset($bootsStats['crit_damage'])) {
+                $bootsHasOffense = true;
+            }
             if (isset($bootsStats['dexterity'])) {
-                $bootsDexterity = true;
+                $bootsHasDexterity = true;
             }
 
             $amuletStats = $calculator->generateRandomStats($amulet);
-            if (isset($amuletStats['defense'])) {
-                $amuletDefense = true;
+            if (isset($amuletStats['defense']) || isset($amuletStats['max_hp']) || isset($amuletStats['max_mana'])) {
+                $amuletHasDefense = true;
             }
 
-            if ($helmetCrit && $ringFirstCrit && $ringSecondCrit && $ringSecondNonCrit && $bootsDexterity && $amuletDefense) {
-                break;
+            $glovesStats = $calculator->generateRandomStats($gloves);
+            if (isset($glovesStats['attack']) || isset($glovesStats['crit_rate']) || isset($glovesStats['crit_damage'])) {
+                $glovesHasOffense = true;
             }
         }
 
-        $this->assertTrue($helmetCrit);
-        $this->assertTrue($ringFirstCrit);
-        $this->assertTrue($ringSecondCrit);
-        $this->assertTrue($ringSecondNonCrit);
-        $this->assertTrue($bootsDexterity);
-        $this->assertTrue($amuletDefense);
+        $this->assertFalse($helmetHasOffense, '头盔不应生成攻击/暴击属性');
+        $this->assertFalse($ringHasDefense, '戒指不应生成防御属性');
+        $this->assertFalse($bootsHasOffense, '靴子不应生成攻击/暴击属性');
+        $this->assertFalse($bootsHasDexterity, '靴子不应生成敏捷属性');
+        $this->assertFalse($amuletHasDefense, '项链不应生成防御属性');
+        $this->assertFalse($glovesHasOffense, '手套不应生成攻击/暴击属性');
     }
 
     public function test_calculate_buy_price_uses_ring_type_multiplier_for_stats(): void

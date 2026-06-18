@@ -138,12 +138,15 @@ class GameCombatLootService
         $quality = $itemData['quality'];
         $qualityMultiplier = GameItem::QUALITY_MULTIPLIERS[$quality] ?? 1.0;
         $stats = [];
+
+        // 按部位分类过滤基础属性
+        $equipmentCategory = $this->getEquipmentStatCategory($definition->type);
         /** @var array<string, mixed> $baseStatsArr */
         $baseStatsArr = $definition->base_stats ?? [];
-        if ($definition->type === 'weapon') {
-            unset($baseStatsArr['max_hp']);
-        }
-        foreach ($baseStatsArr as $stat => $value) {
+        $filteredBaseStats = $equipmentCategory !== null
+            ? $this->filterBaseStatsByCategory($baseStatsArr, $equipmentCategory)
+            : $baseStatsArr;
+        foreach ($filteredBaseStats as $stat => $value) {
             if (! is_numeric($value)) {
                 continue;
             }
@@ -169,20 +172,9 @@ class GameCombatLootService
                 'mythic' => rand(4, 5),
                 default => 0,
             };
-            $possibleAffixes = [
-                ['attack' => rand(1, 4)],
-                ['defense' => rand(1, 3)],
-                ['crit_rate' => rand(1, 5) / 100],
-                ['crit_damage' => rand(10, 30) / 100],
-                ['max_hp' => rand(2, 10)],
-                ['max_mana' => rand(1, 6)],
-            ];
-            if ($definition->type === 'weapon') {
-                $possibleAffixes = array_values(array_filter(
-                    $possibleAffixes,
-                    fn (array $affix): bool => ! array_key_exists('max_hp', $affix)
-                ));
-            }
+
+            // 按部位分类构建词缀池
+            $possibleAffixes = $this->buildAffixPoolForCategory($equipmentCategory);
             shuffle($possibleAffixes);
             $affixes = array_slice($possibleAffixes, 0, $affixCount);
 
@@ -359,5 +351,77 @@ class GameCombatLootService
         $character->discoverItem($definition->id);
 
         return $gem->load('definition');
+    }
+
+    /**
+     * 判断物品类型所属的属性分类
+     *
+     * @return 'defense'|'offense'|null
+     */
+    private function getEquipmentStatCategory(?string $type): ?string
+    {
+        if ($type === null) {
+            return null;
+        }
+
+        $defenseTypes = ['helmet', 'armor', 'gloves', 'boots', 'belt'];
+        $offenseTypes = ['weapon', 'ring', 'amulet'];
+
+        return in_array($type, $defenseTypes, true) ? 'defense'
+            : (in_array($type, $offenseTypes, true) ? 'offense' : null);
+    }
+
+    /**
+     * 按部位分类过滤基础属性（仅保留该类别允许的属性）
+     */
+    private function filterBaseStatsByCategory(array $baseStats, string $category): array
+    {
+        if ($baseStats === []) {
+            return [];
+        }
+
+        $allowedStats = match ($category) {
+            'defense' => config('game.defense_stat_categories', []),
+            'offense' => config('game.offense_stat_categories', []),
+            default => [],
+        };
+
+        if ($allowedStats === []) {
+            return $baseStats;
+        }
+
+        // all_stats 始终保留
+        $allowedStats[] = 'all_stats';
+
+        return array_filter($baseStats, fn (string $stat): bool => in_array($stat, $allowedStats, true), ARRAY_FILTER_USE_KEY);
+    }
+
+    /**
+     * 按部位分类构建词缀池
+     *
+     * @return array<int, array<string, int|float>>
+     */
+    private function buildAffixPoolForCategory(?string $category): array
+    {
+        $offenseAffixes = [
+            ['attack' => rand(1, 4)],
+            ['crit_rate' => rand(1, 5) / 100],
+            ['crit_damage' => rand(10, 30) / 100],
+            ['strength' => rand(1, 3)],
+            ['dexterity' => rand(1, 2)],
+            ['energy' => rand(1, 2)],
+        ];
+
+        $defenseAffixes = [
+            ['defense' => rand(1, 3)],
+            ['max_hp' => rand(2, 10)],
+            ['max_mana' => rand(1, 6)],
+        ];
+
+        return match ($category) {
+            'defense' => $defenseAffixes,
+            'offense' => $offenseAffixes,
+            default => array_merge($offenseAffixes, $defenseAffixes),
+        };
     }
 }
