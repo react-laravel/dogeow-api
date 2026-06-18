@@ -6,9 +6,11 @@ use App\Http\Controllers\Api\Ai\VisionUploadController;
 use App\Services\UpyunService;
 use Illuminate\Http\Request;
 use Mockery;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use ReflectionClass;
 use Tests\TestCase;
 
+#[AllowMockObjectsWithoutExpectations]
 class VisionUploadControllerUnitTest extends TestCase
 {
     public function test_constructor_initializes_upyun_service(): void
@@ -42,7 +44,7 @@ class VisionUploadControllerUnitTest extends TestCase
                     return in_array('file', $imageRules, true)
                         && ! in_array('image', $imageRules, true);
                 }),
-                Mockery::type('array')
+                Mockery::on(fn ($messages): bool => is_array($messages))
             );
         $request->shouldReceive('file')->once()->with('image')->andReturn($file);
 
@@ -107,7 +109,7 @@ class VisionUploadControllerUnitTest extends TestCase
         $upyunService->expects($this->once())
             ->method('upload')
             ->with(
-                $this->isType('string'),
+                $this->callback(fn ($v) => is_string($v)),
                 $this->callback(fn ($remotePath) => is_string($remotePath) && str_ends_with($remotePath, '.png')),
                 'image/png'
             )
@@ -142,7 +144,7 @@ class VisionUploadControllerUnitTest extends TestCase
         $upyunService->expects($this->once())
             ->method('upload')
             ->with(
-                $this->isType('string'),
+                $this->callback(fn ($v) => is_string($v)),
                 $this->callback(fn ($remotePath) => is_string($remotePath) && str_ends_with($remotePath, '.heic')),
                 'image/heic'
             )
@@ -177,7 +179,7 @@ class VisionUploadControllerUnitTest extends TestCase
         $upyunService->expects($this->once())
             ->method('upload')
             ->with(
-                $this->isType('string'),
+                $this->callback(fn ($v) => is_string($v)),
                 $this->callback(fn ($remotePath) => is_string($remotePath) && str_ends_with($remotePath, '.webp')),
                 'image/webp'
             )
@@ -212,7 +214,7 @@ class VisionUploadControllerUnitTest extends TestCase
         $upyunService->expects($this->once())
             ->method('upload')
             ->with(
-                $this->isType('string'),
+                $this->callback(fn ($v) => is_string($v)),
                 $this->callback(fn ($remotePath) => is_string($remotePath) && str_ends_with($remotePath, '.gif')),
                 'image/gif'
             )

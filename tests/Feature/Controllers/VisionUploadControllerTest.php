@@ -148,7 +148,7 @@ class VisionUploadControllerTest extends TestCase
             $mock->shouldReceive('upload')
                 ->once()
                 ->with(
-                    \Mockery::type('string'),
+                    \Mockery::on(fn ($path) => is_string($path)),
                     \Mockery::on(fn ($remotePath) => is_string($remotePath) && str_ends_with($remotePath, '.heic')),
                     'image/heic'
                 )
