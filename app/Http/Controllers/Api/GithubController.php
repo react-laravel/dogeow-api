@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
@@ -26,36 +29,125 @@ class GithubController extends Controller
     }
 
     /**
-     * GitHub 回调处理
+     * GitHub 回调处理（后端直接被 GitHub 调用的场景，保留兼容）
      */
     public function callback()
     {
         $githubUser = Socialite::driver('github')->stateless()->user(); // @phpstan-ignore method.notFound
 
-        // 根据 github_id 查找用户，不存在则创建
+        [$user, $token] = $this->findOrCreateUser($githubUser);
+
+        $frontendUrl = config('services.github.redirect');
+        $baseUrl = preg_replace('#/auth/github/callback$#', '', $frontendUrl);
+
+        return redirect($baseUrl . '?token=' . $token . '&user=' . urlencode(json_encode($user)));
+    }
+
+    /**
+     * 前端用 authorization code 换取 token（GitHub 回调到前端后，前端 POST code 到这里）
+     */
+    public function exchange(Request $request): JsonResponse
+    {
+        $code = $request->input('code');
+
+        if (! is_string($code) || trim($code) === '') {
+            return response()->json([
+                'success' => false,
+                'message' => '缺少授权码',
+            ], 422);
+        }
+
+        try {
+            $response = Http::asForm()->post('https://github.com/login/oauth/access_token', [
+                'client_id' => config('services.github.client_id'),
+                'client_secret' => config('services.github.client_secret'),
+                'code' => $code,
+            ]);
+
+            $data = $response->json();
+
+            if (isset($data['error'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $data['error_description'] ?? 'GitHub 授权失败',
+                ], 401);
+            }
+
+            $accessToken = $data['access_token'] ?? null;
+            if (! $accessToken) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '未获取到 access token',
+                ], 401);
+            }
+
+            $githubUserResponse = Http::withToken($accessToken)
+                ->get('https://api.github.com/user');
+
+            if (! $githubUserResponse->successful()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '获取 GitHub 用户信息失败',
+                ], 401);
+            }
+
+            $githubData = $githubUserResponse->json();
+            $githubUser = new \Laravel\Socialite\Two\User;
+            $githubUser->map($githubData);
+
+            [$user, $token] = $this->findOrCreateUser($githubUser);
+
+            return response()->json([
+                'token' => $token,
+                'user' => $user,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('GitHub OAuth exchange failed: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => '登录处理失败',
+            ], 500);
+        }
+    }
+
+    /**
+     * 查找或创建用户，返回 [userArray, plainTextToken]
+     *
+     * @return array{0: array<string, mixed>, 1: string}
+     */
+    private function findOrCreateUser(\Laravel\Socialite\Two\User $githubUser): array
+    {
+        $githubId = (string) ($githubUser->id ?? '');
+
         $user = User::firstOrCreate(
-            ['github_id' => $githubUser->id],
+            ['github_id' => $githubId],
             [
-                'name' => $githubUser->name ?? $githubUser->nickname,
+                'name' => $githubUser->name !== null ? $githubUser->name : $githubUser->nickname,
                 'email' => $githubUser->email,
                 'password' => Hash::make(Str::random(24)),
                 'github_avatar' => $githubUser->avatar,
             ]
         );
 
-        // 如果用户没有 github_id(旧用户)，更新它
         if (! $user->github_id) {
-            $user->update(['github_id' => $githubUser->id]);
+            $user->update(['github_id' => $githubId]);
         }
 
-        // 生成 Sanctum token
         $token = $user->createToken('auth-token')->plainTextToken;
 
-        // 重定向回前端并带上 token
-        $frontendUrl = config('services.github.redirect');
-        // 移除回调路径，保留基础 URL
-        $baseUrl = preg_replace('#/auth/github/callback$#', '', $frontendUrl);
+        $userArray = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'is_admin' => $user->is_admin,
+            'github_id' => $user->github_id,
+            'github_avatar' => $user->github_avatar,
+            'email_verified_at' => $user->email_verified_at,
+            'created_at' => $user->created_at,
+            'updated_at' => $user->updated_at,
+        ];
 
-        return redirect($baseUrl . '?token=' . $token . '&user=' . urlencode(json_encode($user)));
+        return [$userArray, $token];
     }
 }

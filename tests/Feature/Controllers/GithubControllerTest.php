@@ -5,6 +5,9 @@ namespace Tests\Feature\Controllers;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
+use Laravel\Socialite\Contracts\Factory;
+use Laravel\Socialite\Two\GithubProvider;
 use Mockery;
 use Tests\TestCase;
 
@@ -15,7 +18,7 @@ class GithubControllerTest extends TestCase
     public function test_redirect_returns_github_oauth_url(): void
     {
         // Use partial mock to add methods to driver
-        $driver = Mockery::mock(\Laravel\Socialite\Two\GithubProvider::class)->makePartial();
+        $driver = Mockery::mock(GithubProvider::class)->makePartial();
         $redirect = Mockery::mock();
         $redirect->shouldReceive('getTargetUrl')
             ->andReturn('https://github.com/login/oauth/authorize?client_id=test');
@@ -24,7 +27,7 @@ class GithubControllerTest extends TestCase
         $driver->shouldReceive('scopes')->andReturnSelf();
         $driver->shouldReceive('redirect')->andReturn($redirect);
 
-        $this->mock(\Laravel\Socialite\Contracts\Factory::class, function ($mock) use ($driver) {
+        $this->mock(Factory::class, function ($mock) use ($driver) {
             $mock->shouldReceive('driver')->with('github')->andReturn($driver);
         });
 
@@ -38,7 +41,7 @@ class GithubControllerTest extends TestCase
 
     public function test_callback_creates_new_user(): void
     {
-        $driver = Mockery::mock(\Laravel\Socialite\Two\GithubProvider::class)->makePartial();
+        $driver = Mockery::mock(GithubProvider::class)->makePartial();
 
         $githubUser = Mockery::mock(\Laravel\Socialite\Two\User::class);
         $githubUser->id = 'github123';
@@ -49,7 +52,7 @@ class GithubControllerTest extends TestCase
         $driver->shouldReceive('stateless')->andReturnSelf();
         $driver->shouldReceive('user')->andReturn($githubUser);
 
-        $this->mock(\Laravel\Socialite\Contracts\Factory::class, function ($mock) use ($driver) {
+        $this->mock(Factory::class, function ($mock) use ($driver) {
             $mock->shouldReceive('driver')->with('github')->andReturn($driver);
         });
 
@@ -72,7 +75,7 @@ class GithubControllerTest extends TestCase
             'github_id' => 'github123',
         ]);
 
-        $driver = Mockery::mock(\Laravel\Socialite\Two\GithubProvider::class)->makePartial();
+        $driver = Mockery::mock(GithubProvider::class)->makePartial();
 
         $githubUser = Mockery::mock(\Laravel\Socialite\Two\User::class);
         $githubUser->id = 'github123';
@@ -83,7 +86,7 @@ class GithubControllerTest extends TestCase
         $driver->shouldReceive('stateless')->andReturnSelf();
         $driver->shouldReceive('user')->andReturn($githubUser);
 
-        $this->mock(\Laravel\Socialite\Contracts\Factory::class, function ($mock) use ($driver) {
+        $this->mock(Factory::class, function ($mock) use ($driver) {
             $mock->shouldReceive('driver')->with('github')->andReturn($driver);
         });
 
@@ -97,7 +100,7 @@ class GithubControllerTest extends TestCase
 
     public function test_callback_uses_nickname_when_name_is_null(): void
     {
-        $driver = Mockery::mock(\Laravel\Socialite\Two\GithubProvider::class)->makePartial();
+        $driver = Mockery::mock(GithubProvider::class)->makePartial();
 
         $githubUser = Mockery::mock(\Laravel\Socialite\Two\User::class);
         $githubUser->id = 'github999';
@@ -109,7 +112,7 @@ class GithubControllerTest extends TestCase
         $driver->shouldReceive('stateless')->andReturnSelf();
         $driver->shouldReceive('user')->andReturn($githubUser);
 
-        $this->mock(\Laravel\Socialite\Contracts\Factory::class, function ($mock) use ($driver) {
+        $this->mock(Factory::class, function ($mock) use ($driver) {
             $mock->shouldReceive('driver')->with('github')->andReturn($driver);
         });
 
@@ -127,7 +130,7 @@ class GithubControllerTest extends TestCase
 
     public function test_callback_keeps_redirect_url_when_no_callback_suffix(): void
     {
-        $driver = Mockery::mock(\Laravel\Socialite\Two\GithubProvider::class)->makePartial();
+        $driver = Mockery::mock(GithubProvider::class)->makePartial();
 
         $githubUser = Mockery::mock(\Laravel\Socialite\Two\User::class);
         $githubUser->id = 'github777';
@@ -139,7 +142,7 @@ class GithubControllerTest extends TestCase
         $driver->shouldReceive('stateless')->andReturnSelf();
         $driver->shouldReceive('user')->andReturn($githubUser);
 
-        $this->mock(\Laravel\Socialite\Contracts\Factory::class, function ($mock) use ($driver) {
+        $this->mock(Factory::class, function ($mock) use ($driver) {
             $mock->shouldReceive('driver')->with('github')->andReturn($driver);
         });
 
@@ -153,7 +156,7 @@ class GithubControllerTest extends TestCase
 
     public function test_callback_strips_callback_suffix_from_redirect_url(): void
     {
-        $driver = Mockery::mock(\Laravel\Socialite\Two\GithubProvider::class)->makePartial();
+        $driver = Mockery::mock(GithubProvider::class)->makePartial();
 
         $githubUser = Mockery::mock(\Laravel\Socialite\Two\User::class);
         $githubUser->id = 'github555';
@@ -165,7 +168,7 @@ class GithubControllerTest extends TestCase
         $driver->shouldReceive('stateless')->andReturnSelf();
         $driver->shouldReceive('user')->andReturn($githubUser);
 
-        $this->mock(\Laravel\Socialite\Contracts\Factory::class, function ($mock) use ($driver) {
+        $this->mock(Factory::class, function ($mock) use ($driver) {
             $mock->shouldReceive('driver')->with('github')->andReturn($driver);
         });
 
@@ -181,7 +184,7 @@ class GithubControllerTest extends TestCase
 
     public function test_callback_handles_null_github_id_branch(): void
     {
-        $driver = Mockery::mock(\Laravel\Socialite\Two\GithubProvider::class)->makePartial();
+        $driver = Mockery::mock(GithubProvider::class)->makePartial();
 
         $githubUser = Mockery::mock(\Laravel\Socialite\Two\User::class);
         $githubUser->id = null;
@@ -193,7 +196,7 @@ class GithubControllerTest extends TestCase
         $driver->shouldReceive('stateless')->andReturnSelf();
         $driver->shouldReceive('user')->andReturn($githubUser);
 
-        $this->mock(\Laravel\Socialite\Contracts\Factory::class, function ($mock) use ($driver) {
+        $this->mock(Factory::class, function ($mock) use ($driver) {
             $mock->shouldReceive('driver')->with('github')->andReturn($driver);
         });
 
@@ -211,7 +214,7 @@ class GithubControllerTest extends TestCase
 
     public function test_callback_redirect_contains_decodable_user_query_param(): void
     {
-        $driver = Mockery::mock(\Laravel\Socialite\Two\GithubProvider::class)->makePartial();
+        $driver = Mockery::mock(GithubProvider::class)->makePartial();
 
         $githubUser = Mockery::mock(\Laravel\Socialite\Two\User::class);
         $githubUser->id = 'github888';
@@ -223,7 +226,7 @@ class GithubControllerTest extends TestCase
         $driver->shouldReceive('stateless')->andReturnSelf();
         $driver->shouldReceive('user')->andReturn($githubUser);
 
-        $this->mock(\Laravel\Socialite\Contracts\Factory::class, function ($mock) use ($driver) {
+        $this->mock(Factory::class, function ($mock) use ($driver) {
             $mock->shouldReceive('driver')->with('github')->andReturn($driver);
         });
 
@@ -244,5 +247,105 @@ class GithubControllerTest extends TestCase
         $decodedUser = json_decode($params['user'], true);
         $this->assertIsArray($decodedUser);
         $this->assertSame('query@example.com', $decodedUser['email'] ?? null);
+    }
+
+    public function test_exchange_creates_new_user_and_returns_token(): void
+    {
+        Http::fake([
+            'https://github.com/login/oauth/access_token' => Http::response([
+                'access_token' => 'gho_test_access_token_123',
+                'token_type' => 'bearer',
+            ], 200, ['Content-Type' => 'application/json']),
+            'https://api.github.com/user' => Http::response([
+                'id' => 999999,
+                'login' => 'newuser',
+                'name' => 'New User',
+                'email' => 'newuser@example.com',
+                'avatar_url' => 'https://avatars.githubusercontent.com/u/999999',
+            ], 200, ['Content-Type' => 'application/json']),
+        ]);
+
+        $response = $this->postJson('/api/auth/github/callback', [
+            'code' => 'test_auth_code_123',
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure([
+            'token',
+            'user' => [
+                'id', 'name', 'email', 'is_admin',
+                'github_id', 'github_avatar',
+                'email_verified_at', 'created_at', 'updated_at',
+            ],
+        ]);
+        $this->assertNotEmpty($response->json('token'));
+        $this->assertSame('newuser@example.com', $response->json('user.email'));
+        $this->assertDatabaseHas('users', [
+            'github_id' => '999999',
+            'email' => 'newuser@example.com',
+        ]);
+    }
+
+    public function test_exchange_returns_existing_user(): void
+    {
+        $user = User::factory()->create([
+            'github_id' => '888888',
+            'name' => 'Existing User',
+            'email' => 'existing@example.com',
+        ]);
+
+        Http::fake([
+            'https://github.com/login/oauth/access_token' => Http::response([
+                'access_token' => 'gho_existing_token',
+                'token_type' => 'bearer',
+            ], 200, ['Content-Type' => 'application/json']),
+            'https://api.github.com/user' => Http::response([
+                'id' => 888888,
+                'login' => 'existinguser',
+                'name' => 'Existing User',
+                'email' => 'existing@example.com',
+                'avatar_url' => 'https://avatars.githubusercontent.com/u/888888',
+            ], 200, ['Content-Type' => 'application/json']),
+        ]);
+
+        $response = $this->postJson('/api/auth/github/callback', [
+            'code' => 'existing_auth_code',
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertNotEmpty($response->json('token'));
+        $this->assertSame('existing@example.com', $response->json('user.email'));
+        $this->assertDatabaseHas('users', ['github_id' => '888888']);
+    }
+
+    public function test_exchange_requires_code(): void
+    {
+        $response = $this->postJson('/api/auth/github/callback', []);
+
+        $response->assertStatus(422);
+        $response->assertJson([
+            'success' => false,
+            'message' => '缺少授权码',
+        ]);
+    }
+
+    public function test_exchange_handles_github_api_failure(): void
+    {
+        Http::fake([
+            'github.com/*' => Http::sequence()
+                ->push('', 401, ['Content-Type' => 'application/x-www-form-urlencoded'], [
+                    'error' => 'bad_verification_code',
+                    'error_description' => 'The code passed is incorrect or expired.',
+                ]),
+        ]);
+
+        $response = $this->postJson('/api/auth/github/callback', [
+            'code' => 'expired_code',
+        ]);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'success' => false,
+        ]);
     }
 }

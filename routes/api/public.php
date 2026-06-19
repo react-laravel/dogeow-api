@@ -18,6 +18,7 @@ Route::post('/register', [AuthController::class, 'register']);
 // GitHub OAuth
 Route::get('/auth/github', [GithubController::class, 'redirect']);
 Route::get('/auth/github/callback', [GithubController::class, 'callback']);
+Route::post('/auth/github/callback', [GithubController::class, 'exchange']);
 
 Route::post('/github/webhooks/repo-watch', [GithubWebhookController::class, 'repoWatch']);
 
