@@ -11,6 +11,7 @@ class WebPageService
 {
     public function fetchContent(string $url): array
     {
+        $this->validateScheme($url);
         $url = Url::normalizeHttpUrl($url);
         $this->validateUrl($url);
 
@@ -28,6 +29,24 @@ class WebPageService
             'title' => Html::extractTitle($html),
             'favicon' => Html::extractFavicon($html, $url),
         ];
+    }
+
+    private function validateScheme(string $url): void
+    {
+        $parsed = parse_url($url);
+
+        if ($parsed === false) {
+            throw new InvalidArgumentException('无法解析 URL 主机名');
+        }
+
+        if (! isset($parsed['scheme'])) {
+            return;
+        }
+
+        $scheme = strtolower($parsed['scheme']);
+        if (! in_array($scheme, ['http', 'https'], true)) {
+            throw new InvalidArgumentException('仅支持 HTTP/HTTPS 协议');
+        }
     }
 
     private function validateUrl(string $url): void
