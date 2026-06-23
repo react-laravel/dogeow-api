@@ -90,4 +90,36 @@ class WebPageServiceTest extends TestCase
 
         $this->service->fetchContent('https://example.com/slow');
     }
+
+    public function test_fetch_content_rejects_localhost_url(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/无法获取目标网页内容/');
+
+        $this->service->fetchContent('http://127.0.0.1/admin');
+    }
+
+    public function test_fetch_content_rejects_metadata_endpoint_url(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/无法获取目标网页内容/');
+
+        $this->service->fetchContent('http://169.254.169.254/latest/meta-data/');
+    }
+
+    public function test_fetch_content_rejects_file_scheme(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/仅支持 HTTP\/HTTPS 协议/');
+
+        $this->service->fetchContent('file:///etc/passwd');
+    }
+
+    public function test_fetch_content_rejects_gopher_scheme(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/仅支持 HTTP\/HTTPS 协议/');
+
+        $this->service->fetchContent('gopher://evil.com/');
+    }
 }

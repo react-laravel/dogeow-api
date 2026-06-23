@@ -146,4 +146,33 @@ class MiniMaxControllerTest extends TestCase
 
         $this->assertSame('my_balance_key', $apiKey);
     }
+
+    public function test_billing_redacts_sensitive_config_from_log(): void
+    {
+        $controller = new MiniMaxController;
+
+        $reflection = new \ReflectionClass($controller);
+        $method = $reflection->getMethod('redactMinimaxConfig');
+        $method->setAccessible(true);
+
+        $config = [
+            'token_api_key' => 'secret_token',
+            'balance_api_key' => 'secret_balance',
+            'group_id' => 'test_group',
+            'api_base_url' => 'https://www.minimaxi.com',
+            'nested' => [
+                'token_api_key' => 'nested_token',
+                'other_key' => 'safe_value',
+            ],
+        ];
+
+        $result = $method->invoke($controller, $config);
+
+        $this->assertSame('***REDACTED***', $result['token_api_key']);
+        $this->assertSame('***REDACTED***', $result['balance_api_key']);
+        $this->assertSame('test_group', $result['group_id']);
+        $this->assertSame('https://www.minimaxi.com', $result['api_base_url']);
+        $this->assertSame('***REDACTED***', $result['nested']['token_api_key']);
+        $this->assertSame('safe_value', $result['nested']['other_key']);
+    }
 }

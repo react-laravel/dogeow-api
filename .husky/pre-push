@@ -1,3 +1,7 @@
+#!/usr/bin/env sh
+set -e
+
+. "$(dirname "$0")/ensure-php.sh"
 cd "$(dirname "$0")/.."
 
 # 获取将要推送的修改文件
@@ -7,7 +11,7 @@ changed_files=$(git diff --name-only @{upstream}..HEAD 2>/dev/null || git diff -
 critical_files="composer.json|phpunit.xml|\.env\.example|config/"
 if echo "$changed_files" | grep -qE "$critical_files"; then
     echo "⚠ Critical files changed, running full test suite..."
-    vendor/bin/phpunit --no-coverage
+    php vendor/bin/phpunit --no-coverage
     exit $?
 fi
 
@@ -38,8 +42,8 @@ fi
 # 如果找到了相关测试，只运行这些；否则运行全量
 if [ -n "$test_files" ]; then
     echo "→ Running tests for changed files..."
-    vendor/bin/phpunit --no-coverage $test_files
+    php vendor/bin/phpunit --no-coverage $test_files
 else
     echo "⚠ No specific tests found, running full suite..."
-    vendor/bin/phpunit --no-coverage
+    php vendor/bin/phpunit --no-coverage
 fi

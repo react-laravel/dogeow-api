@@ -48,7 +48,7 @@ Route::get('notes/article/{slug}', [NoteController::class, 'getArticleBySlug']);
 Route::get('notes/wiki/articles', [NoteController::class, 'getAllWikiArticles']);
 
 // Vision AI 图片上传
-Route::post('/vision/upload', [VisionUploadController::class, 'upload']);
+Route::post('/vision/upload', [VisionUploadController::class, 'upload'])->middleware('throttle:5,1');
 
 // Public nav/tools
 require base_path('routes/api/nav.php');

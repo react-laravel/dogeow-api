@@ -137,7 +137,7 @@ class MiniMaxController extends Controller
                 'apiKey_exists' => ! empty($apiKey),
                 'apiKey_length' => $apiKey ? strlen($apiKey) : 0,
                 'groupId' => $groupId,
-                'services_config' => config('services.minimax'),
+                'services_config' => $this->redactMinimaxConfig(config('services.minimax')),
             ]);
 
             if (empty($apiKey)) {
@@ -203,5 +203,26 @@ class MiniMaxController extends Controller
         $apiKey = config('services.minimax.balance_api_key');
 
         return is_string($apiKey) && $apiKey !== '' ? $apiKey : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $config
+     * @return array<string, mixed>
+     */
+    private function redactMinimaxConfig(array $config): array
+    {
+        $sensitiveKeys = ['token_api_key', 'balance_api_key'];
+
+        return collect($config)->map(function ($value, $key) use ($sensitiveKeys) {
+            if (in_array($key, $sensitiveKeys, true)) {
+                return is_string($value) && $value !== '' ? '***REDACTED***' : $value;
+            }
+
+            if (is_array($value)) {
+                return $this->redactMinimaxConfig($value);
+            }
+
+            return $value;
+        })->all();
     }
 }

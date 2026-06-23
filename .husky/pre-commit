@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
 set -e
 
+. "$(dirname "$0")/ensure-php.sh"
 cd "$(dirname "$0")/.."
 
 staged_php_files() {
@@ -15,10 +16,10 @@ if git diff --cached --quiet --diff-filter=ACMR -- ':(glob)**/*.php'; then
   exit 0
 fi
 
-staged_php_files | tr '\n' '\0' | xargs -0 vendor/bin/pint --test
+staged_php_files | tr '\n' '\0' | xargs -0 php vendor/bin/pint --test
 
 PHPSTAN_FILES="$(phpstan_target_files)"
 
 if [ -n "$PHPSTAN_FILES" ]; then
-  printf '%s\n' "$PHPSTAN_FILES" | tr '\n' '\0' | xargs -0 vendor/bin/phpstan analyse --memory-limit=-1 --no-progress
+  printf '%s\n' "$PHPSTAN_FILES" | tr '\n' '\0' | xargs -0 php vendor/bin/phpstan analyse --memory-limit=-1 --no-progress
 fi

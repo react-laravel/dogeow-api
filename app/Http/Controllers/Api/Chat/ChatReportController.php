@@ -45,6 +45,12 @@ class ChatReportController extends Controller
         $message = ChatMessage::where('room_id', $roomId)->findOrFail($messageId);
         $reporter = $this->getModerator();
 
+        // 确保举报者是房间成员
+        $roomMembership = $this->ensureUserInRoom($roomId, $reporter->id, 'You must be a member of this room to report messages', 403);
+        if ($roomMembership) {
+            return $roomMembership;
+        }
+
         if ($message->user_id === $reporter->id) {
             return $this->error('You cannot report your own message');
         }
@@ -70,7 +76,7 @@ class ChatReportController extends Controller
                     'metadata' => [
                         'reporter_ip' => $request->ip(),
                         'user_agent' => $request->userAgent(),
-                        'message_content' => $message->message,
+                        'message_content_hash' => hash('sha256', $message->message),
                         'message_created_at' => $message->created_at->toISOString(),
                     ],
                 ]);
@@ -360,11 +366,13 @@ class ChatReportController extends Controller
 
     /**
      * 根据举报数量自动审核消息
+     * 只计算来自房间成员的有效举报，防止恶意刷举报
      */
     private function checkAutoModeration(int $messageId, int $roomId): void
     {
         $reportCount = ChatMessageReport::where('message_id', $messageId)
             ->where('status', ChatMessageReport::STATUS_PENDING)
+            ->whereRaw('exists (select 1 from `chat_room_users` where `chat_room_users`.`room_id` = ? and `chat_room_users`.`user_id` = `chat_message_reports`.`reported_by`)', [$roomId])
             ->count();
 
         if ($reportCount < 3) {

@@ -2,26 +2,37 @@
 
 namespace Tests\Feature\Controllers;
 
+use App\Models\User;
 use App\Services\Cache\CacheService;
 use App\Services\Web\WebPageService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use Mockery;
 use Tests\TestCase;
 
 class TitleControllerTest extends TestCase
 {
+    use RefreshDatabase;
+
     private $webPageService;
 
     private $cacheService;
+
+    private User $user;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->webPageService = Mockery::mock(WebPageService::class);
+
         $this->cacheService = Mockery::mock(CacheService::class);
 
         $this->app->instance(WebPageService::class, $this->webPageService);
         $this->app->instance(CacheService::class, $this->cacheService);
+
+        $this->user = User::factory()->create();
+        Sanctum::actingAs($this->user);
     }
 
     protected function tearDown(): void
@@ -117,7 +128,7 @@ class TitleControllerTest extends TestCase
         $this->cacheService->shouldReceive('putError')
             ->with($url, Mockery::on(function ($errorData) {
                 return $errorData['error'] === '请求异常' &&
-                       $errorData['details'] === 'Network error' &&
+                       $errorData['details'] === '无法获取目标网页内容' &&
                        $errorData['status_code'] === 500;
             }))
             ->once();
@@ -127,7 +138,7 @@ class TitleControllerTest extends TestCase
         $response->assertStatus(500)
             ->assertJson([
                 'error' => '请求异常',
-                'details' => 'Network error',
+                'details' => '无法获取目标网页内容',
                 'status_code' => 500,
             ]);
     }
@@ -198,7 +209,7 @@ class TitleControllerTest extends TestCase
         $this->cacheService->shouldReceive('putError')
             ->with($url, Mockery::on(function ($errorData) {
                 return $errorData['error'] === '请求异常' &&
-                       $errorData['details'] === 'HTTP 404 Not Found' &&
+                       $errorData['details'] === '无法获取目标网页内容' &&
                        $errorData['status_code'] === 500;
             }))
             ->once();
@@ -208,7 +219,7 @@ class TitleControllerTest extends TestCase
         $response->assertStatus(500)
             ->assertJson([
                 'error' => '请求异常',
-                'details' => 'HTTP 404 Not Found',
+                'details' => '无法获取目标网页内容',
                 'status_code' => 500,
             ]);
     }
@@ -230,7 +241,7 @@ class TitleControllerTest extends TestCase
         $this->cacheService->shouldReceive('putError')
             ->with($url, Mockery::on(function ($errorData) {
                 return $errorData['error'] === '请求异常' &&
-                       $errorData['details'] === 'Invalid URL format' &&
+                       $errorData['details'] === '无法获取目标网页内容' &&
                        $errorData['status_code'] === 500;
             }))
             ->once();
@@ -240,7 +251,7 @@ class TitleControllerTest extends TestCase
         $response->assertStatus(500)
             ->assertJson([
                 'error' => '请求异常',
-                'details' => 'Invalid URL format',
+                'details' => '无法获取目标网页内容',
                 'status_code' => 500,
             ]);
     }
@@ -366,5 +377,65 @@ class TitleControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson($fetchedData);
+    }
+
+    public function test_fetch_rejects_private_ip_url()
+    {
+        $url = 'http://127.0.0.1/admin';
+
+        $this->cacheService->shouldReceive('get')
+            ->with($url)
+            ->once()
+            ->andReturn(null);
+
+        $this->webPageService->shouldReceive('fetchContent')
+            ->with($url)
+            ->once()
+            ->andThrow(new \InvalidArgumentException('不允许访问内网地址'));
+
+        $this->cacheService->shouldReceive('putError')
+            ->with($url, Mockery::on(function ($errorData) {
+                return $errorData['error'] === '请求异常' &&
+                       $errorData['details'] === '无法获取目标网页内容' &&
+                       $errorData['status_code'] === 400;
+            }))
+            ->once();
+
+        $response = $this->getJson('/api/fetch-title?url=' . urlencode($url));
+
+        $response->assertStatus(400)
+            ->assertJson([
+                'error' => '请求异常',
+            ]);
+    }
+
+    public function test_fetch_rejects_metadata_endpoint_url()
+    {
+        $url = 'http://169.254.169.254/latest/meta-data/';
+
+        $this->cacheService->shouldReceive('get')
+            ->with($url)
+            ->once()
+            ->andReturn(null);
+
+        $this->webPageService->shouldReceive('fetchContent')
+            ->with($url)
+            ->once()
+            ->andThrow(new \InvalidArgumentException('不允许访问内网地址'));
+
+        $this->cacheService->shouldReceive('putError')
+            ->with($url, Mockery::on(function ($errorData) {
+                return $errorData['error'] === '请求异常' &&
+                       $errorData['details'] === '无法获取目标网页内容' &&
+                       $errorData['status_code'] === 400;
+            }))
+            ->once();
+
+        $response = $this->getJson('/api/fetch-title?url=' . urlencode($url));
+
+        $response->assertStatus(400)
+            ->assertJson([
+                'error' => '请求异常',
+            ]);
     }
 }

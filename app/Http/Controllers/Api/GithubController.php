@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
@@ -30,6 +31,7 @@ class GithubController extends Controller
 
     /**
      * GitHub 回调处理（后端直接被 GitHub 调用的场景，保留兼容）
+     * Token 通过 Session 传递，避免出现在 URL 中造成泄露
      */
     public function callback()
     {
@@ -40,7 +42,10 @@ class GithubController extends Controller
         $frontendUrl = config('services.github.redirect');
         $baseUrl = preg_replace('#/auth/github/callback$#', '', $frontendUrl);
 
-        return redirect($baseUrl . '?token=' . $token . '&user=' . urlencode(json_encode($user)));
+        Session::put('github_oauth_token', $token);
+        Session::put('github_oauth_user', $user);
+
+        return redirect($baseUrl);
     }
 
     /**

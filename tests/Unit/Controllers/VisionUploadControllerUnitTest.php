@@ -313,4 +313,106 @@ class VisionUploadControllerUnitTest extends TestCase
         $this->assertNotNull($capturedTempPath);
         $this->assertFileDoesNotExist($capturedTempPath);
     }
+
+    public function test_validate_image_magic_bytes_accepts_valid_png(): void
+    {
+        $controller = new VisionUploadController($this->createMock(UpyunService::class));
+        $reflection = new ReflectionClass($controller);
+        $method = $reflection->getMethod('validateImageMagicBytes');
+        $method->setAccessible(true);
+
+        $tmpPath = tempnam(sys_get_temp_dir(), 'png');
+        file_put_contents($tmpPath, "\x89PNG\r\n\x1a\n" . str_repeat('a', 100));
+
+        try {
+            $this->assertTrue($method->invoke($controller, $tmpPath));
+        } finally {
+            @unlink($tmpPath);
+        }
+    }
+
+    public function test_validate_image_magic_bytes_accepts_valid_jpeg(): void
+    {
+        $controller = new VisionUploadController($this->createMock(UpyunService::class));
+        $reflection = new ReflectionClass($controller);
+        $method = $reflection->getMethod('validateImageMagicBytes');
+        $method->setAccessible(true);
+
+        $tmpPath = tempnam(sys_get_temp_dir(), 'jpg');
+        file_put_contents($tmpPath, "\xff\xd8\xff\xe0" . str_repeat('a', 100));
+
+        try {
+            $this->assertTrue($method->invoke($controller, $tmpPath));
+        } finally {
+            @unlink($tmpPath);
+        }
+    }
+
+    public function test_validate_image_magic_bytes_accepts_valid_gif(): void
+    {
+        $controller = new VisionUploadController($this->createMock(UpyunService::class));
+        $reflection = new ReflectionClass($controller);
+        $method = $reflection->getMethod('validateImageMagicBytes');
+        $method->setAccessible(true);
+
+        $tmpPath = tempnam(sys_get_temp_dir(), 'gif');
+        file_put_contents($tmpPath, 'GIF89a' . str_repeat('a', 100));
+
+        try {
+            $this->assertTrue($method->invoke($controller, $tmpPath));
+        } finally {
+            @unlink($tmpPath);
+        }
+    }
+
+    public function test_validate_image_magic_bytes_accepts_valid_webp(): void
+    {
+        $controller = new VisionUploadController($this->createMock(UpyunService::class));
+        $reflection = new ReflectionClass($controller);
+        $method = $reflection->getMethod('validateImageMagicBytes');
+        $method->setAccessible(true);
+
+        $tmpPath = tempnam(sys_get_temp_dir(), 'webp');
+        file_put_contents($tmpPath, 'RIFFxxxxWEBP' . str_repeat('a', 100));
+
+        try {
+            $this->assertTrue($method->invoke($controller, $tmpPath));
+        } finally {
+            @unlink($tmpPath);
+        }
+    }
+
+    public function test_validate_image_magic_bytes_rejects_non_image(): void
+    {
+        $controller = new VisionUploadController($this->createMock(UpyunService::class));
+        $reflection = new ReflectionClass($controller);
+        $method = $reflection->getMethod('validateImageMagicBytes');
+        $method->setAccessible(true);
+
+        $tmpPath = tempnam(sys_get_temp_dir(), 'fake');
+        file_put_contents($tmpPath, '<html><body>PHP shell</body></html>' . str_repeat('a', 100));
+
+        try {
+            $this->assertFalse($method->invoke($controller, $tmpPath));
+        } finally {
+            @unlink($tmpPath);
+        }
+    }
+
+    public function test_validate_image_magic_bytes_rejects_executable(): void
+    {
+        $controller = new VisionUploadController($this->createMock(UpyunService::class));
+        $reflection = new ReflectionClass($controller);
+        $method = $reflection->getMethod('validateImageMagicBytes');
+        $method->setAccessible(true);
+
+        $tmpPath = tempnam(sys_get_temp_dir(), 'exe');
+        file_put_contents($tmpPath, "MZ\x90\x00" . str_repeat('a', 100)); // PE executable header
+
+        try {
+            $this->assertFalse($method->invoke($controller, $tmpPath));
+        } finally {
+            @unlink($tmpPath);
+        }
+    }
 }

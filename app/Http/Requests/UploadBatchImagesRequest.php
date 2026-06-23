@@ -43,6 +43,7 @@ class UploadBatchImagesRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'images' => 'required|array|max:20',
             'images.*' => 'required|file|max:20480',
         ];
     }
@@ -91,6 +92,9 @@ class UploadBatchImagesRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'images.required' => '请选择要上传的图片。',
+            'images.array' => '图片必须是数组格式。',
+            'images.max' => '单次最多上传 20 张图片。',
             'images.*.required' => '请选择要上传的图片。',
             'images.*.uploaded' => '图片上传失败，可能超过了 PHP 本地上传限制。请确认 upload_max_filesize 至少为 20M，post_max_size 至少为 25M。',
             'images.*.file' => '上传文件必须是图片。',

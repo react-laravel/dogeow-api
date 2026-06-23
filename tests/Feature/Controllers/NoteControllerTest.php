@@ -311,4 +311,60 @@ class NoteControllerTest extends TestCase
         $this->assertNotSame('old-wiki-title', $updated->slug);
         $this->assertStringContainsString('new-wiki-title', (string) $updated->slug);
     }
+
+    public function test_get_article_by_slug_returns_wiki_article()
+    {
+        $wikiNote = Note::factory()->create([
+            'user_id' => $this->user->id,
+            'is_wiki' => true,
+            'title' => 'Public Wiki Article',
+            'slug' => 'public-wiki-article',
+            'content' => 'Public wiki content',
+        ]);
+
+        $response = $this->getJson("/api/notes/article/{$wikiNote->slug}");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.title', 'Public Wiki Article')
+            ->assertJsonPath('data.slug', 'public-wiki-article')
+            ->assertJsonPath('data.content', 'Public wiki content');
+    }
+
+    public function test_get_article_by_slug_returns_404_for_private_note()
+    {
+        $privateNote = Note::factory()->create([
+            'user_id' => $this->user->id,
+            'is_wiki' => false,
+            'title' => 'Private Note',
+            'slug' => 'private-note',
+            'content' => 'Secret content',
+        ]);
+
+        $response = $this->getJson("/api/notes/article/{$privateNote->slug}");
+
+        $response->assertStatus(404);
+    }
+
+    public function test_get_article_by_slug_returns_404_for_other_user_private_note()
+    {
+        $otherUser = User::factory()->create();
+        $privateNote = Note::factory()->create([
+            'user_id' => $otherUser->id,
+            'is_wiki' => false,
+            'title' => 'Other User Private Note',
+            'slug' => 'other-private-note',
+            'content' => 'Secret content',
+        ]);
+
+        $response = $this->getJson("/api/notes/article/{$privateNote->slug}");
+
+        $response->assertStatus(404);
+    }
+
+    public function test_get_article_by_slug_returns_404_for_unknown_slug()
+    {
+        $response = $this->getJson('/api/notes/article/non-existent-slug');
+
+        $response->assertStatus(404);
+    }
 }

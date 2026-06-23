@@ -61,10 +61,13 @@ class NoteController extends Controller
 
     /**
      * 通过 slug 获取文章(公开)
+     * 仅返回 wiki 文章，防止私有笔记通过 slug 泄露
      */
     public function getArticleBySlug(string $slug): JsonResponse
     {
-        $note = Note::where('slug', $slug)->first();
+        $note = Note::where('slug', $slug)
+            ->where('is_wiki', true)
+            ->first();
 
         if (! $note) {
             return $this->error('Article not found', [], 404);
@@ -235,7 +238,21 @@ class NoteController extends Controller
      */
     private function buildGraphLinks()
     {
+        $userId = $this->getCurrentUserId();
+
+        // 只返回当前用户可见的笔记之间的链接
+        // 可见笔记 = 用户自己的笔记 OR wiki 笔记
         return NoteLink::with(['sourceNote', 'targetNote'])
+            ->where(function ($query) use ($userId) {
+                $query->whereHas('sourceNote', function ($q) use ($userId) {
+                    $q->where('user_id', $userId)->orWhere('is_wiki', true);
+                });
+            })
+            ->where(function ($query) use ($userId) {
+                $query->whereHas('targetNote', function ($q) use ($userId) {
+                    $q->where('user_id', $userId)->orWhere('is_wiki', true);
+                });
+            })
             ->limit(5000)
             ->get()
             ->map(function (NoteLink $link) {
@@ -363,6 +380,20 @@ class NoteController extends Controller
             'type' => 'nullable|string|max:255',
         ]);
 
+        $userId = $this->getCurrentUserId();
+
+        // 校验调用者对 source 和 target 笔记的所有权
+        $sourceNote = Note::where('id', $validated['source_id'])
+            ->where('user_id', $userId)
+            ->first();
+        $targetNote = Note::where('id', $validated['target_id'])
+            ->where('user_id', $userId)
+            ->first();
+
+        if (! $sourceNote || ! $targetNote) {
+            return $this->error('You do not have permission to create this link', [], 403);
+        }
+
         // 检查是否已存在相同的链接
         $existingLink = NoteLink::where('source_id', $validated['source_id'])
             ->where('target_id', $validated['target_id'])
@@ -390,6 +421,20 @@ class NoteController extends Controller
     public function destroyLink(int $id): JsonResponse
     {
         $link = NoteLink::findOrFail($id);
+        $userId = $this->getCurrentUserId();
+
+        // 校验调用者至少拥有 source 或 target 笔记之一
+        $ownsSource = Note::where('id', $link->source_id)
+            ->where('user_id', $userId)
+            ->exists();
+        $ownsTarget = Note::where('id', $link->target_id)
+            ->where('user_id', $userId)
+            ->exists();
+
+        if (! $ownsSource && ! $ownsTarget) {
+            return $this->error('You do not have permission to delete this link', [], 403);
+        }
+
         $link->delete();
 
         return $this->success([], 'Link deleted successfully');

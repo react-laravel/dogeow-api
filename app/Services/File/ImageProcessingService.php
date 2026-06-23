@@ -11,6 +11,10 @@ class ImageProcessingService extends BaseService
 {
     private ImageManager $manager;
 
+    private const MAX_IMAGE_DIMENSION = 10000;
+
+    private const MAX_PIXEL_COUNT = 100_000_000; // 100 megapixels
+
     // 图片尺寸配置
     private function getThumbnailSize(): int
     {
@@ -49,6 +53,11 @@ class ImageProcessingService extends BaseService
                 ]);
 
                 return $this->error('Original image file not found');
+            }
+
+            $dimensionCheck = $this->validateImageDimensions($originPath);
+            if (! $dimensionCheck['success']) {
+                return $dimensionCheck;
             }
 
             if ($this->isHeicImage($originPath)) {
@@ -275,6 +284,62 @@ class ImageProcessingService extends BaseService
 
         } catch (\Throwable $e) {
             return $this->handleException($e, 'get image info');
+        }
+    }
+
+    /**
+     * 验证图片尺寸和像素数，防止资源耗尽
+     */
+    private function validateImageDimensions(string $path): array
+    {
+        if ($this->isHeicImage($path)) {
+            return $this->validateHeicDimensions($path);
+        }
+
+        $sizeInfo = @getimagesize($path);
+        if ($sizeInfo === false) {
+            return $this->error('无法读取图片尺寸');
+        }
+
+        [$width, $height] = $sizeInfo;
+
+        if ($width > self::MAX_IMAGE_DIMENSION || $height > self::MAX_IMAGE_DIMENSION) {
+            return $this->error('图片尺寸超过最大限制');
+        }
+
+        return $this->success(['width' => $width, 'height' => $height]);
+    }
+
+    /**
+     * 使用 Imagick pingImage 验证 HEIC 图片尺寸，避免完整解码
+     */
+    private function validateHeicDimensions(string $path): array
+    {
+        if (! extension_loaded('imagick')) {
+            return $this->success([]);
+        }
+
+        try {
+            $imagick = new \Imagick;
+            $imagick->pingImage($path);
+
+            $width = $imagick->getImageWidth();
+            $height = $imagick->getImageHeight();
+
+            $imagick->clear();
+            $imagick->destroy();
+
+            if ($width > self::MAX_IMAGE_DIMENSION || $height > self::MAX_IMAGE_DIMENSION) {
+                return $this->error('图片尺寸超过最大限制');
+            }
+
+            if ($width * $height > self::MAX_PIXEL_COUNT) {
+                return $this->error('图片像素数超过最大限制');
+            }
+
+            return $this->success(['width' => $width, 'height' => $height]);
+        } catch (\Throwable $e) {
+            return $this->error('无法读取 HEIC 图片尺寸: ' . $e->getMessage());
         }
     }
 }

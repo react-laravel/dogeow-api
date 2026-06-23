@@ -125,7 +125,7 @@ class TitleControllerTest extends TestCase
         $this->cacheService->shouldReceive('putError')
             ->with($url, Mockery::on(function ($errorData) {
                 return $errorData['error'] === '请求异常' &&
-                       $errorData['details'] === 'Network error' &&
+                       $errorData['details'] === '无法获取目标网页内容' &&
                        $errorData['status_code'] === 500;
             }))
             ->once();
@@ -135,7 +135,7 @@ class TitleControllerTest extends TestCase
         $this->assertEquals(500, $response->getStatusCode());
         $responseData = json_decode($response->getContent(), true);
         $this->assertEquals('请求异常', $responseData['error']);
-        $this->assertEquals('Network error', $responseData['details']);
+        $this->assertEquals('无法获取目标网页内容', $responseData['details']);
         $this->assertEquals(500, $responseData['status_code']);
     }
 
@@ -189,7 +189,7 @@ class TitleControllerTest extends TestCase
         $this->cacheService->shouldReceive('putError')
             ->with($url, Mockery::on(function ($errorData) {
                 return $errorData['error'] === '请求异常' &&
-                       $errorData['details'] === 'HTTP 404 Not Found' &&
+                       $errorData['details'] === '无法获取目标网页内容' &&
                        $errorData['status_code'] === 500;
             }))
             ->once();
@@ -199,7 +199,7 @@ class TitleControllerTest extends TestCase
         $this->assertEquals(500, $response->getStatusCode());
         $responseData = json_decode($response->getContent(), true);
         $this->assertEquals('请求异常', $responseData['error']);
-        $this->assertEquals('HTTP 404 Not Found', $responseData['details']);
+        $this->assertEquals('无法获取目标网页内容', $responseData['details']);
         $this->assertEquals(500, $responseData['status_code']);
     }
 
@@ -223,17 +223,17 @@ class TitleControllerTest extends TestCase
         $this->cacheService->shouldReceive('putError')
             ->with($url, Mockery::on(function ($errorData) {
                 return $errorData['error'] === '请求异常' &&
-                       $errorData['details'] === 'Invalid URL format' &&
-                       $errorData['status_code'] === 500;
+                       $errorData['details'] === '无法获取目标网页内容' &&
+                       $errorData['status_code'] === 400;
             }))
             ->once();
 
         $response = $this->controller->fetch($request);
 
-        $this->assertEquals(500, $response->getStatusCode());
+        $this->assertEquals(400, $response->getStatusCode());
         $responseData = json_decode($response->getContent(), true);
         $this->assertEquals('请求异常', $responseData['error']);
-        $this->assertEquals('Invalid URL format', $responseData['details']);
-        $this->assertEquals(500, $responseData['status_code']);
+        $this->assertEquals('无法获取目标网页内容', $responseData['details']);
+        $this->assertEquals(400, $responseData['status_code']);
     }
 }

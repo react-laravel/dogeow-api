@@ -133,8 +133,10 @@ class VisionUploadControllerTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
+        // Minimal HEIC ftyp box: size(4) + 'ftyp'(4) + brand(4) + minor_version(4) + compatible_brands...
+        $heicHeader = "\x00\x00\x00\x20ftypheic\x00\x00\x00\x00heic";
         $tmpPath = tempnam(sys_get_temp_dir(), 'ios-heic');
-        file_put_contents($tmpPath, 'heic-binary-content-from-ios-photo-library');
+        file_put_contents($tmpPath, $heicHeader);
 
         $image = new UploadedFile(
             $tmpPath,
@@ -300,6 +302,31 @@ class VisionUploadControllerTest extends TestCase
         // Validation fails first (not a valid image), returns 422
         $response = $this->postJson('/api/vision/upload', [
             'image' => $invalidImage,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['image']);
+    }
+
+    public function test_upload_vision_image_rejects_non_image_with_png_extension(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        // Create a file with .png extension but HTML content (magic bytes mismatch)
+        $tmpPath = tempnam(sys_get_temp_dir(), 'fake-png');
+        file_put_contents($tmpPath, '<html><body>not an image</body></html>');
+
+        $fakePng = new UploadedFile(
+            $tmpPath,
+            'fake.png',
+            'image/png',
+            null,
+            true
+        );
+
+        $response = $this->postJson('/api/vision/upload', [
+            'image' => $fakePng,
         ]);
 
         $response->assertStatus(422);

@@ -4,7 +4,9 @@ namespace Tests\Feature\Controllers;
 
 use App\Models\Chat\ChatMessage;
 use App\Models\Chat\ChatMessageReport;
+use App\Models\Chat\ChatModerationAction;
 use App\Models\Chat\ChatRoom;
+use App\Models\Chat\ChatRoomUser;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -28,6 +30,12 @@ class ChatReportControllerTest extends TestCase
         $this->user = User::factory()->create();
         $this->messageUser = User::factory()->create();
         $this->room = ChatRoom::factory()->create(['created_by' => $this->user->id]);
+        // 创建房间成员记录，确保用户是房间成员
+        ChatRoomUser::create([
+            'room_id' => $this->room->id,
+            'user_id' => $this->user->id,
+            'is_online' => true,
+        ]);
         $this->message = ChatMessage::factory()->create([
             'room_id' => $this->room->id,
             'user_id' => $this->messageUser->id,
@@ -77,6 +85,24 @@ class ChatReportControllerTest extends TestCase
         $response->assertStatus(422);
         $response->assertJson([
             'message' => 'You cannot report your own message',
+        ]);
+    }
+
+    public function test_report_message_requires_room_membership()
+    {
+        $nonMember = User::factory()->create();
+        Sanctum::actingAs($nonMember);
+
+        $reportData = [
+            'report_type' => ChatMessageReport::TYPE_INAPPROPRIATE_CONTENT,
+            'reason' => 'Inappropriate content',
+        ];
+
+        $response = $this->postJson("/api/chat/reports/rooms/{$this->room->id}/messages/{$this->message->id}", $reportData);
+
+        $response->assertStatus(403);
+        $response->assertJson([
+            'message' => 'You must be a member of this room to report messages',
         ]);
     }
 
@@ -339,13 +365,23 @@ class ChatReportControllerTest extends TestCase
         $this->assertNotNull($report);
         $this->assertArrayHasKey('reporter_ip', $report->metadata);
         $this->assertArrayHasKey('user_agent', $report->metadata);
-        $this->assertArrayHasKey('message_content', $report->metadata);
+        $this->assertArrayHasKey('message_content_hash', $report->metadata);
+        $this->assertArrayNotHasKey('message_content', $report->metadata);
     }
 
     public function test_auto_moderation_sets_null_moderator_id_for_automated_actions()
     {
         // Create 3 reports for the same message to trigger auto-moderation (threshold is 3)
         $reporters = User::factory()->count(3)->create();
+
+        foreach ($reporters as $reporter) {
+            // 每个举报者需要先加入房间才能举报
+            ChatRoomUser::create([
+                'room_id' => $this->room->id,
+                'user_id' => $reporter->id,
+                'is_online' => true,
+            ]);
+        }
 
         foreach ($reporters as $index => $reporter) {
             Sanctum::actingAs($reporter);
@@ -365,7 +401,7 @@ class ChatReportControllerTest extends TestCase
         $this->assertSoftDeleted('chat_messages', ['id' => $this->message->id]);
 
         // Check that the moderation action has null moderator_id (automated action)
-        $moderationAction = \App\Models\Chat\ChatModerationAction::where('message_id', $this->message->id)->first();
+        $moderationAction = ChatModerationAction::where('message_id', $this->message->id)->first();
         $this->assertNotNull($moderationAction);
         $this->assertNull($moderationAction->moderator_id); // Automated action - no human moderator
         $this->assertEquals('Automatic deletion due to multiple reports', $moderationAction->reason);

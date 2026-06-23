@@ -101,10 +101,74 @@ class VisionUploadController extends Controller
         $clientMime = $this->uploadedFileValue($file, 'getClientMimeType');
 
         if ($this->isHeicUpload($extension, $mime, $clientMime)) {
-            return true;
+            return $this->validateHeicContent($file->getPathname());
         }
 
-        return @getimagesize($file->getPathname()) !== false;
+        return $this->validateImageMagicBytes($file->getPathname());
+    }
+
+    private function validateImageMagicBytes(string $path): bool
+    {
+        $handle = @fopen($path, 'rb');
+        if (! $handle) {
+            return false;
+        }
+
+        try {
+            $header = fread($handle, 16);
+            if ($header === false || strlen($header) < 12) {
+                return false;
+            }
+
+            // PNG: 89 50 4E 47 0D 0A 1A 0A
+            if (str_starts_with($header, "\x89PNG\r\n\x1a\n")) {
+                return true;
+            }
+
+            // JPEG: FF D8 FF (various SOI markers)
+            if (str_starts_with($header, "\xff\xd8\xff")) {
+                return true;
+            }
+
+            // GIF: GIF87a 或 GIF89a
+            if (str_starts_with($header, 'GIF87a') || str_starts_with($header, 'GIF89a')) {
+                return true;
+            }
+
+            // WEBP: RIFF....WEBP
+            if (str_starts_with($header, 'RIFF') && str_contains($header, 'WEBP')) {
+                return true;
+            }
+
+            return false;
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    private function validateHeicContent(string $path): bool
+    {
+        $handle = @fopen($path, 'rb');
+        if ($handle === false) {
+            return false;
+        }
+
+        try {
+            $header = fread($handle, 32);
+            if ($header === false || strlen($header) < 20) {
+                return false;
+            }
+
+            // HEIC/HEIF files use an ftyp box: [size:4][type:4][brand:4]
+            // The type must be 'ftyp' and the brand must be a known HEIC/HEIF brand.
+            $brands = ['heic', 'heix', 'hevc', 'hevx', 'heif', 'heis', 'heim', 'hevm', 'mif1', 'msf1'];
+            $boxType = substr($header, 4, 4);
+            $brand = substr($header, 8, 4);
+
+            return $boxType === 'ftyp' && in_array(strtolower($brand), $brands, true);
+        } finally {
+            fclose($handle);
+        }
     }
 
     private function getUploadMimeType(mixed $file): string

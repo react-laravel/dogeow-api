@@ -43,10 +43,19 @@ class TitleController extends Controller
 
             // 返回原始数据而不是封装
             return response()->json($data);
+        } catch (\InvalidArgumentException $e) {
+            $errorData = [
+                'error' => '请求异常',
+                'details' => '无法获取目标网页内容',
+                'status_code' => 400,
+            ];
+            $this->cacheService->putError($url, $errorData);
+
+            return response()->json($errorData, 400);
         } catch (\Exception $e) {
             $errorData = [
                 'error' => '请求异常',
-                'details' => $e->getMessage(),
+                'details' => '无法获取目标网页内容',
                 'status_code' => 500,
             ];
             $this->cacheService->putError($url, $errorData);

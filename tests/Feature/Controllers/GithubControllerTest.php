@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Session;
 use Laravel\Socialite\Contracts\Factory;
 use Laravel\Socialite\Two\GithubProvider;
 use Mockery;
@@ -67,6 +68,10 @@ class GithubControllerTest extends TestCase
             'github_id' => 'github123',
             'email' => 'test@example.com',
         ]);
+
+        // Verify token is stored in session, not leaked in URL
+        $this->assertTrue(Session::has('github_oauth_token'));
+        $this->assertTrue(Session::has('github_oauth_user'));
     }
 
     public function test_callback_existing_user_returns_token(): void
@@ -95,7 +100,13 @@ class GithubControllerTest extends TestCase
         $response = $this->get('/api/auth/github/callback');
 
         $response->assertRedirect();
-        $response->assertRedirectContains('token=');
+
+        // Verify token is NOT leaked in the redirect URL
+        $location = $response->headers->get('Location') ?? '';
+        $this->assertStringNotContainsString('token=', $location);
+
+        // Verify token is stored in session
+        $this->assertTrue(Session::has('github_oauth_token'));
     }
 
     public function test_callback_uses_nickname_when_name_is_null(): void
@@ -151,7 +162,11 @@ class GithubControllerTest extends TestCase
         $response = $this->get('/api/auth/github/callback');
 
         $response->assertRedirect();
-        $this->assertStringStartsWith('http://localhost:3000?token=', $response->headers->get('Location') ?? '');
+
+        // Verify redirect goes to frontend without leaking token in URL
+        $location = $response->headers->get('Location') ?? '';
+        $this->assertSame('http://localhost:3000', $location);
+        $this->assertStringNotContainsString('token=', $location);
     }
 
     public function test_callback_strips_callback_suffix_from_redirect_url(): void
@@ -178,8 +193,9 @@ class GithubControllerTest extends TestCase
 
         $response->assertRedirect();
         $location = $response->headers->get('Location') ?? '';
-        $this->assertStringStartsWith('http://localhost:3000?token=', $location);
-        $this->assertStringNotContainsString('/auth/github/callback?token=', $location);
+        // The callback suffix should be stripped, redirecting to the base frontend URL
+        $this->assertSame('http://localhost:3000', $location);
+        $this->assertStringNotContainsString('token=', $location);
     }
 
     public function test_callback_handles_null_github_id_branch(): void
@@ -205,14 +221,21 @@ class GithubControllerTest extends TestCase
         $response = $this->get('/api/auth/github/callback');
 
         $response->assertRedirect();
-        $response->assertRedirectContains('token=');
+
+        // Verify token is NOT leaked in the redirect URL
+        $location = $response->headers->get('Location') ?? '';
+        $this->assertStringNotContainsString('token=', $location);
+
+        // Verify token is stored in session
+        $this->assertTrue(Session::has('github_oauth_token'));
+
         $this->assertDatabaseHas('users', [
             'email' => 'null-id@example.com',
             'name' => 'Null Id User',
         ]);
     }
 
-    public function test_callback_redirect_contains_decodable_user_query_param(): void
+    public function test_callback_redirect_contains_session_data(): void
     {
         $driver = Mockery::mock(GithubProvider::class)->makePartial();
 
@@ -235,18 +258,15 @@ class GithubControllerTest extends TestCase
         $response = $this->get('/api/auth/github/callback');
 
         $response->assertRedirect();
-        $location = $response->headers->get('Location') ?? '';
 
-        $query = parse_url($location, PHP_URL_QUERY);
-        parse_str($query ?? '', $params);
+        // Verify token and user data are stored in session, not leaked in URL
+        $this->assertTrue(Session::has('github_oauth_token'));
+        $this->assertNotEmpty(Session::get('github_oauth_token'));
+        $this->assertTrue(Session::has('github_oauth_user'));
 
-        $this->assertArrayHasKey('token', $params);
-        $this->assertNotEmpty($params['token']);
-        $this->assertArrayHasKey('user', $params);
-
-        $decodedUser = json_decode($params['user'], true);
-        $this->assertIsArray($decodedUser);
-        $this->assertSame('query@example.com', $decodedUser['email'] ?? null);
+        $storedUser = Session::get('github_oauth_user');
+        $this->assertIsArray($storedUser);
+        $this->assertSame('query@example.com', $storedUser['email'] ?? null);
     }
 
     public function test_exchange_creates_new_user_and_returns_token(): void

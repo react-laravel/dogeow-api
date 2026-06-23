@@ -574,6 +574,7 @@ class NoteControllerTest extends TestCase
     {
         $note = Note::factory()->create([
             'user_id' => $this->user->id,
+            'is_wiki' => true,
             'title' => 'Slug Article',
             'slug' => 'slug-article',
             'content' => '<p>Rendered HTML</p>',
@@ -788,6 +789,86 @@ class NoteControllerTest extends TestCase
     public function test_destroy_link_deletes_existing_link(): void
     {
         $source = Note::factory()->create(['user_id' => $this->user->id]);
+        $target = Note::factory()->create(['user_id' => $this->user->id]);
+
+        $link = NoteLink::create([
+            'source_id' => $source->id,
+            'target_id' => $target->id,
+            'type' => 'reference',
+        ]);
+
+        $response = $this->deleteJson("/api/notes/links/{$link->id}");
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Link deleted successfully',
+            ]);
+
+        $this->assertDatabaseMissing('note_links', [
+            'id' => $link->id,
+        ]);
+    }
+
+    public function test_store_link_rejects_link_with_other_user_source(): void
+    {
+        $otherUser = User::factory()->create();
+        $source = Note::factory()->create(['user_id' => $otherUser->id]);
+        $target = Note::factory()->create(['user_id' => $this->user->id]);
+
+        $response = $this->postJson('/api/notes/links', [
+            'source_id' => $source->id,
+            'target_id' => $target->id,
+            'type' => 'reference',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'message' => 'You do not have permission to create this link',
+            ]);
+    }
+
+    public function test_store_link_rejects_link_with_other_user_target(): void
+    {
+        $otherUser = User::factory()->create();
+        $source = Note::factory()->create(['user_id' => $this->user->id]);
+        $target = Note::factory()->create(['user_id' => $otherUser->id]);
+
+        $response = $this->postJson('/api/notes/links', [
+            'source_id' => $source->id,
+            'target_id' => $target->id,
+            'type' => 'reference',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'message' => 'You do not have permission to create this link',
+            ]);
+    }
+
+    public function test_destroy_link_rejects_link_between_other_users(): void
+    {
+        $otherUser = User::factory()->create();
+        $source = Note::factory()->create(['user_id' => $otherUser->id]);
+        $target = Note::factory()->create(['user_id' => $otherUser->id]);
+
+        $link = NoteLink::create([
+            'source_id' => $source->id,
+            'target_id' => $target->id,
+            'type' => 'reference',
+        ]);
+
+        $response = $this->deleteJson("/api/notes/links/{$link->id}");
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'message' => 'You do not have permission to delete this link',
+            ]);
+    }
+
+    public function test_destroy_link_allows_deleting_link_where_user_owns_target(): void
+    {
+        $otherUser = User::factory()->create();
+        $source = Note::factory()->create(['user_id' => $otherUser->id]);
         $target = Note::factory()->create(['user_id' => $this->user->id]);
 
         $link = NoteLink::create([

@@ -7,6 +7,7 @@ use App\Models\Chat\ChatMessage;
 use App\Models\Chat\ChatMessageReport;
 use App\Models\Chat\ChatModerationAction;
 use App\Models\Chat\ChatRoom;
+use App\Models\Chat\ChatRoomUser;
 use App\Models\User;
 use App\Services\Chat\ContentFilterService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -304,6 +305,7 @@ class ChatReportControllerUnitTest extends TestCase
 
         $room = ChatRoom::factory()->create(['is_active' => true]);
         $target = User::factory()->create();
+        $reporters = User::factory()->count(3)->create();
 
         $message = ChatMessage::factory()->create([
             'room_id' => $room->id,
@@ -311,11 +313,21 @@ class ChatReportControllerUnitTest extends TestCase
             'message' => 'to be auto moderated',
         ]);
 
-        ChatMessageReport::factory()->count(3)->create([
-            'message_id' => $message->id,
-            'room_id' => $room->id,
-            'status' => ChatMessageReport::STATUS_PENDING,
-        ]);
+        // 创建举报并确保举报者是房间成员
+        foreach ($reporters as $reporter) {
+            ChatRoomUser::create([
+                'room_id' => $room->id,
+                'user_id' => $reporter->id,
+                'is_online' => true,
+            ]);
+
+            ChatMessageReport::factory()->create([
+                'message_id' => $message->id,
+                'room_id' => $room->id,
+                'reported_by' => $reporter->id,
+                'status' => ChatMessageReport::STATUS_PENDING,
+            ]);
+        }
 
         $reflection = new ReflectionClass($controller);
         $method = $reflection->getMethod('checkAutoModeration');
