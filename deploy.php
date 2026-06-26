@@ -78,7 +78,7 @@ fi
 # offline while a long-running queue worker drains. Queue workers are asked to
 # restart through Laravel's queue:restart flag; Supervisor will bring them back
 # after the current job exits.
-php artisan queue:restart || true
+{{bin/php}} {{current_path}}/artisan queue:restart || true
 sudo -n "\$SUPERVISORCTL_PATH" restart {{supervisor_group}}:dogeow-api-reverb || sudo -n "\$SUPERVISORCTL_PATH" start {{supervisor_group}}:dogeow-api-reverb
 sudo -n "\$SUPERVISORCTL_PATH" start {{supervisor_group}}:dogeow-api-queue || true
 sudo -n "\$SUPERVISORCTL_PATH" status {{supervisor_group}}:*
