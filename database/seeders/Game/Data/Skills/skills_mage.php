@@ -113,6 +113,7 @@ return SkillTreeBuilder::merge(
     ]),
     SkillTreeBuilder::line('mage', 'special', 'mage_meteor', 'meteor', '陨石术', [
         'description' => '全体 200% 火伤',
+        'base_damage' => 25,
         'mana_cost' => 40,
         'cooldown' => 12,
         'target_type' => 'all',
