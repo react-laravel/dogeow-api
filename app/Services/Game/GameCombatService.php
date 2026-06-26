@@ -132,7 +132,7 @@ class GameCombatService
      */
     public function updatePotionSettings(GameCharacter $character, array $settings): GameCharacter
     {
-        foreach (['auto_use_hp_potion', 'hp_potion_threshold', 'auto_use_mp_potion', 'mp_potion_threshold'] as $key) {
+        foreach (['auto_use_hp_potion', 'auto_use_mp_potion'] as $key) {
             if (array_key_exists($key, $settings)) {
                 $character->$key = $settings[$key];
             }

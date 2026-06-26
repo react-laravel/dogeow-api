@@ -166,8 +166,6 @@ class CombatControllerTest extends TestCase
             ->postJson('/api/rpg/combat/potion-settings?character_id=' . $character->id, [
                 'auto_use_hp_potion' => true,
                 'auto_use_mp_potion' => true,
-                'hp_potion_threshold' => 30,
-                'mp_potion_threshold' => 30,
             ]);
 
         $response->assertStatus(200);
@@ -178,8 +176,6 @@ class CombatControllerTest extends TestCase
         ]);
         $response->assertJsonPath('data.character.auto_use_hp_potion', true);
         $response->assertJsonPath('data.character.auto_use_mp_potion', true);
-        $response->assertJsonPath('data.character.hp_potion_threshold', 30);
-        $response->assertJsonPath('data.character.mp_potion_threshold', 30);
     }
 
     public function test_requires_authentication(): void

@@ -23,13 +23,11 @@ class GamePotionServiceTest extends TestCase
         $this->service = new GamePotionService;
     }
 
-    public function test_try_auto_use_potions_uses_best_hp_and_mp_potions_when_thresholds_are_met(): void
+    public function test_try_auto_use_potions_uses_best_hp_and_mp_potions_when_they_fit(): void
     {
         $character = $this->createCharacter([
             'auto_use_hp_potion' => true,
-            'hp_potion_threshold' => 50,
             'auto_use_mp_potion' => true,
-            'mp_potion_threshold' => 50,
             'current_hp' => 40,
             'current_mana' => 10,
         ]);
@@ -53,13 +51,11 @@ class GamePotionServiceTest extends TestCase
         $this->assertSame(30, $character->fresh()->current_mana);
     }
 
-    public function test_try_auto_use_potions_returns_empty_when_disabled_or_above_threshold(): void
+    public function test_try_auto_use_potions_skips_when_disabled_or_would_overflow(): void
     {
         $character = $this->createCharacter([
             'auto_use_hp_potion' => false,
-            'hp_potion_threshold' => 0,
             'auto_use_mp_potion' => true,
-            'mp_potion_threshold' => 0,
             'current_hp' => 95,
             'current_mana' => 79,
         ]);
@@ -74,6 +70,43 @@ class GamePotionServiceTest extends TestCase
         $this->assertSame([], $used);
         $this->assertNotNull($hpPotion->fresh());
         $this->assertNotNull($mpPotion->fresh());
+    }
+
+    public function test_try_auto_use_potions_skips_when_potion_would_overflow_max_hp(): void
+    {
+        $character = $this->createCharacter([
+            'auto_use_hp_potion' => true,
+            'current_hp' => 75,
+        ]);
+        $this->createPotion($character, '大血瓶', 'hp', ['max_hp' => 30], ['quantity' => 1]);
+
+        $used = $this->service->tryAutoUsePotions($character, 75, 0, [
+            'max_hp' => 100,
+            'max_mana' => 50,
+        ]);
+
+        // 75 + 30 = 105 > 100, should not use
+        $this->assertSame([], $used);
+        $this->assertSame(75, $character->fresh()->current_hp);
+    }
+
+    public function test_try_auto_use_potions_uses_when_fits_exactly_at_max(): void
+    {
+        $character = $this->createCharacter([
+            'auto_use_hp_potion' => true,
+            'current_hp' => 20,
+        ]);
+        $this->createPotion($character, '大血瓶', 'hp', ['max_hp' => 30], ['quantity' => 1]);
+
+        $used = $this->service->tryAutoUsePotions($character, 20, 0, [
+            'max_hp' => 50,
+            'max_mana' => 50,
+        ]);
+
+        // 20 + 30 = 50 <= 50, should use
+        $this->assertSame('大血瓶', $used['hp']['name']);
+        $this->assertSame(30, $used['hp']['restored']);
+        $this->assertSame(50, $character->fresh()->current_hp);
     }
 
     public function test_find_best_potion_prefers_highest_restore_and_ignores_storage_items(): void

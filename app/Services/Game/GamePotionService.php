@@ -5,11 +5,13 @@ namespace App\Services\Game;
 use App\Models\Game\GameCharacter;
 use App\Models\Game\GameItem;
 use App\Models\Game\GameItemDefinition;
+use Illuminate\Database\Eloquent\Collection;
 
 class GamePotionService
 {
     /**
-     * Try to automatically use potions based on HP/MANA thresholds
+     * Try to automatically use potions: only use when the potion won't exceed max HP/MANA.
+     * No percentage threshold needed — the server decides based on potion restore value.
      *
      * @param  array<string,mixed>  $charStats
      * @return array<string,array<string,mixed>> List of potions used
@@ -18,56 +20,50 @@ class GamePotionService
     {
         $used = [];
 
-        $hpThreshold = (int) ($character->hp_potion_threshold ?? 30);
-        $hpThreshold = max(1, min(100, $hpThreshold));
         if ($character->auto_use_hp_potion) {
             $maxHp = (int) ($charStats['max_hp'] ?? 0);
-            if ($maxHp > 0) {
-                $hpPercent = ($currentHp / $maxHp) * 100;
-            } else {
-                $hpPercent = 100;
-            }
-            if ($hpPercent <= $hpThreshold) {
+            if ($maxHp > 0 && $currentHp < $maxHp) {
                 $potion = $this->findBestPotion($character, 'hp');
                 if ($potion) {
-                    $this->usePotionItem($character, $potion);
                     $def = $potion->definition;
                     /** @var GameItemDefinition|null $def */
                     $base = [];
                     if ($def instanceof GameItemDefinition) {
                         $base = $def->getBaseStats();
                     }
-                    $used['hp'] = [
-                        'name' => isset($def->name) ? $def->name : '药品',
-                        'restored' => (int) ($base['max_hp'] ?? 0),
-                    ];
+                    $restore = (int) ($base['max_hp'] ?? 0);
+                    // Only use if it won't exceed max HP
+                    if ($restore > 0 && $currentHp + $restore <= $maxHp) {
+                        $this->usePotionItem($character, $potion);
+                        $used['hp'] = [
+                            'name' => isset($def->name) ? $def->name : '药品',
+                            'restored' => $restore,
+                        ];
+                    }
                 }
             }
         }
 
-        $mpThreshold = (int) ($character->mp_potion_threshold ?? 30);
-        $mpThreshold = max(1, min(100, $mpThreshold));
         if ($character->auto_use_mp_potion) {
             $maxMana = (int) ($charStats['max_mana'] ?? 0);
-            if ($maxMana > 0) {
-                $mpPercent = ($currentMana / $maxMana) * 100;
-            } else {
-                $mpPercent = 100;
-            }
-            if ($mpPercent <= $mpThreshold) {
+            if ($maxMana > 0 && $currentMana < $maxMana) {
                 $potion = $this->findBestPotion($character, 'mp');
                 if ($potion) {
-                    $this->usePotionItem($character, $potion);
                     $def = $potion->definition;
                     /** @var GameItemDefinition|null $def */
                     $base = [];
                     if ($def instanceof GameItemDefinition) {
                         $base = $def->getBaseStats();
                     }
-                    $used['mp'] = [
-                        'name' => isset($def->name) ? $def->name : '药品',
-                        'restored' => (int) ($base['max_mana'] ?? 0),
-                    ];
+                    $restore = (int) ($base['max_mana'] ?? 0);
+                    // Only use if it won't exceed max MANA
+                    if ($restore > 0 && $currentMana + $restore <= $maxMana) {
+                        $this->usePotionItem($character, $potion);
+                        $used['mp'] = [
+                            'name' => isset($def->name) ? $def->name : '药品',
+                            'restored' => $restore,
+                        ];
+                    }
                 }
             }
         }
@@ -166,10 +162,10 @@ class GamePotionService
             ->with('definition')
             ->get();
 
-        /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\Game\GameItem> $potions */
+        /** @var Collection<int, GameItem> $potions */
         return $potions->map(function (GameItem $potion): array {
             $def = $potion->definition;
-            /** @var \App\Models\Game\GameItemDefinition|null $def */
+            /** @var GameItemDefinition|null $def */
             /** @var array<string, mixed>|null $rawBase */
             $rawBase = $def !== null ? $def->base_stats : null;
             $base = $rawBase ?? [];

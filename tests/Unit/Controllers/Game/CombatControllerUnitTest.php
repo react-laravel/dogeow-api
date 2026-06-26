@@ -122,16 +122,12 @@ class CombatControllerUnitTest extends TestCase
         $character = $this->createCharacter($user);
         $validated = [
             'auto_use_hp_potion' => true,
-            'hp_potion_threshold' => 25,
             'auto_use_mp_potion' => true,
-            'mp_potion_threshold' => 35,
         ];
         $updatedCharacter = $this->createCharacter($user, [
             'name' => 'PotionHero-' . $user->id,
             'auto_use_hp_potion' => true,
-            'hp_potion_threshold' => 25,
             'auto_use_mp_potion' => true,
-            'mp_potion_threshold' => 35,
         ]);
 
         $this->combatService->shouldReceive('updatePotionSettings')
@@ -147,14 +143,14 @@ class CombatControllerUnitTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame('药水设置已更新', $data['message']);
         $this->assertTrue($data['data']['character']['auto_use_hp_potion']);
-        $this->assertSame(25, $data['data']['character']['hp_potion_threshold']);
+        $this->assertTrue($data['data']['character']['auto_use_mp_potion']);
     }
 
     public function test_update_potion_settings_returns_error_when_service_throws(): void
     {
         $user = User::factory()->create();
         $character = $this->createCharacter($user);
-        $validated = ['hp_potion_threshold' => 25];
+        $validated = ['auto_use_hp_potion' => true];
 
         $this->combatService->shouldReceive('updatePotionSettings')
             ->once()

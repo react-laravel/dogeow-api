@@ -145,21 +145,17 @@ class GameCombatServiceTest extends TestCase
     {
         $character = $this->createCharacter([
             'auto_use_hp_potion' => false,
-            'hp_potion_threshold' => 30,
             'auto_use_mp_potion' => false,
-            'mp_potion_threshold' => 25,
         ]);
 
         $service = $this->makeService();
         $updated = $service->updatePotionSettings($character, [
             'auto_use_hp_potion' => true,
-            'mp_potion_threshold' => 55,
+            'auto_use_mp_potion' => true,
         ]);
 
         $this->assertTrue($updated->fresh()->auto_use_hp_potion);
-        $this->assertSame(30, $updated->fresh()->hp_potion_threshold);
-        $this->assertFalse($updated->fresh()->auto_use_mp_potion);
-        $this->assertSame(55, $updated->fresh()->mp_potion_threshold);
+        $this->assertTrue($updated->fresh()->auto_use_mp_potion);
     }
 
     public function test_execute_round_requires_a_selected_map(): void
