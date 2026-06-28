@@ -60,15 +60,15 @@ class GameDefinitionDataTest extends TestCase
         $this->assertSame(0, (int) $newbieMonsters->firstWhere('name', '猪')?->attack_base);
         $this->assertSame(3, (int) $newbieMonsters->firstWhere('name', '猪')?->hp_base);
         $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '猪')?->defense_base);
-        $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '猪')?->experience_base);
+        $this->assertSame(3, (int) $newbieMonsters->firstWhere('name', '猪')?->experience_base);
         $this->assertSame(0, (int) $newbieMonsters->firstWhere('name', '鹿')?->attack_base);
         $this->assertSame(2, (int) $newbieMonsters->firstWhere('name', '鹿')?->hp_base);
         $this->assertSame(2, (int) $newbieMonsters->firstWhere('name', '鹿')?->defense_base);
-        $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '鹿')?->experience_base);
+        $this->assertSame(2, (int) $newbieMonsters->firstWhere('name', '鹿')?->experience_base);
         $this->assertSame(0, (int) $newbieMonsters->firstWhere('name', '兔子')?->attack_base);
         $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '兔子')?->hp_base);
         $this->assertSame(3, (int) $newbieMonsters->firstWhere('name', '兔子')?->defense_base);
-        $this->assertSame(1, (int) $newbieMonsters->firstWhere('name', '兔子')?->experience_base);
+        $this->assertSame(2, (int) $newbieMonsters->firstWhere('name', '兔子')?->experience_base);
 
         foreach ($newbieMonsters as $monster) {
             $this->assertIsArray($monster->drop_table, "{$monster->name} should have an RPG drop table");
@@ -88,10 +88,15 @@ class GameDefinitionDataTest extends TestCase
             ->keyBy('id');
 
         $this->assertSame(
+            ['野狼', '森林哥布林'],
+            collect($secondMap->monster_ids)
+                ->map(fn (int $id): string => $secondLayerMonsters[$id]->name)
+                ->all()
+        );
+        $this->assertSame(
             [
-                ['hp' => 3, 'defense' => 6, 'attack' => 1, 'experience' => 4],
-                ['hp' => 6, 'defense' => 4, 'attack' => 3, 'experience' => 4],
-                ['hp' => 9, 'defense' => 2, 'attack' => 2, 'experience' => 4],
+                ['hp' => 14, 'defense' => 1, 'attack' => 2, 'experience' => 6],
+                ['hp' => 24, 'defense' => 2, 'attack' => 4, 'experience' => 8],
             ],
             collect($secondMap->monster_ids)
                 ->map(fn (int $id): array => [
@@ -103,12 +108,39 @@ class GameDefinitionDataTest extends TestCase
                 ->all()
         );
 
-        $allMapMonsterIds = GameMapDefinition::query()
+        $boneHall = GameMapDefinition::query()->where('name', '骸骨大厅')->firstOrFail();
+        $boneHallMonsters = GameMonsterDefinition::query()
+            ->whereIn('id', $boneHall->monster_ids ?? [])
+            ->pluck('name')
+            ->all();
+        $this->assertSame(['骷髅法师', '骸骨之王'], $boneHallMonsters);
+
+        $hellGate = GameMapDefinition::query()->where('name', '地狱之门')->firstOrFail();
+        $hellGateMonsters = GameMonsterDefinition::query()
+            ->whereIn('id', $hellGate->monster_ids ?? [])
+            ->pluck('name')
+            ->all();
+        $this->assertSame(['小恶魔', '火焰元素'], $hellGateMonsters);
+
+        $firePlains = GameMapDefinition::query()->where('name', '火焰平原')->firstOrFail();
+        $firePlainsMonsters = GameMonsterDefinition::query()
+            ->whereIn('id', $firePlains->monster_ids ?? [])
+            ->pluck('name')
+            ->all();
+        $this->assertSame(['火焰元素', '炎魔'], $firePlainsMonsters);
+
+        GameMapDefinition::query()
             ->pluck('monster_ids')
             ->flatMap(fn (?array $ids): array => $ids ?? [])
-            ->values();
-
-        $this->assertSame($allMapMonsterIds->count(), $allMapMonsterIds->unique()->count());
+            ->each(function (int $monsterId): void {
+                $this->assertTrue(
+                    GameMonsterDefinition::query()
+                        ->whereKey($monsterId)
+                        ->where('is_active', true)
+                        ->exists(),
+                    "Monster {$monsterId} should exist and be active."
+                );
+            });
     }
 
     public function test_game_definition_factories_create_valid_related_records(): void

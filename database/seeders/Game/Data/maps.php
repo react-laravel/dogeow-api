@@ -55,8 +55,8 @@ $maps = [
     ['name' => '蜘蛛洞穴', 'act' => 2, 'monster_ids' => [11, 17], 'description' => '蜘蛛的巢穴', 'asset_key' => 'spider-cave', 'icon_prompt' => $mapPrompts['spider-cave']],
     ['name' => '骷髅墓地', 'act' => 2, 'monster_ids' => [12, 13], 'description' => '古老的墓地', 'asset_key' => 'skeleton-graveyard', 'icon_prompt' => $mapPrompts['skeleton-graveyard']],
     ['name' => '骸骨大厅', 'act' => 2, 'monster_ids' => [13, 14], 'description' => '骸骨之王的宫殿', 'asset_key' => 'bone-hall', 'icon_prompt' => $mapPrompts['bone-hall']],
-    ['name' => '地狱之门', 'act' => 3, 'monster_ids' => [15, 16], 'description' => '通往地狱的入口', 'asset_key' => 'hell-gate', 'icon_prompt' => $mapPrompts['hell-gate']],
-    ['name' => '火焰平原', 'act' => 3, 'monster_ids' => [16, 19], 'description' => '燃烧的平原', 'asset_key' => 'burning-fire-plains', 'icon_prompt' => $mapPrompts['burning-fire-plains']],
+    ['name' => '地狱之门', 'act' => 3, 'monster_ids' => [16, 17], 'description' => '通往地狱的入口', 'asset_key' => 'hell-gate', 'icon_prompt' => $mapPrompts['hell-gate']],
+    ['name' => '火焰平原', 'act' => 3, 'monster_ids' => [17, 20], 'description' => '燃烧的平原', 'asset_key' => 'burning-fire-plains', 'icon_prompt' => $mapPrompts['burning-fire-plains']],
     ['name' => '炎魔洞穴', 'act' => 3, 'monster_ids' => [16, 18], 'description' => '炎魔的栖息地', 'asset_key' => 'fire-demon-cave', 'icon_prompt' => $mapPrompts['fire-demon-cave']],
     ['name' => '恶魔要塞', 'act' => 3, 'monster_ids' => [18, 19], 'description' => '恶魔的堡垒', 'asset_key' => 'demon-fortress', 'icon_prompt' => $mapPrompts['demon-fortress']],
     ['name' => '魔王宫殿', 'act' => 3, 'monster_ids' => [19, 17], 'description' => '地狱魔王的宫殿', 'asset_key' => 'demon-king-palace', 'icon_prompt' => $mapPrompts['demon-king-palace']],
@@ -89,14 +89,4 @@ $maps = [
     ['name' => '混沌王座', 'act' => 8, 'monster_ids' => [48, 49], 'description' => '混沌之王的最终王座', 'asset_key' => 'chaos-king-throne', 'icon_prompt' => $mapPrompts['chaos-king-throne']],
 ];
 
-return array_map(
-    static fn (array $map, int $index): array => array_merge($map, [
-        'monster_ids' => [
-            $index * 3 + 3,
-            $index * 3 + 2,
-            $index * 3 + 1,
-        ],
-    ]),
-    $maps,
-    array_keys($maps)
-);
+return $maps;

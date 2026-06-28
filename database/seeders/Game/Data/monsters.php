@@ -581,9 +581,10 @@ $archetypes = [
     ],
 ];
 
+$namedMonsterCount = count($monsters);
 $requiredMonsterCount = count($maps) * count($archetypes);
 
-for ($index = count($monsters); $index < $requiredMonsterCount; $index++) {
+for ($index = $namedMonsterCount; $index < $requiredMonsterCount; $index++) {
     $mapIndex = intdiv($index, count($archetypes));
     $archetype = $archetypes[$index % count($archetypes)];
     $map = $maps[$mapIndex];
@@ -660,8 +661,10 @@ $defaultDropTable = static function (array $monster): array {
 };
 
 return array_map(
-    static function (array $monster, int $index) use ($applyLayerStats, $assetKeys, $prompts, $defaultDropTable): array {
-        $monster = $applyLayerStats($monster, $index);
+    static function (array $monster, int $index) use ($applyLayerStats, $assetKeys, $prompts, $defaultDropTable, $namedMonsterCount): array {
+        if ($index >= $namedMonsterCount) {
+            $monster = $applyLayerStats($monster, $index);
+        }
 
         return array_merge($monster, [
             'asset_key' => $assetKeys[$index],
