@@ -172,23 +172,55 @@ class CombatDamageCalculator
 
     /**
      * 选择本回合攻击目标
+     * 单体：优先攻击血量最低的怪物（同血量按槽位靠前）；跳过 is_new 怪物（首回合不可攻击）
+     * 群体：攻击所有可攻击的存活怪物
      *
-     * @param  array<int, array<string, mixed>>  $monsters
+     * @param  array<int, array<string, mixed>|null>  $monsters
      * @return array<int, array<string, mixed>>
      */
     public function selectRoundTargets(array $monsters, bool $isAoeSkill): array
     {
-        $aliveMonsters = array_filter($monsters, fn ($m) => ($m['hp'] ?? 0) > 0);
-        if (empty($aliveMonsters)) {
+        $attackableMonsters = [];
+        foreach ($monsters as $monster) {
+            if (! is_array($monster)) {
+                continue;
+            }
+            if ((int) ($monster['hp'] ?? 0) <= 0) {
+                continue;
+            }
+            if ((bool) ($monster['is_new'] ?? false)) {
+                continue;
+            }
+            $attackableMonsters[] = $monster;
+        }
+
+        if ($attackableMonsters === []) {
             return [];
         }
-        $aliveValues = array_values($aliveMonsters);
-        if ($isAoeSkill) {
-            return $aliveValues;
-        }
-        $randomIndex = array_rand($aliveValues);
 
-        return [$aliveValues[$randomIndex]];
+        if ($isAoeSkill) {
+            return $attackableMonsters;
+        }
+
+        usort($attackableMonsters, function (array $first, array $second): int {
+            $firstHp = isset($first['hp']) && is_numeric($first['hp']) ? (int) $first['hp'] : 0;
+            $secondHp = isset($second['hp']) && is_numeric($second['hp']) ? (int) $second['hp'] : 0;
+            $hpCompare = $firstHp <=> $secondHp;
+            if ($hpCompare !== 0) {
+                return $hpCompare;
+            }
+
+            $firstPosition = isset($first['position']) && is_numeric($first['position'])
+                ? (int) $first['position']
+                : PHP_INT_MAX;
+            $secondPosition = isset($second['position']) && is_numeric($second['position'])
+                ? (int) $second['position']
+                : PHP_INT_MAX;
+
+            return $firstPosition <=> $secondPosition;
+        });
+
+        return [$attackableMonsters[0]];
     }
 
     /**

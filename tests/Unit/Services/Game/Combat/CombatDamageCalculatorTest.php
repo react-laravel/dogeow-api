@@ -345,10 +345,54 @@ class CombatDamageCalculatorTest extends TestCase
         // Act
         $result = $this->calculator->selectRoundTargets($monsters, false);
 
-        // Assert - should return single target
+        // Assert - same HP: pick lower slot
         $this->assertCount(1, $result);
-        $this->assertArrayHasKey('hp', $result[0]);
-        $this->assertEquals(100, $result[0]['hp']);
+        $this->assertEquals(0, $result[0]['position']);
+    }
+
+    #[Test]
+    public function select_round_targets_prefers_lowest_hp_monster(): void
+    {
+        $monsters = [
+            ['hp' => 80, 'position' => 0],
+            ['hp' => 15, 'position' => 1],
+            ['hp' => 50, 'position' => 2],
+        ];
+
+        $result = $this->calculator->selectRoundTargets($monsters, false);
+
+        $this->assertCount(1, $result);
+        $this->assertEquals(15, $result[0]['hp']);
+        $this->assertEquals(1, $result[0]['position']);
+    }
+
+    #[Test]
+    public function select_round_targets_skips_is_new_monsters(): void
+    {
+        $monsters = [
+            ['hp' => 5, 'position' => 0, 'is_new' => true],
+            ['hp' => 80, 'position' => 1],
+        ];
+
+        $result = $this->calculator->selectRoundTargets($monsters, false);
+
+        $this->assertCount(1, $result);
+        $this->assertEquals(1, $result[0]['position']);
+    }
+
+    #[Test]
+    public function select_round_targets_breaks_hp_ties_by_position(): void
+    {
+        $monsters = [
+            ['hp' => 20, 'position' => 3],
+            ['hp' => 20, 'position' => 1],
+            ['hp' => 20, 'position' => 2],
+        ];
+
+        $result = $this->calculator->selectRoundTargets($monsters, false);
+
+        $this->assertCount(1, $result);
+        $this->assertEquals(1, $result[0]['position']);
     }
 
     #[Test]
