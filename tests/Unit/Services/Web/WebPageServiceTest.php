@@ -57,10 +57,10 @@ class WebPageServiceTest extends TestCase
     public function test_fetch_content_handles_https_url(): void
     {
         Http::fake([
-            'https://secure.example.com/*' => Http::response('<html><head><title>Secure Page</title></head><body></body></html>', 200),
+            'https://example.com/*' => Http::response('<html><head><title>Secure Page</title></head><body></body></html>', 200),
         ]);
 
-        $result = $this->service->fetchContent('https://secure.example.com/page');
+        $result = $this->service->fetchContent('https://example.com/secure-page');
 
         $this->assertSame('Secure Page', $result['title']);
     }
