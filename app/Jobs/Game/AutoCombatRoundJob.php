@@ -200,6 +200,22 @@ class AutoCombatRoundJob implements ShouldQueue
     }
 
     /**
+     * 原子占用自动战斗 Redis key（phpredis 需 EX/NX 五参数形式）
+     */
+    public static function tryAcquireAutoCombat(int $characterId, ?array $skillIds): bool
+    {
+        $payload = json_encode(['skill_ids' => $skillIds]);
+
+        return (bool) Redis::set(
+            self::redisKey($characterId),
+            $payload,
+            'EX',
+            self::ttl(),
+            'NX',
+        );
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     private static function writePayload(string $key, array $payload): void
