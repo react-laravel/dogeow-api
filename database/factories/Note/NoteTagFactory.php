@@ -7,11 +7,11 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Note\NoteTag>
+ * @extends Factory<NoteTag>
  */
 class NoteTagFactory extends Factory
 {
-    /** @var class-string<\App\Models\Note\NoteTag> */
+    /** @var class-string<NoteTag> */
     protected $model = NoteTag::class;
 
     /**
@@ -23,7 +23,7 @@ class NoteTagFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'name' => $this->faker->word(),
+            'name' => $this->faker->unique()->word(),
             'color' => $this->faker->hexColor(),
         ];
     }

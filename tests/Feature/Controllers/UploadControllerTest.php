@@ -88,12 +88,10 @@ class UploadControllerTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)
-            ->post('/api/upload/images', []);
+            ->postJson('/api/upload/images', []);
 
-        $response->assertStatus(400);
-        $response->assertJson([
-            'message' => '没有找到上传的图片文件',
-        ]);
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['images']);
     }
 
     #[Test]

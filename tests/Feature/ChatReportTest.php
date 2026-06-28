@@ -538,6 +538,11 @@ class ChatReportTest extends TestCase
         // Create 3 reports for the same message to trigger auto-moderation
         for ($i = 0; $i < 3; $i++) {
             $reporter = User::factory()->create();
+            ChatRoomUser::factory()->create([
+                'room_id' => $this->room->id,
+                'user_id' => $reporter->id,
+                'is_online' => true,
+            ]);
             ChatMessageReport::create([
                 'message_id' => $this->message->id,
                 'reported_by' => $reporter->id,
