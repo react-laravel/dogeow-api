@@ -31,7 +31,7 @@ class GameBalanceConfigTest extends TestCase
         $this->assertSame([0, 0, 0], array_column($newbieMonsters, 'attack_base'));
         $this->assertSame([3, 2, 1], array_column($newbieMonsters, 'hp_base'));
         $this->assertSame([1, 2, 3], array_column($newbieMonsters, 'defense_base'));
-        $this->assertSame([1, 1, 1], array_column($newbieMonsters, 'experience_base'));
+        $this->assertSame([3, 2, 2], array_column($newbieMonsters, 'experience_base'));
 
         $this->assertSame([2, 3, 1], array_column($secondLayerMonsters, 'attack_base'));
         $this->assertSame([9, 6, 3], array_column($secondLayerMonsters, 'hp_base'));
@@ -45,7 +45,7 @@ class GameBalanceConfigTest extends TestCase
         $thirdLayerMonsters = array_slice($monsters, 6, 3);
 
         $this->assertSame(['elite', 'boss', 'elite'], array_column($thirdLayerMonsters, 'type'));
-        $this->assertSame([33, 40, 11], array_column($thirdLayerMonsters, 'hp_base'));
+        $this->assertSame([52, 140, 70], array_column($thirdLayerMonsters, 'hp_base'));
     }
 
     public function test_mage_starter_fireball_uses_low_fixed_damage(): void

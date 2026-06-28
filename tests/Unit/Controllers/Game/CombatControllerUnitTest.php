@@ -320,7 +320,7 @@ class CombatControllerUnitTest extends TestCase
 
         Redis::shouldReceive('set')
             ->once()
-            ->with(AutoCombatRoundJob::redisKey($character->id), Mockery::any(), 'EX', AutoCombatRoundJob::ttl(), 'NX')
+            ->with(AutoCombatRoundJob::redisKey($character->id), Mockery::any(), ['EX' => AutoCombatRoundJob::ttl(), 'NX' => true])
             ->andThrow(new \RuntimeException(''));
 
         $response = $this->controller->start($this->makeRequest($user, $character));
