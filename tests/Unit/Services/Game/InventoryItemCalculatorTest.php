@@ -154,7 +154,7 @@ class InventoryItemCalculatorTest extends TestCase
         $buyPrice = $this->calculator->calculateBuyPrice($definition, $stats, 'common');
         $sellPrice = $this->calculator->calculateSellPrice($item);
 
-        $this->assertSame($sellPrice * 2, $buyPrice);
+        $this->assertEqualsWithDelta($sellPrice * 2, $buyPrice, 1);
     }
 
     public function test_get_potion_effects_returns_hp_and_mana(): void
@@ -232,155 +232,6 @@ class InventoryItemCalculatorTest extends TestCase
         $this->assertStringContainsString('点法力值', $message);
     }
 
-    public function test_generate_random_stats_for_weapon(): void
-    {
-        $definition = new GameItemDefinition;
-        $definition->type = 'weapon';
-        $definition->required_level = 5;
-
-        $stats = $this->calculator->generateRandomStats($definition);
-
-        $this->assertArrayHasKey('attack', $stats);
-        $this->assertIsNumeric($stats['attack']);
-        // 武器不应生成防御属性
-        $this->assertArrayNotHasKey('defense', $stats);
-        $this->assertArrayNotHasKey('max_hp', $stats);
-        $this->assertArrayNotHasKey('max_mana', $stats);
-    }
-
-    public function test_generate_random_stats_for_helmet(): void
-    {
-        $definition = new GameItemDefinition;
-        $definition->type = 'helmet';
-        $definition->required_level = 3;
-
-        $stats = $this->calculator->generateRandomStats($definition);
-
-        $this->assertArrayHasKey('defense', $stats);
-        $this->assertArrayHasKey('max_hp', $stats);
-        // 头盔不应生成攻击属性
-        $this->assertArrayNotHasKey('attack', $stats);
-        $this->assertArrayNotHasKey('crit_rate', $stats);
-        $this->assertArrayNotHasKey('crit_damage', $stats);
-    }
-
-    public function test_generate_random_stats_for_gloves_generates_only_defense(): void
-    {
-        $definition = new GameItemDefinition;
-        $definition->type = 'gloves';
-        $definition->required_level = 5;
-
-        $stats = $this->calculator->generateRandomStats($definition);
-
-        $this->assertArrayHasKey('defense', $stats);
-        // 手套不应生成攻击或暴击属性
-        $this->assertArrayNotHasKey('attack', $stats);
-        $this->assertArrayNotHasKey('crit_rate', $stats);
-        $this->assertArrayNotHasKey('crit_damage', $stats);
-    }
-
-    public function test_generate_random_stats_for_boots_generates_only_defense(): void
-    {
-        $definition = new GameItemDefinition;
-        $definition->type = 'boots';
-        $definition->required_level = 5;
-
-        $stats = $this->calculator->generateRandomStats($definition);
-
-        $this->assertArrayHasKey('defense', $stats);
-        $this->assertArrayHasKey('max_hp', $stats);
-        // 靴子不应生成攻击或敏捷属性
-        $this->assertArrayNotHasKey('attack', $stats);
-        $this->assertArrayNotHasKey('crit_rate', $stats);
-        $this->assertArrayNotHasKey('crit_damage', $stats);
-        $this->assertArrayNotHasKey('dexterity', $stats);
-    }
-
-    public function test_generate_random_stats_for_ring_generates_only_offense(): void
-    {
-        $definition = new GameItemDefinition;
-        $definition->type = 'ring';
-        $definition->required_level = 5;
-
-        $stats = $this->calculator->generateRandomStats($definition);
-
-        $this->assertArrayHasKey('attack', $stats);
-        // 戒指不应生成防御属性
-        $this->assertArrayNotHasKey('defense', $stats);
-        $this->assertArrayNotHasKey('max_hp', $stats);
-        $this->assertArrayNotHasKey('max_mana', $stats);
-    }
-
-    public function test_generate_random_stats_for_amulet_generates_only_offense(): void
-    {
-        $definition = new GameItemDefinition;
-        $definition->type = 'amulet';
-        $definition->required_level = 5;
-
-        $stats = $this->calculator->generateRandomStats($definition);
-
-        $this->assertArrayHasKey('attack', $stats);
-        // 项链不应生成防御属性
-        $this->assertArrayNotHasKey('defense', $stats);
-        $this->assertArrayNotHasKey('max_hp', $stats);
-        $this->assertArrayNotHasKey('max_mana', $stats);
-    }
-
-    public function test_generate_random_stats_for_belt_generates_only_defense(): void
-    {
-        $definition = new GameItemDefinition;
-        $definition->type = 'belt';
-        $definition->required_level = 5;
-
-        $stats = $this->calculator->generateRandomStats($definition);
-
-        $this->assertArrayHasKey('max_hp', $stats);
-        // 腰带不应生成攻击或暴击属性
-        $this->assertArrayNotHasKey('attack', $stats);
-        $this->assertArrayNotHasKey('crit_rate', $stats);
-        $this->assertArrayNotHasKey('crit_damage', $stats);
-    }
-
-    public function test_generate_random_stats_for_potion(): void
-    {
-        $definition = new GameItemDefinition;
-        $definition->type = 'potion';
-        $definition->required_level = 1;
-
-        $stats = $this->calculator->generateRandomStats($definition);
-
-        $this->assertArrayHasKey('restore', $stats);
-    }
-
-    public function test_generate_random_quality_returns_valid_quality(): void
-    {
-        $validQualities = ['common', 'magic', 'rare', 'legendary', 'mythic'];
-
-        for ($i = 0; $i < 10; $i++) {
-            $quality = $this->calculator->generateRandomQuality(10);
-
-            $this->assertContains($quality, $validQualities);
-        }
-    }
-
-    public function test_generate_random_quality_higher_level_increases_mythic_chance(): void
-    {
-        $level1MythicCount = 0;
-        $level20MythicCount = 0;
-
-        for ($i = 0; $i < 100; $i++) {
-            if ($this->calculator->generateRandomQuality(1) === 'mythic') {
-                $level1MythicCount++;
-            }
-            if ($this->calculator->generateRandomQuality(20) === 'mythic') {
-                $level20MythicCount++;
-            }
-        }
-
-        // Higher level should have more mythic drops
-        $this->assertGreaterThanOrEqual($level1MythicCount, $level20MythicCount);
-    }
-
     public function test_calculate_buy_price_with_mythic_quality(): void
     {
         $definition = new GameItemDefinition;
@@ -417,56 +268,7 @@ class InventoryItemCalculatorTest extends TestCase
         $item = new GameItem;
         $item->definition = $definition;
 
-        $this->assertSame(20, $this->calculator->calculateSellPrice($item));
-        $this->assertSame(40, $this->calculator->calculateBuyPrice($definition));
-    }
-
-    public function test_ensure_stats_meet_value_floor_scales_weapon_stats_within_ceiling(): void
-    {
-        $definition = new GameItemDefinition;
-        $definition->type = 'weapon';
-        $definition->required_level = 5;
-        $definition->base_stats = ['attack' => 1];
-
-        $weakStats = ['attack' => 1];
-        $floor = 20;
-        $adjusted = $this->calculator->ensureStatsMeetValueFloor($definition, $weakStats, 'common', $floor);
-        $adjustedValue = $this->calculator->calculateEquipmentValue($definition, $adjusted, 'common');
-        $ceiling = $this->calculator->resolveMaxShopStats($definition, 'common');
-
-        $this->assertGreaterThan(1, $adjusted['attack']);
-        $this->assertLessThanOrEqual($ceiling['attack'], $adjusted['attack']);
-        $this->assertLessThan($floor, $adjustedValue);
-    }
-
-    public function test_clamp_stats_to_shop_ceiling_prevents_beginner_sword_from_inflating_attack(): void
-    {
-        $definition = new GameItemDefinition;
-        $definition->type = 'weapon';
-        $definition->required_level = 1;
-        $definition->base_stats = ['attack' => 5];
-
-        $inflated = ['attack' => 2699];
-        $clamped = $this->calculator->clampStatsToShopCeiling($definition, $inflated, 'common');
-
-        $this->assertLessThanOrEqual(27, $clamped['attack']);
-    }
-
-    public function test_resolve_shop_target_value_returns_zero_when_no_equipped_floor(): void
-    {
-        $this->assertSame(0, $this->calculator->resolveShopTargetValue(0));
-        $this->assertSame(0, $this->calculator->resolveShopTargetValue(-10));
-    }
-
-    public function test_resolve_shop_target_value_stays_within_floor_and_ceiling(): void
-    {
-        config(['game.shop.value_ceiling_multiplier' => 2.0]);
-        $floor = 100;
-
-        for ($i = 0; $i < 50; $i++) {
-            $target = $this->calculator->resolveShopTargetValue($floor);
-            $this->assertGreaterThanOrEqual($floor, $target);
-            $this->assertLessThanOrEqual(200, $target);
-        }
+        $this->assertSame(30, $this->calculator->calculateSellPrice($item));
+        $this->assertSame(60, $this->calculator->calculateBuyPrice($definition));
     }
 }

@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\Game\CompendiumController;
 use App\Http\Controllers\Api\Game\GemController;
 use App\Http\Controllers\Api\Game\InventoryController;
 use App\Http\Controllers\Api\Game\MapController;
-use App\Http\Controllers\Api\Game\ShopController;
 use App\Http\Controllers\Api\Game\SkillController;
 use Illuminate\Support\Facades\Route;
 
@@ -38,14 +37,6 @@ Route::prefix('rpg')->group(function () {
         Route::post('/inventory/use-potion', [InventoryController::class, 'usePotion']);
     });
 
-    // 商店相关 - 使用幂等性中间件防止重复提交
-    Route::middleware('idempotency')->group(function () {
-        Route::get('/shop', [ShopController::class, 'index']);
-        Route::post('/shop/refresh', [ShopController::class, 'refresh']);
-        Route::post('/shop/buy', [ShopController::class, 'buy']);
-        Route::post('/shop/sell', [ShopController::class, 'sell']);
-    });
-
     // 技能相关
     Route::get('/skills', [SkillController::class, 'index']);
     Route::post('/skills/learn', [SkillController::class, 'learn']);
@@ -64,6 +55,7 @@ Route::prefix('rpg')->group(function () {
     // 战斗相关
     Route::get('/combat/status', [CombatController::class, 'status']);
     Route::post('/combat/start', [CombatController::class, 'start']);
+    Route::post('/combat/revive', [CombatController::class, 'revive']);
     Route::post('/combat/stop', [CombatController::class, 'stop']);
     Route::post('/combat/skills', [CombatController::class, 'updateSkills']);
     Route::get('/combat/logs', [CombatController::class, 'logs']);

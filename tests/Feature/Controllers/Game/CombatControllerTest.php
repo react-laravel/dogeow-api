@@ -73,11 +73,11 @@ class CombatControllerTest extends TestCase
 
         Redis::shouldReceive('set')
             ->once()
-            ->withArgs(function ($key, $value, $ex, $ttl, $nx) use ($character) {
+            ->withArgs(function ($key, $value, $options) use ($character) {
                 return str_ends_with($key, (string) $character->id)
-                    && $ex === 'EX'
-                    && $ttl === AutoCombatRoundJob::ttl()
-                    && $nx === 'NX';
+                    && is_array($options)
+                    && ($options['EX'] ?? null) === AutoCombatRoundJob::ttl()
+                    && ($options['NX'] ?? false) === true;
             })
             ->andReturn(true);
 
@@ -91,6 +91,67 @@ class CombatControllerTest extends TestCase
             ],
         ]);
         Bus::assertDispatched(AutoCombatRoundJob::class);
+    }
+
+    public function test_start_rejects_dead_character(): void
+    {
+        Bus::fake();
+
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, [
+            'current_hp' => 0,
+            'current_map_id' => 5,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/rpg/combat/start?character_id=' . $character->id);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('message', '角色已死亡，请先复活');
+        Bus::assertNothingDispatched();
+    }
+
+    public function test_can_revive_dead_character(): void
+    {
+        Bus::fake();
+
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, [
+            'current_hp' => 0,
+            'current_mana' => 25,
+            'current_map_id' => 5,
+            'is_fighting' => true,
+        ]);
+
+        Redis::shouldReceive('del')
+            ->once()
+            ->with(AutoCombatRoundJob::redisKey($character->id))
+            ->andReturn(1);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/rpg/combat/revive?character_id=' . $character->id);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('data.message', '角色已复活并传送到新手村，请手动开始战斗');
+
+        $character->refresh();
+        $this->assertSame(1, $character->current_map_id);
+        $this->assertSame($character->getCreationHp(), $character->current_hp);
+        $this->assertSame(25, $character->current_mana);
+        $this->assertFalse((bool) $character->is_fighting);
+        Bus::assertNothingDispatched();
+    }
+
+    public function test_revive_rejects_alive_character(): void
+    {
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, ['current_hp' => 100]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/rpg/combat/revive?character_id=' . $character->id);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('message', '角色未处于死亡状态');
     }
 
     public function test_can_stop_combat(): void

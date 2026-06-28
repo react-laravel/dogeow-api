@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Controllers\Game;
 
+use App\Exceptions\GameException;
 use App\Http\Controllers\Api\Game\CombatController;
 use App\Http\Requests\Game\UpdatePotionSettingsRequest;
 use App\Http\Requests\Game\UsePotionRequest;
@@ -166,7 +167,7 @@ class CombatControllerUnitTest extends TestCase
         $this->assertSame('更新药水自动使用设置失败，请稍后重试', $data['message']);
     }
 
-    public function test_start_revives_dead_character_without_dispatching_combat(): void
+    public function test_start_rejects_dead_character(): void
     {
         Bus::fake();
 
@@ -182,13 +183,61 @@ class CombatControllerUnitTest extends TestCase
         $data = json_decode($response->getContent(), true);
         $character->refresh();
 
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame('角色已死亡，请先复活', $data['message']);
+        $this->assertSame(5, $character->current_map_id);
+        $this->assertSame(0, $character->current_hp);
+        Bus::assertNothingDispatched();
+    }
+
+    public function test_revive_revives_dead_character_without_dispatching_combat(): void
+    {
+        Bus::fake();
+
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, [
+            'current_hp' => 0,
+            'current_mana' => 25,
+            'current_map_id' => 5,
+            'is_fighting' => false,
+        ]);
+
+        $this->combatService->shouldReceive('reviveCharacter')
+            ->once()
+            ->with($this->sameCharacter($character))
+            ->andReturnUsing(function (GameCharacter $target) {
+                $target->update([
+                    'current_hp' => $target->getCreationHp(),
+                    'current_map_id' => 1,
+                    'is_fighting' => false,
+                ]);
+
+                return $target->fresh();
+            });
+
+        $response = $this->controller->revive($this->makeRequest($user, $character));
+        $data = json_decode($response->getContent(), true);
+
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame('角色已复活并传送到新手村，请手动开始战斗', $data['data']['message']);
-        $this->assertSame(1, $character->current_map_id);
-        $this->assertSame($character->getCreationHp(), $character->current_hp);
-        $this->assertSame(25, $character->current_mana);
-        $this->assertTrue((bool) $character->is_fighting);
         Bus::assertNothingDispatched();
+    }
+
+    public function test_revive_rejects_alive_character(): void
+    {
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, ['current_hp' => 100]);
+
+        $this->combatService->shouldReceive('reviveCharacter')
+            ->once()
+            ->with($this->sameCharacter($character))
+            ->andThrow(GameException::invalidOperation('角色未处于死亡状态'));
+
+        $response = $this->controller->revive($this->makeRequest($user, $character));
+        $data = json_decode($response->getContent(), true);
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame('角色未处于死亡状态', $data['message']);
     }
 
     public function test_start_rejects_when_auto_combat_is_already_running(): void
@@ -202,7 +251,7 @@ class CombatControllerUnitTest extends TestCase
         // Redis::set with NX returns false when key already exists
         Redis::shouldReceive('set')
             ->once()
-            ->with($key, Mockery::any(), 'EX', AutoCombatRoundJob::ttl(), 'NX')
+            ->with($key, Mockery::any(), ['EX' => AutoCombatRoundJob::ttl(), 'NX' => true])
             ->andReturn(false);
 
         $response = $this->controller->start($this->makeRequest($user, $character));
@@ -226,7 +275,7 @@ class CombatControllerUnitTest extends TestCase
         // Redis::set with NX returns true when key is successfully set
         Redis::shouldReceive('set')
             ->once()
-            ->with($key, $payload, 'EX', AutoCombatRoundJob::ttl(), 'NX')
+            ->with($key, $payload, ['EX' => AutoCombatRoundJob::ttl(), 'NX' => true])
             ->andReturn(true);
 
         $response = $this->controller->start($request);
@@ -251,7 +300,7 @@ class CombatControllerUnitTest extends TestCase
         // Redis::set with NX returns true when key is successfully set
         Redis::shouldReceive('set')
             ->once()
-            ->with($key, $payload, 'EX', AutoCombatRoundJob::ttl(), 'NX')
+            ->with($key, $payload, ['EX' => AutoCombatRoundJob::ttl(), 'NX' => true])
             ->andReturn(true);
 
         $response = $this->controller->start($this->makeRequest($user, $character));

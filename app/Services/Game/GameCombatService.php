@@ -2,6 +2,7 @@
 
 namespace App\Services\Game;
 
+use App\Exceptions\GameException;
 use App\Jobs\Game\AutoCombatRoundJob;
 use App\Models\Game\GameCharacter;
 use App\Models\Game\GameMapDefinition;
@@ -81,6 +82,25 @@ class GameCombatService
             $character->update(['is_fighting' => $autoCombatRunning]);
             $character->refresh();
         }
+    }
+
+    /**
+     * 死亡复活：清除战斗状态、恢复创建 HP、传送至新手村，不自动开战
+     */
+    public function reviveCharacter(GameCharacter $character): GameCharacter
+    {
+        if ($character->getCurrentHp() > 0) {
+            throw GameException::invalidOperation('角色未处于死亡状态');
+        }
+
+        Redis::del(AutoCombatRoundJob::redisKey($character->id));
+        $character->clearCombatState();
+        $character->applyReviveResources();
+        $character->current_map_id = 1;
+        $character->is_fighting = false;
+        $character->save();
+
+        return $character->fresh('currentMap');
     }
 
     /**

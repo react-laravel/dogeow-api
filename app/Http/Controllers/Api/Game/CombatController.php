@@ -75,18 +75,8 @@ class CombatController extends Controller
             $character = $this->getCharacter($request);
             $this->authorize('combat', $character);
 
-            // 检测角色是否死亡，复活并传送到地图一
-            if ($character->current_hp <= 0) {
-                // 清除战斗状态
-                $character->clearCombatState();
-
-                $character->applyReviveResources();
-                $character->current_map_id = 1;
-                $character->is_fighting = true;
-                $character->save();
-
-                // 复活成功，但不自动启动战斗，让用户手动开始
-                return $this->success(['message' => '角色已复活并传送到新手村，请手动开始战斗']);
+            if ($character->getCurrentHp() <= 0) {
+                throw GameException::invalidOperation('角色已死亡，请先复活');
             }
 
             // 检查是否已经有自动战斗在运行（使用原子 SETNX 操作防止竞态条件）
@@ -101,7 +91,10 @@ class CombatController extends Controller
 
             // 使用 SET 原子操作：NX 表示仅在 key 不存在时设置，EX 表示设置过期时间
             // 这同时防止了并发请求时的竞态条件，并确保 key 一定会过期
-            $setResult = Redis::set($key, $payload, 'EX', AutoCombatRoundJob::ttl(), 'NX');
+            $setResult = Redis::set($key, $payload, [
+                'EX' => AutoCombatRoundJob::ttl(),
+                'NX' => true,
+            ]);
             if (! $setResult) {
                 // Key 已存在，说明有其他请求已经开始了战斗
                 return $this->error('自动战斗已在运行中，请先停止当前战斗');
@@ -116,6 +109,30 @@ class CombatController extends Controller
             Log::error('开始战斗失败', ['exception' => $e]);
 
             return $this->error('开始战斗失败，请稍后重试');
+        }
+    }
+
+    /**
+     * 死亡复活：传送至新手村，不自动开始战斗
+     */
+    public function revive(Request $request): JsonResponse
+    {
+        try {
+            $character = $this->getCharacter($request);
+            $this->authorize('combat', $character);
+
+            $character = $this->combatService->reviveCharacter($character);
+
+            return $this->success([
+                'message' => '角色已复活并传送到新手村，请手动开始战斗',
+                'character' => $character->toArray(),
+            ]);
+        } catch (GameException $e) {
+            return $this->error($e->getMessage());
+        } catch (Throwable $e) {
+            Log::error('角色复活失败', ['exception' => $e]);
+
+            return $this->error('角色复活失败，请稍后重试');
         }
     }
 

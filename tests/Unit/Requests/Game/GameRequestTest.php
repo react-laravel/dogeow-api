@@ -3,7 +3,6 @@
 namespace Tests\Unit\Requests\Game;
 
 use App\Http\Requests\Game\AllocateStatsRequest;
-use App\Http\Requests\Game\BuyItemRequest;
 use App\Http\Requests\Game\CreateCharacterRequest;
 use App\Http\Requests\Game\EquipItemRequest;
 use App\Http\Requests\Game\LearnSkillRequest;
@@ -33,20 +32,6 @@ class GameRequestTest extends TestCase
 
         $this->assertArrayHasKey('character_id', $rules);
         $this->assertArrayHasKey('strength', $rules);
-    }
-
-    public function test_buy_item_request_authorize(): void
-    {
-        $request = new BuyItemRequest;
-        $this->assertTrue($request->authorize());
-    }
-
-    public function test_buy_item_request_rules(): void
-    {
-        $request = new BuyItemRequest;
-        $rules = $request->rules();
-
-        $this->assertArrayHasKey('item_id', $rules);
     }
 
     public function test_create_character_request_authorize(): void
