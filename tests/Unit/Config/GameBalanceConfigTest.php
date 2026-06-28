@@ -33,10 +33,10 @@ class GameBalanceConfigTest extends TestCase
         $this->assertSame([1, 2, 3], array_column($newbieMonsters, 'defense_base'));
         $this->assertSame([3, 2, 2], array_column($newbieMonsters, 'experience_base'));
 
-        $this->assertSame([2, 3, 1], array_column($secondLayerMonsters, 'attack_base'));
-        $this->assertSame([9, 6, 3], array_column($secondLayerMonsters, 'hp_base'));
-        $this->assertSame([2, 4, 6], array_column($secondLayerMonsters, 'defense_base'));
-        $this->assertSame([4, 4, 4], array_column($secondLayerMonsters, 'experience_base'));
+        $this->assertSame([1, 2, 4], array_column($secondLayerMonsters, 'attack_base'));
+        $this->assertSame([10, 14, 24], array_column($secondLayerMonsters, 'hp_base'));
+        $this->assertSame([1, 1, 2], array_column($secondLayerMonsters, 'defense_base'));
+        $this->assertSame([4, 6, 8], array_column($secondLayerMonsters, 'experience_base'));
     }
 
     public function test_early_elite_and_boss_hp_stays_on_small_number_curve(): void
