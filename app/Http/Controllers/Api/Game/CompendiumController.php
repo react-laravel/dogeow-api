@@ -67,12 +67,22 @@ class CompendiumController extends Controller
     }
 
     /**
-     * 获取怪物掉落表
+     * 获取怪物掉落表（属性按当前角色难度缩放）
      */
-    public function monsterDrops(int $monster): JsonResponse
+    public function monsterDrops(Request $request, int $monster): JsonResponse
     {
         $monster = GameMonsterDefinition::where('is_active', true)
             ->findOrFail($monster);
+
+        $character = $this->getCharacter($request);
+        $difficulty = $character->getDifficultyMultipliers();
+        $stats = $monster->getCombatStats();
+        $monsterPayload = array_merge($monster->toArray(), [
+            'hp_base' => (int) ($stats['hp'] * (float) $difficulty['monster_hp']),
+            'attack_base' => (int) ($stats['attack'] * (float) $difficulty['monster_damage']),
+            'defense_base' => (int) ($stats['defense'] * (float) $difficulty['monster_damage']),
+            'experience_base' => (int) ($stats['experience'] * (float) $difficulty['reward']),
+        ]);
 
         $dropTable = is_array($monster->drop_table) ? $monster->drop_table : [];
 
@@ -135,7 +145,7 @@ class CompendiumController extends Controller
         }, $itemsWithRates);
 
         return response()->json([
-            'monster' => $monster,
+            'monster' => $monsterPayload,
             'drop_table' => $dropTable,
             'drop_rates' => [
                 'item' => round($dropChance * 100, 2),

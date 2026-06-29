@@ -138,6 +138,27 @@ class CompendiumControllerTest extends TestCase
             ->assertJsonPath('possible_items.0.id', $item->id);
     }
 
+    public function test_monster_drops_scales_stats_by_character_difficulty(): void
+    {
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, ['difficulty_tier' => 2]);
+        $monster = $this->createMonsterDefinition([
+            'hp_base' => 10,
+            'attack_base' => 4,
+            'defense_base' => 3,
+            'experience_base' => 5,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->getJson('/api/rpg/compendium/monsters/' . $monster->id . '/drops?character_id=' . $character->id);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('monster.hp_base', 22)
+            ->assertJsonPath('monster.attack_base', 7)
+            ->assertJsonPath('monster.defense_base', 5)
+            ->assertJsonPath('monster.experience_base', 10);
+    }
+
     public function test_requires_authentication(): void
     {
         $response = $this->getJson('/api/rpg/compendium/items');
