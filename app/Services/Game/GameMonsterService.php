@@ -360,6 +360,7 @@ class GameMonsterService
                 'defense' => (int) ($defVal * $monsterDamageMultiplier),
                 'experience' => (int) ($expVal * $rewardMultiplier),
                 'position' => $slot,
+                'damage_taken' => -1,
             ];
         }
 

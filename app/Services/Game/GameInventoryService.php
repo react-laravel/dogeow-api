@@ -22,7 +22,7 @@ class GameInventoryService
     use UsesDistributedLock;
 
     /** 背包默认大小 */
-    public const INVENTORY_SIZE = 100;
+    public const INVENTORY_SIZE = 50;
 
     /** 仓库默认大小 */
     public const STORAGE_SIZE = 50;

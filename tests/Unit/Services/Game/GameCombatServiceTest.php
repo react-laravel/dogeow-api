@@ -276,7 +276,7 @@ class GameCombatServiceTest extends TestCase
                 'inventory' => [],
                 'storage' => [],
                 'equipment' => [],
-                'inventory_size' => 100,
+                'inventory_size' => 50,
                 'storage_size' => 50,
             ]);
         app()->instance(GameInventoryService::class, $inventoryService);
@@ -410,7 +410,7 @@ class GameCombatServiceTest extends TestCase
                 'inventory' => [],
                 'storage' => [],
                 'equipment' => [],
-                'inventory_size' => 100,
+                'inventory_size' => 50,
                 'storage_size' => 50,
             ]);
         app()->instance(GameInventoryService::class, $inventoryService);
