@@ -4,8 +4,6 @@ namespace Tests\Unit\Controllers\Game;
 
 use App\Exceptions\GameException;
 use App\Http\Controllers\Api\Game\CombatController;
-use App\Http\Requests\Game\UpdatePotionSettingsRequest;
-use App\Http\Requests\Game\UsePotionRequest;
 use App\Jobs\Game\AutoCombatRoundJob;
 use App\Models\Game\GameCharacter;
 use App\Models\Game\GameItem;
@@ -115,56 +113,6 @@ class CombatControllerUnitTest extends TestCase
 
         $this->assertSame(422, $response->getStatusCode());
         $this->assertSame('获取战斗状态失败，请稍后重试', $data['message']);
-    }
-
-    public function test_update_potion_settings_returns_updated_character(): void
-    {
-        $user = User::factory()->create();
-        $character = $this->createCharacter($user);
-        $validated = [
-            'auto_use_hp_potion' => true,
-            'auto_use_mp_potion' => true,
-        ];
-        $updatedCharacter = $this->createCharacter($user, [
-            'name' => 'PotionHero-' . $user->id,
-            'auto_use_hp_potion' => true,
-            'auto_use_mp_potion' => true,
-        ]);
-
-        $this->combatService->shouldReceive('updatePotionSettings')
-            ->once()
-            ->with($this->sameCharacter($character), $validated)
-            ->andReturn($updatedCharacter);
-
-        $response = $this->controller->updatePotionSettings(
-            $this->makeValidatedFormRequest(UpdatePotionSettingsRequest::class, $user, $character, $validated)
-        );
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertSame(200, $response->getStatusCode());
-        $this->assertSame('药水设置已更新', $data['message']);
-        $this->assertTrue($data['data']['character']['auto_use_hp_potion']);
-        $this->assertTrue($data['data']['character']['auto_use_mp_potion']);
-    }
-
-    public function test_update_potion_settings_returns_error_when_service_throws(): void
-    {
-        $user = User::factory()->create();
-        $character = $this->createCharacter($user);
-        $validated = ['auto_use_hp_potion' => true];
-
-        $this->combatService->shouldReceive('updatePotionSettings')
-            ->once()
-            ->with($this->sameCharacter($character), $validated)
-            ->andThrow(new \RuntimeException('settings boom'));
-
-        $response = $this->controller->updatePotionSettings(
-            $this->makeValidatedFormRequest(UpdatePotionSettingsRequest::class, $user, $character, $validated)
-        );
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertSame(422, $response->getStatusCode());
-        $this->assertSame('更新药水自动使用设置失败，请稍后重试', $data['message']);
     }
 
     public function test_start_rejects_dead_character(): void
@@ -556,52 +504,6 @@ class CombatControllerUnitTest extends TestCase
 
         $this->assertSame(422, $response->getStatusCode());
         $this->assertSame('更新技能配置失败，请稍后重试', $data['message']);
-    }
-
-    public function test_use_potion_returns_character_resources(): void
-    {
-        $user = User::factory()->create();
-        $character = $this->createCharacter($user, [
-            'current_hp' => 20,
-            'current_mana' => 10,
-            'vitality' => 12,
-            'energy' => 11,
-        ]);
-        $potionDefinition = $this->createItemDefinition([
-            'name' => '小型生命药水',
-            'type' => 'potion',
-            'sub_type' => 'hp',
-            'base_stats' => ['max_hp' => 30],
-        ]);
-        $potion = $this->createItem($character, $potionDefinition, ['quantity' => 1]);
-
-        $response = $this->controller->usePotion(
-            $this->makeValidatedFormRequest(UsePotionRequest::class, $user, $character, ['item_id' => $potion->id])
-        );
-        $data = json_decode($response->getContent(), true);
-        $character->refresh();
-
-        $this->assertSame(200, $response->getStatusCode());
-        $this->assertStringContainsString('小型生命药水', $data['data']['message']);
-        $this->assertStringContainsString('30 点生命值', $data['data']['message']);
-        $this->assertSame($character->getCurrentHp(), $data['data']['current_hp']);
-        $this->assertGreaterThan(20, $character->current_hp);
-        $this->assertDatabaseMissing('game_items', ['id' => $potion->id]);
-    }
-
-    public function test_use_potion_returns_error_for_non_potion_items(): void
-    {
-        $user = User::factory()->create();
-        $character = $this->createCharacter($user);
-        $weapon = $this->createItem($character, $this->createItemDefinition());
-
-        $response = $this->controller->usePotion(
-            $this->makeValidatedFormRequest(UsePotionRequest::class, $user, $character, ['item_id' => $weapon->id])
-        );
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertSame(422, $response->getStatusCode());
-        $this->assertSame('使用药品失败，请稍后重试', $data['message']);
     }
 
     private function createCharacter(User $user, array $attributes = []): GameCharacter

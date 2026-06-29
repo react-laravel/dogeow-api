@@ -23,7 +23,6 @@ class GameCombatService
      *
      * @param  CombatRoundProcessor  $roundProcessor  回合处理器
      * @param  GameMonsterService  $monsterService  怪物服务
-     * @param  GamePotionService  $potionService  药水服务
      * @param  GameCombatLootService  $lootService  战利品服务
      * @param  GameCombatLogService  $combatLogService  战斗日志服务
      * @param  GameInventoryService  $inventoryService  背包服务
@@ -31,7 +30,6 @@ class GameCombatService
     public function __construct(
         private readonly CombatRoundProcessor $roundProcessor,
         private readonly GameMonsterService $monsterService,
-        private readonly GamePotionService $potionService,
         private readonly GameCombatLootService $lootService,
         private readonly GameCombatLogService $combatLogService,
         private readonly GameInventoryService $inventoryService
@@ -144,25 +142,6 @@ class GameCombatService
     }
 
     /**
-     * 更新药水设置
-     *
-     * @param  GameCharacter  $character  角色实例
-     * @param  array  $settings  药水设置
-     * @return GameCharacter 更新后的角色
-     */
-    public function updatePotionSettings(GameCharacter $character, array $settings): GameCharacter
-    {
-        foreach (['auto_use_hp_potion', 'auto_use_mp_potion'] as $key) {
-            if (array_key_exists($key, $settings)) {
-                $character->$key = $settings[$key];
-            }
-        }
-        $character->save();
-
-        return $character;
-    }
-
-    /**
      * 执行一轮战斗(支持多怪物连续战斗)
      *
      * @param  GameCharacter  $character  角色实例
@@ -226,9 +205,6 @@ class GameCombatService
             ? null
             : array_map(fn ($v) => (int) $v, array_values($skillIds));
 
-        // 回合前的药水使用记录(用于日志和响应)，默认空数组
-        $potionUsedBeforeRound = [];
-
         $roundResult = $this->roundProcessor->processOneRound(
             $character,
             $currentRound,
@@ -237,10 +213,13 @@ class GameCombatService
             $requestedSkillIds
         );
 
-        // 回合后自动使用药水(确保传入数值为 int)
-        $charStats = $character->getCombatStats();
-        $potionUsed = $this->potionService->tryAutoUsePotions($character, (int) $roundResult['new_char_hp'], (int) $roundResult['new_char_mana'], $charStats);
-        if (! empty($potionUsed)) {
+        // 回合后按体力/能量自动恢复 HP/MP
+        $roundRegen = $this->applyRoundResourceRegeneration(
+            $character,
+            (int) $roundResult['new_char_hp'],
+            (int) $roundResult['new_char_mana']
+        );
+        if ($roundRegen !== []) {
             $roundResult['new_char_hp'] = $character->getCurrentHp();
             $roundResult['new_char_mana'] = $character->getCurrentMana();
         }
@@ -301,8 +280,7 @@ class GameCombatService
             $map,
             isset($firstAliveMonster['id']) ? (int) $firstAliveMonster['id'] : ($monster->id ?? 0),
             $roundResult,
-            $potionUsedBeforeRound,
-            $potionUsed
+            $roundRegen
         );
 
         $result = [
@@ -328,10 +306,7 @@ class GameCombatService
             'skills_used' => $roundResult['skills_used_this_round'],
             'skill_target_positions' => $roundResult['skill_target_positions'] ?? [],
             'skill_cooldowns' => $character->combat_skill_cooldowns ?? [], // 技能冷却(回合数)
-            'potion_used' => [
-                'before' => $potionUsedBeforeRound,
-                'after' => $potionUsed,
-            ],
+            'round_regen' => $roundRegen !== [] ? $roundRegen : null,
             'character' => ($character->fresh() ?? $character)->toArray(),
             'combat_log_id' => $combatLog->id,
         ];
@@ -345,6 +320,60 @@ class GameCombatService
         $this->broadcaster()->broadcastInventoryUpdate($character->id, $inventoryPayload);
 
         return $result;
+    }
+
+    /**
+     * 回合结束后按体力/能量恢复 HP/MP
+     *
+     * @return array<string, array{name: string, restored: int}>
+     */
+    private function applyRoundResourceRegeneration(GameCharacter $character, int $currentHp, int $currentMana): array
+    {
+        if ($currentHp <= 0) {
+            return [];
+        }
+
+        $charStats = $character->getCombatStats();
+        $maxHp = (int) ($charStats['max_hp'] ?? 0);
+        $maxMana = (int) ($charStats['max_mana'] ?? 0);
+        $hpRegen = $character->getHpRegenPerRound();
+        $mpRegen = $character->getManaRegenPerRound();
+
+        $newHp = $currentHp;
+        $newMana = $currentMana;
+        $regen = [];
+
+        if ($hpRegen > 0 && $maxHp > 0 && $currentHp < $maxHp) {
+            $newHp = min($maxHp, $currentHp + $hpRegen);
+            $restored = $newHp - $currentHp;
+            if ($restored > 0) {
+                $regen['hp'] = [
+                    'name' => '体力恢复',
+                    'restored' => $restored,
+                ];
+            }
+        }
+
+        if ($mpRegen > 0 && $maxMana > 0 && $currentMana < $maxMana) {
+            $newMana = min($maxMana, $currentMana + $mpRegen);
+            $restored = $newMana - $currentMana;
+            if ($restored > 0) {
+                $regen['mp'] = [
+                    'name' => '能量恢复',
+                    'restored' => $restored,
+                ];
+            }
+        }
+
+        if ($regen === []) {
+            return [];
+        }
+
+        $character->current_hp = $newHp;
+        $character->current_mana = $newMana;
+        $character->save();
+
+        return $regen;
     }
 
     /**

@@ -73,7 +73,6 @@ class GameDefinitionDataTest extends TestCase
         foreach ($newbieMonsters as $monster) {
             $this->assertIsArray($monster->drop_table, "{$monster->name} should have an RPG drop table");
             $this->assertGreaterThan(0, $monster->drop_table['item_chance'] ?? 0, "{$monster->name} should be able to drop equipment");
-            $this->assertGreaterThan(0, $monster->drop_table['potion_chance'] ?? 0, "{$monster->name} should be able to drop potions");
             $this->assertNotEmpty($monster->drop_table['item_types'] ?? [], "{$monster->name} should define equipment types");
         }
 
@@ -145,12 +144,11 @@ class GameDefinitionDataTest extends TestCase
 
     public function test_game_definition_factories_create_valid_related_records(): void
     {
-        $item = GameItemDefinition::factory()->potion()->create();
+        $item = GameItemDefinition::factory()->create(['type' => 'weapon']);
         $monster = GameMonsterDefinition::factory()->boss()->create();
         $map = GameMapDefinition::factory()->withMonsters(3)->create();
 
-        $this->assertSame('potion', $item->type);
-        $this->assertContains($item->sub_type, ['hp', 'mp']);
+        $this->assertSame('weapon', $item->type);
         $this->assertSame('boss', $monster->type);
         $this->assertCount(3, $map->monster_ids ?? []);
         $this->assertSame(

@@ -218,27 +218,6 @@ class CombatControllerTest extends TestCase
         ]);
     }
 
-    public function test_can_update_potion_settings(): void
-    {
-        $user = User::factory()->create();
-        $character = $this->createCharacter($user);
-
-        $response = $this->actingAs($user)
-            ->postJson('/api/rpg/combat/potion-settings?character_id=' . $character->id, [
-                'auto_use_hp_potion' => true,
-                'auto_use_mp_potion' => true,
-            ]);
-
-        $response->assertStatus(200);
-        $response->assertJsonStructure([
-            'data' => [
-                'character',
-            ],
-        ]);
-        $response->assertJsonPath('data.character.auto_use_hp_potion', true);
-        $response->assertJsonPath('data.character.auto_use_mp_potion', true);
-    }
-
     public function test_requires_authentication(): void
     {
         $response = $this->getJson('/api/rpg/combat/status');

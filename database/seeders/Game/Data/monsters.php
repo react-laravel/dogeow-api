@@ -636,7 +636,6 @@ $defaultDropTable = static function (array $monster): array {
     if ($level <= 2) {
         return [
             'item_chance' => 0.01,
-            'potion_chance' => 0.1,
             'item_types' => $itemTypes,
         ];
     }
@@ -644,17 +643,14 @@ $defaultDropTable = static function (array $monster): array {
     return match ($type) {
         'boss' => [
             'item_chance' => 0.01,
-            'potion_chance' => 0.1,
             'item_types' => $itemTypes,
         ],
         'elite' => [
             'item_chance' => 0.01,
-            'potion_chance' => 0.1,
             'item_types' => $itemTypes,
         ],
         default => [
             'item_chance' => 0.01,
-            'potion_chance' => 0.1,
             'item_types' => $itemTypes,
         ],
     };

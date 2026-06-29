@@ -70,12 +70,6 @@ class GameCombatLootService
                     $loot['item'] = $item;
                 }
             }
-            if (isset($lootResult['potion']) && ! isset($loot['potion'])) {
-                $potion = $this->createPotion($character, $lootResult['potion']);
-                if ($potion) {
-                    $loot['potion'] = $potion;
-                }
-            }
         }
 
         return $loot;
@@ -208,90 +202,6 @@ class GameCombatLootService
         }
 
         return $item->load('definition');
-    }
-
-    /**
-     * Create a loot potion
-     */
-    public function createPotion(GameCharacter $character, array $potionData): ?GameItem
-    {
-        $potionConfigs = [
-            'hp' => [
-                'minor' => ['name' => '轻型生命药水', 'restore' => 25],
-                'light' => ['name' => '生命药水', 'restore' => 50],
-                'medium' => ['name' => '强效生命药水', 'restore' => 100],
-                'full' => ['name' => '超级生命药水', 'restore' => 200],
-            ],
-            'mp' => [
-                'minor' => ['name' => '轻型法力药水', 'restore' => 15],
-                'light' => ['name' => '法力药水', 'restore' => 30],
-                'medium' => ['name' => '强效法力药水', 'restore' => 60],
-                'full' => ['name' => '超级法力药水', 'restore' => 120],
-            ],
-        ];
-        $type = $potionData['sub_type'];
-        $level = $potionData['level'];
-        if (! isset($potionConfigs[$type][$level])) {
-            return null;
-        }
-        $config = $potionConfigs[$type][$level];
-        $statKey = $type === 'hp' ? 'max_hp' : 'max_mana';
-
-        /** @var GameItem|null $existingPotion */
-        $existingPotion = $character->items()
-            ->whereHas('definition', function ($query) use ($type) {
-                $query->where('type', 'potion')->where('sub_type', $type);
-            })
-            ->where('is_in_storage', false)
-            ->first();
-        if ($existingPotion) {
-            $existingPotion->increment('quantity');
-            $existingPotion->load('definition');
-
-            return $existingPotion;
-        }
-
-        $inventoryService = $this->getInventoryService();
-
-        if ($character->isInventoryFull()) {
-            $freed = $inventoryService->sellCheapestInventoryItemByType($character, 'potion', $type);
-            if ($freed === null) {
-                return null;
-            }
-            $character->refresh();
-        }
-
-        $definition = GameItemDefinition::query()
-            ->where('type', 'potion')
-            ->where('sub_type', $type)
-            ->whereJsonContains('gem_stats->restore', $config['restore'])
-            ->first();
-
-        if (! $definition) {
-            $definition = GameItemDefinition::create([
-                'name' => $config['name'],
-                'type' => 'potion',
-                'sub_type' => $type,
-                'base_stats' => [$statKey => $config['restore']],
-                'required_level' => 1,
-                'icon' => 'potion',
-                'description' => "恢复{$config['restore']}点" . ($type === 'hp' ? '生命值' : '法力值'),
-                'is_active' => true,
-                'sockets' => 0,
-                'gem_stats' => ['restore' => $config['restore']],
-            ]);
-        }
-
-        $potion = $this->createGameItem($character, [
-            'definition_id' => $definition->id,
-            'stats' => $definition->base_stats ?? [],
-            'slot_index' => $inventoryService->findEmptySlot($character, false),
-        ]);
-
-        $character->discoverItem($definition->id);
-        $potion->load('definition');
-
-        return $potion;
     }
 
     /**

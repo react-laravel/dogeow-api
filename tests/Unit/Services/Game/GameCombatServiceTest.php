@@ -16,7 +16,6 @@ use App\Services\Game\GameCombatLootService;
 use App\Services\Game\GameCombatService;
 use App\Services\Game\GameInventoryService;
 use App\Services\Game\GameMonsterService;
-use App\Services\Game\GamePotionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Mockery;
@@ -141,23 +140,6 @@ class GameCombatServiceTest extends TestCase
         $this->assertSame($monster->id, $result['current_combat_monsters'][0]['id']);
     }
 
-    public function test_update_potion_settings_updates_only_requested_fields(): void
-    {
-        $character = $this->createCharacter([
-            'auto_use_hp_potion' => false,
-            'auto_use_mp_potion' => false,
-        ]);
-
-        $service = $this->makeService();
-        $updated = $service->updatePotionSettings($character, [
-            'auto_use_hp_potion' => true,
-            'auto_use_mp_potion' => true,
-        ]);
-
-        $this->assertTrue($updated->fresh()->auto_use_hp_potion);
-        $this->assertTrue($updated->fresh()->auto_use_mp_potion);
-    }
-
     public function test_execute_round_requires_a_selected_map(): void
     {
         $character = $this->createCharacter(['current_map_id' => null]);
@@ -248,7 +230,6 @@ class GameCombatServiceTest extends TestCase
 
         $roundProcessor = Mockery::mock(CombatRoundProcessor::class);
         $monsterService = Mockery::mock(GameMonsterService::class);
-        $potionService = Mockery::mock(GamePotionService::class);
         $lootService = Mockery::mock(GameCombatLootService::class);
         $combatLogService = Mockery::mock(GameCombatLogService::class);
         $inventoryService = Mockery::mock(GameInventoryService::class);
@@ -268,9 +249,6 @@ class GameCombatServiceTest extends TestCase
                 'defeat' => true,
                 'new_monster_hp' => 11,
             ]);
-        $potionService->shouldReceive('tryAutoUsePotions')
-            ->once()
-            ->andReturn([]);
         $combatLogService->shouldReceive('createDefeatLog')
             ->once()
             ->andReturn($this->makeCombatLogModel(456));
@@ -289,7 +267,6 @@ class GameCombatServiceTest extends TestCase
         $service = $this->makeService(
             roundProcessor: $roundProcessor,
             monsterService: $monsterService,
-            potionService: $potionService,
             lootService: $lootService,
             combatLogService: $combatLogService,
             inventoryService: $inventoryService,
@@ -340,7 +317,6 @@ class GameCombatServiceTest extends TestCase
 
         $roundProcessor = Mockery::mock(CombatRoundProcessor::class);
         $monsterService = Mockery::mock(GameMonsterService::class);
-        $potionService = Mockery::mock(GamePotionService::class);
         $lootService = Mockery::mock(GameCombatLootService::class);
         $combatLogService = Mockery::mock(GameCombatLogService::class);
         $inventoryService = Mockery::mock(GameInventoryService::class);
@@ -378,9 +354,6 @@ class GameCombatServiceTest extends TestCase
         $roundProcessor->shouldReceive('processOneRound')
             ->once()
             ->andReturn($baseRoundResult);
-        $potionService->shouldReceive('tryAutoUsePotions')
-            ->once()
-            ->andReturn([]);
         $monsterService->shouldReceive('tryAddNewMonsters')
             ->once()
             ->andReturnUsing(fn ($characterArg, $mapArg, array $roundResult) => $roundResult);
@@ -389,7 +362,7 @@ class GameCombatServiceTest extends TestCase
             ->andReturn(['experience_gained' => 13, 'copper_gained' => 7]);
         $lootService->shouldReceive('processDeathLoot')
             ->once()
-            ->andReturn(['item' => 'bone', 'potion' => 'hp']);
+            ->andReturn(['item' => 'bone']);
         $monsterService->shouldReceive('formatMonstersForResponse')
             ->once()
             ->andReturn([
@@ -428,7 +401,6 @@ class GameCombatServiceTest extends TestCase
         $service = $this->makeService(
             roundProcessor: $roundProcessor,
             monsterService: $monsterService,
-            potionService: $potionService,
             lootService: $lootService,
             combatLogService: $combatLogService,
             inventoryService: $inventoryService,
@@ -441,12 +413,15 @@ class GameCombatServiceTest extends TestCase
         $this->assertSame(13, $result['experience_gained']);
         $this->assertSame(7, $result['copper_gained']);
         $this->assertSame('bone', $result['loot']['item']);
-        $this->assertSame('hp', $result['loot']['potion']);
         $this->assertSame(7, $result['loot']['copper']);
         $this->assertSame(123, $result['combat_log_id']);
         $this->assertSame(1, $character->fresh()->combat_rounds);
-        $this->assertSame(21, $character->fresh()->current_hp);
-        $this->assertSame(9, $character->fresh()->current_mana);
+        $this->assertSame(31, $character->fresh()->current_hp);
+        $this->assertSame(19, $character->fresh()->current_mana);
+        $this->assertSame('体力恢复', $result['round_regen']['hp']['name']);
+        $this->assertSame(10, $result['round_regen']['hp']['restored']);
+        $this->assertSame('能量恢复', $result['round_regen']['mp']['name']);
+        $this->assertSame(10, $result['round_regen']['mp']['restored']);
 
         Event::assertDispatched(GameCombatUpdate::class);
         Event::assertDispatched(GameInventoryUpdate::class);
@@ -470,7 +445,6 @@ class GameCombatServiceTest extends TestCase
     private function makeService(
         ?CombatRoundProcessor $roundProcessor = null,
         ?GameMonsterService $monsterService = null,
-        ?GamePotionService $potionService = null,
         ?GameCombatLootService $lootService = null,
         ?GameCombatLogService $combatLogService = null,
         ?GameInventoryService $inventoryService = null
@@ -478,7 +452,6 @@ class GameCombatServiceTest extends TestCase
         return new GameCombatService(
             $roundProcessor ?? Mockery::mock(CombatRoundProcessor::class),
             $monsterService ?? Mockery::mock(GameMonsterService::class),
-            $potionService ?? Mockery::mock(GamePotionService::class),
             $lootService ?? Mockery::mock(GameCombatLootService::class),
             $combatLogService ?? Mockery::mock(GameCombatLogService::class),
             $inventoryService ?? Mockery::mock(GameInventoryService::class),

@@ -128,24 +128,6 @@ class GameMonsterDefinition extends Model
             return [];
         }
 
-        // 药水掉落（全局配置，默认 10%）
-        $potionDropChance = (float) config('game.potion_drop.chance', 0.1);
-        if ($this->rollChance($potionDropChance, 'potion_drop_chance_multiplier')) {
-            $potionType = $this->weightedRandom(['hp' => 0.6, 'mp' => 0.4]);
-            $potionLevel = match (true) {
-                $this->level <= 10 => 'minor',
-                $this->level <= 30 => 'light',
-                $this->level <= 60 => 'medium',
-                default => 'full',
-            };
-
-            $loot['potion'] = [
-                'type' => 'potion',
-                'sub_type' => $potionType,
-                'level' => $potionLevel,
-            ];
-        }
-
         // 装备掉落（全局配置，默认 1%）
         $dropChance = (float) config('game.equipment_drop.chance', 0.01);
         if ($this->rollChance($dropChance, 'equipment_drop_chance_multiplier')) {
@@ -223,26 +205,5 @@ class GameMonsterDefinition extends Model
         $env = app()->environment();
 
         return in_array($env, ['testing', 'sandbox', 'test']);
-    }
-
-    /**
-     * 加权随机选择
-     */
-    private function weightedRandom(array $weights): string
-    {
-        $sum = array_sum($weights);
-        if ($sum <= 0) {
-            return array_key_first($weights);
-        }
-        $rand = mt_rand() / mt_getrandmax() * $sum;
-        $cumulative = 0;
-        foreach ($weights as $key => $weight) {
-            $cumulative += $weight;
-            if ($rand <= $cumulative) {
-                return $key;
-            }
-        }
-
-        return array_key_last($weights);
     }
 }

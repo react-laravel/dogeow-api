@@ -10,7 +10,6 @@ use App\Http\Requests\Game\MoveItemRequest;
 use App\Http\Requests\Game\SellItemRequest;
 use App\Http\Requests\Game\UnequipItemRequest;
 use App\Http\Requests\Game\UpdateAutoRecycleSettingsRequest;
-use App\Http\Requests\Game\UsePotionRequest;
 use App\Models\Game\GameCharacter;
 use App\Services\Cache\RedisLockService;
 use App\Services\Game\GameInventoryService;
@@ -170,36 +169,6 @@ class InventoryController extends Controller
             $this->broadcastInventoryUpdate($character);
 
             return $this->success($result, '移动成功');
-        } catch (Throwable $e) {
-            return $this->error($e->getMessage());
-        }
-    }
-
-    /**
-     * 使用药品
-     */
-    public function usePotion(UsePotionRequest $request): JsonResponse
-    {
-        try {
-            $character = $this->getCharacter($request);
-
-            // 使用 Redis 分布式锁防止重复使用药品
-            $lockKey = 'inventory_potion:' . $character->id;
-            $lock = $this->redisLockService->lock($lockKey, 5);
-
-            if ($lock === false) {
-                return $this->error('使用药品操作正在进行中，请稍后再试');
-            }
-
-            try {
-                $result = $this->inventoryService->usePotion($character, $request->input('item_id'));
-            } finally {
-                $this->redisLockService->release($lockKey, $lock);
-            }
-
-            $this->broadcastInventoryUpdate($character);
-
-            return $this->success($result, '使用药品成功');
         } catch (Throwable $e) {
             return $this->error($e->getMessage());
         }

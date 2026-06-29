@@ -34,7 +34,6 @@ Route::prefix('rpg')->group(function () {
         Route::post('/inventory/auto-recycle-settings', [InventoryController::class, 'updateAutoRecycleSettings']);
         Route::post('/inventory/move', [InventoryController::class, 'move']);
         Route::post('/inventory/sort', [InventoryController::class, 'sort']);
-        Route::post('/inventory/use-potion', [InventoryController::class, 'usePotion']);
     });
 
     // 技能相关
@@ -61,7 +60,6 @@ Route::prefix('rpg')->group(function () {
     Route::get('/combat/logs', [CombatController::class, 'logs']);
     Route::get('/combat/logs/{log}', [CombatController::class, 'logDetail']);
     Route::get('/combat/stats', [CombatController::class, 'stats']);
-    Route::post('/combat/potion-settings', [CombatController::class, 'updatePotionSettings']);
 
     // 图鉴相关
     Route::get('/compendium/items', [CompendiumController::class, 'items']);

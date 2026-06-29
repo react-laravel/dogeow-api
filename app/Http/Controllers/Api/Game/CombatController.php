@@ -5,11 +5,8 @@ namespace App\Http\Controllers\Api\Game;
 use App\Exceptions\GameException;
 use App\Http\Controllers\Concerns\CharacterConcern;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Game\UpdatePotionSettingsRequest;
-use App\Http\Requests\Game\UsePotionRequest;
 use App\Jobs\Game\AutoCombatRoundJob;
 use App\Services\Game\GameCombatService;
-use App\Services\Game\GameInventoryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -42,27 +39,6 @@ class CombatController extends Controller
             Log::error('获取战斗状态失败', ['exception' => $e]);
 
             return $this->error('获取战斗状态失败，请稍后重试');
-        }
-    }
-
-    /**
-     * 更新药水自动使用设置
-     */
-    public function updatePotionSettings(UpdatePotionSettingsRequest $request): JsonResponse
-    {
-        try {
-            $character = $this->getCharacter($request);
-            $this->authorize('combat', $character);
-
-            $character = $this->combatService->updatePotionSettings($character, $request->validated());
-
-            return $this->success(['character' => $character->toArray()], '药水设置已更新');
-        } catch (GameException $e) {
-            return $this->error($e->getMessage());
-        } catch (Throwable $e) {
-            Log::error('更新药水自动使用设置失败', ['exception' => $e]);
-
-            return $this->error('更新药水自动使用设置失败，请稍后重试');
         }
     }
 
@@ -245,34 +221,6 @@ class CombatController extends Controller
             Log::error('更新技能配置失败', ['exception' => $e]);
 
             return $this->error('更新技能配置失败，请稍后重试');
-        }
-    }
-
-    /**
-     * 使用药品
-     */
-    public function usePotion(UsePotionRequest $request): JsonResponse
-    {
-        try {
-            $character = $this->getCharacter($request);
-            $this->authorize('manageInventory', $character);
-
-            $inventoryService = new GameInventoryService;
-            $result = $inventoryService->usePotion($character, $request->input('item_id'));
-
-            return $this->success([
-                'current_hp' => $character->getCurrentHp(),
-                'current_mana' => $character->getCurrentMana(),
-                'max_hp' => $character->getMaxHp(),
-                'max_mana' => $character->getMaxMana(),
-                'message' => $result['message'],
-            ], '药品使用成功');
-        } catch (GameException $e) {
-            return $this->error($e->getMessage());
-        } catch (Throwable $e) {
-            Log::error('使用药品失败', ['exception' => $e]);
-
-            return $this->error('使用药品失败，请稍后重试');
         }
     }
 }

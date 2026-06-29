@@ -259,6 +259,26 @@ trait CharacterCombatStats
     }
 
     /**
+     * 每回合生命值恢复量（基于体力）
+     */
+    public function getHpRegenPerRound(): int
+    {
+        $multiplier = (float) (config('game.combat.hp_regen_per_vitality') ?? 1);
+
+        return max(0, (int) round($this->vitality * $multiplier));
+    }
+
+    /**
+     * 每回合法力值恢复量（基于能量）
+     */
+    public function getManaRegenPerRound(): int
+    {
+        $multiplier = (float) (config('game.combat.mp_regen_per_energy') ?? 1);
+
+        return max(0, (int) round($this->energy * $multiplier));
+    }
+
+    /**
      * 恢复生命值
      */
     public function restoreHp(int $amount): void

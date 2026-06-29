@@ -16,8 +16,9 @@ class GameBalanceConfigTest extends TestCase
         $this->assertSame(1, config('game.combat.attack.multiplier'));
         $this->assertSame(1.8, config('game.monster_type_multipliers.elite'));
         $this->assertSame(3, config('game.monster_type_multipliers.boss'));
+        $this->assertSame(1, config('game.combat.hp_regen_per_vitality'));
+        $this->assertSame(1, config('game.combat.mp_regen_per_energy'));
         $this->assertSame(10, config('game.test_mode.copper_drop_chance_multiplier'));
-        $this->assertSame(10, config('game.test_mode.potion_drop_chance_multiplier'));
         $this->assertSame(10, config('game.test_mode.equipment_drop_chance_multiplier'));
     }
 

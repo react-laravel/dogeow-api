@@ -13,8 +13,6 @@ use App\Http\Requests\Game\UnequipItemRequest;
 use App\Http\Requests\Game\UnsocketGemRequest;
 use App\Http\Requests\Game\UpdateAutoRecycleSettingsRequest;
 use App\Http\Requests\Game\UpdateDifficultyRequest;
-use App\Http\Requests\Game\UpdatePotionSettingsRequest;
-use App\Http\Requests\Game\UsePotionRequest;
 use Tests\TestCase;
 
 class GameRequestTest extends TestCase
@@ -160,20 +158,6 @@ class GameRequestTest extends TestCase
         $this->assertArrayHasKey('difficulty_tier', $rules);
     }
 
-    public function test_update_potion_settings_request_authorize(): void
-    {
-        $request = new UpdatePotionSettingsRequest;
-        $this->assertTrue($request->authorize());
-    }
-
-    public function test_update_potion_settings_request_rules(): void
-    {
-        $request = new UpdatePotionSettingsRequest;
-        $rules = $request->rules();
-
-        $this->assertArrayHasKey('auto_use_hp_potion', $rules);
-    }
-
     public function test_update_auto_recycle_settings_request_authorize(): void
     {
         $request = new UpdateAutoRecycleSettingsRequest;
@@ -186,19 +170,5 @@ class GameRequestTest extends TestCase
         $rules = $request->rules();
 
         $this->assertArrayHasKey('auto_recycle_max_value', $rules);
-    }
-
-    public function test_use_potion_request_authorize(): void
-    {
-        $request = new UsePotionRequest;
-        $this->assertTrue($request->authorize());
-    }
-
-    public function test_use_potion_request_rules(): void
-    {
-        $request = new UsePotionRequest;
-        $rules = $request->rules();
-
-        $this->assertArrayHasKey('item_id', $rules);
     }
 }

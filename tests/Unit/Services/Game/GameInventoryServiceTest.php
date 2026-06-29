@@ -174,17 +174,17 @@ class GameInventoryServiceTest extends TestCase
             $this->assertSame('该物品没有定义，无法装备', $e->getMessage());
         }
 
-        $potionDefinition = $this->createItemDefinition([
-            'name' => 'Loose Potion',
-            'type' => 'potion',
-            'sub_type' => 'hp',
-            'base_stats' => ['max_hp' => 50],
+        $gemDefinition = $this->createItemDefinition([
+            'name' => 'Loose Gem',
+            'type' => 'gem',
+            'base_stats' => [],
+            'gem_stats' => ['attack' => 2],
         ]);
-        $potion = $this->createItem($character, $potionDefinition, ['slot_index' => 1]);
+        $gem = $this->createItem($character, $gemDefinition, ['slot_index' => 1]);
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('该物品无法装备');
-        $this->service->equipItem($character, $potion->id);
+        $this->service->equipItem($character, $gem->id);
     }
 
     public function test_unequip_item_moves_item_back_to_first_empty_inventory_slot(): void
@@ -317,57 +317,6 @@ class GameInventoryServiceTest extends TestCase
         $this->service->moveItem($character->fresh(), $storageItem->id, false);
     }
 
-    public function test_use_potion_restores_hp_and_mana_and_reduces_stack(): void
-    {
-        $character = $this->createCharacter([
-            'class' => 'mage',
-            'current_hp' => 10,
-            'current_mana' => 5,
-        ]);
-        $potionDefinition = $this->createItemDefinition([
-            'name' => '混合药剂',
-            'type' => 'potion',
-            'sub_type' => 'hp',
-            'base_stats' => ['max_hp' => 30, 'max_mana' => 20],
-        ]);
-        $potion = $this->createItem($character, $potionDefinition, [
-            'quantity' => 2,
-            'slot_index' => 0,
-        ]);
-
-        $result = $this->service->usePotion($character, $potion->id);
-
-        $this->assertSame(40, $result['current_hp']);
-        $this->assertSame(25, $result['current_mana']);
-        $this->assertStringContainsString('30 点生命值和20 点法力值', $result['message']);
-        $this->assertSame(1, $potion->fresh()->quantity);
-    }
-
-    public function test_use_potion_deletes_last_item_and_rejects_non_potions(): void
-    {
-        $character = $this->createCharacter([
-            'current_hp' => 1,
-            'current_mana' => 1,
-        ]);
-        $potionDefinition = $this->createItemDefinition([
-            'name' => '生命药水',
-            'type' => 'potion',
-            'sub_type' => 'hp',
-            'base_stats' => ['restore_amount' => 25],
-        ]);
-        $lastPotion = $this->createItem($character, $potionDefinition, ['quantity' => 1]);
-
-        $result = $this->service->usePotion($character, $lastPotion->id);
-
-        $this->assertStringContainsString('恢复了 25 点生命值', $result['message']);
-        $this->assertNull(GameItem::find($lastPotion->id));
-
-        $weapon = $this->createItem($character, $this->createItemDefinition(), ['slot_index' => 2]);
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('该物品不是药品');
-        $this->service->usePotion($character, $weapon->id);
-    }
-
     public function test_sort_inventory_reorders_items_without_unique_slot_collisions(): void
     {
         $character = $this->createCharacter();
@@ -466,12 +415,6 @@ class GameInventoryServiceTest extends TestCase
         $weaponDefinition = $this->createItemDefinition([
             'base_stats' => ['attack' => 11],
         ]);
-        $potionDefinition = $this->createItemDefinition([
-            'name' => 'Quality Potion',
-            'type' => 'potion',
-            'sub_type' => 'hp',
-            'base_stats' => ['max_hp' => 20],
-        ]);
         $gemDefinition = $this->createItemDefinition([
             'name' => 'Quality Gem',
             'type' => 'gem',
@@ -490,10 +433,6 @@ class GameInventoryServiceTest extends TestCase
             'slot_index' => 1,
         ]);
         $character->equipment()->where('slot', 'weapon')->update(['item_id' => $equippedLike->id]);
-        $this->createItem($character, $potionDefinition, [
-            'quality' => 'common',
-            'slot_index' => 2,
-        ]);
         $this->createItem($character, $gemDefinition, [
             'quality' => 'common',
             'slot_index' => 3,

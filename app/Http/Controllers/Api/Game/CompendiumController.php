@@ -84,10 +84,6 @@ class CompendiumController extends Controller
         // 铜币掉落率
         $goldChance = $dropTable['copper_chance'] ?? 0.7;
 
-        // 药水掉落率
-        $potionBaseChance = $dropTable['potion_chance'] ?? 0.25;
-        $potionChance = $potionBaseChance * $typeMultiplier;
-
         // 解析掉落表中的物品类型
         $itemTypes = $dropTable['item_types'] ?? ['weapon', 'helmet', 'armor', 'gloves', 'boots', 'ring', 'amulet'];
 
@@ -144,7 +140,6 @@ class CompendiumController extends Controller
             'drop_rates' => [
                 'item' => round($dropChance * 100, 2),
                 'gold' => round($goldChance * 100, 2),
-                'potion' => round($potionChance * 100, 2),
             ],
             'possible_items' => $itemsWithRates,
         ]);
@@ -156,7 +151,6 @@ class CompendiumController extends Controller
     private function generateQualityForItem(array $item, int $monsterLevel): string
     {
         $roll = mt_rand(1, 10000) / 100;
-        $typeMultiplier = 1.0;
 
         return match (true) {
             $roll >= 99 => 'mythic',

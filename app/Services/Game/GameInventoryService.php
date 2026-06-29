@@ -37,7 +37,6 @@ class GameInventoryService
     private const ITEM_LOCK_TIMEOUT = 10;
 
     public function __construct(
-        private InventoryItemCalculator $itemCalculator = new InventoryItemCalculator,
         private InventoryEquipmentHelper $equipmentHelper = new InventoryEquipmentHelper
     ) {}
 
@@ -316,78 +315,6 @@ class GameInventoryService
         $this->clearInventoryCache($character->id);
 
         return ['item' => $item];
-    }
-
-    /**
-     * 使用药品
-     *
-     * @return array{character: GameCharacter, combat_stats: array<string,mixed>, current_hp: int, current_mana: int, message: string}
-     *
-     * @throws \InvalidArgumentException
-     */
-    public function usePotion(GameCharacter $character, int $itemId): array
-    {
-        // 使用分布式锁防止并发使用同一物品
-        $lockKey = 'game:inventory:item:' . $character->id . ':' . $itemId;
-        $lock = Cache::lock($lockKey, self::ITEM_LOCK_TIMEOUT);
-
-        if (! $lock->get()) {
-            throw new \RuntimeException('物品操作正在进行中，请稍后重试');
-        }
-
-        try {
-            $item = $this->findItem($character, $itemId, false);
-
-            $definition = $item->definition;
-            if ($definition === null || $definition->type !== 'potion') {
-                throw new \InvalidArgumentException('该物品不是药品');
-            }
-
-            if ($this->equipmentHelper->isItemEquipped($character, $itemId)) {
-                throw new \InvalidArgumentException('请先卸下装备');
-            }
-
-            $effects = $this->itemCalculator->getPotionEffects($item);
-            $definitionName = $definition->name ?? '物品';
-            $itemDbId = (int) $item->getRawOriginal('id');
-            $quantity = (int) $item->quantity;
-
-            $affected = 0;
-            DB::transaction(function () use ($character, $itemDbId, $quantity, $effects, &$affected) {
-                if ($effects['hp'] > 0) {
-                    $character->restoreHp($effects['hp']);
-                }
-                if ($effects['mana'] > 0) {
-                    $character->restoreMana($effects['mana']);
-                }
-
-                $query = DB::table('game_items')
-                    ->where('id', $itemDbId)
-                    ->where('character_id', $character->id);
-
-                $affected = $quantity > 1
-                    ? $query->decrement('quantity', 1)
-                    : $query->delete();
-            });
-
-            if ($affected === 0) {
-                throw new \RuntimeException('消耗药品失败，请重试');
-            }
-
-            $character->refresh();
-
-            $restoreMessage = $this->itemCalculator->formatRestoreMessage($effects) ?: '0 点';
-
-            return [
-                'character' => $character,
-                'combat_stats' => $character->getCombatStats(),
-                'current_hp' => $character->getCurrentHp(),
-                'current_mana' => $character->getCurrentMana(),
-                'message' => "使用{$definitionName}成功，恢复了 {$restoreMessage}",
-            ];
-        } finally {
-            $lock->release();
-        }
     }
 
     /**
@@ -728,7 +655,7 @@ class GameInventoryService
         $result = $character->items()
             ->where('is_in_storage', false)
             ->where('quality', $quality)
-            ->whereHas('definition', fn ($q) => $q->whereNotIn('type', ['potion', 'gem']))
+            ->whereHas('definition', fn ($q) => $q->where('type', '!=', 'gem'))
             ->with('definition')
             ->get();
 
@@ -743,7 +670,7 @@ class GameInventoryService
         /** @var \Illuminate\Database\Eloquent\Collection<int, GameItem> $result */
         $result = $character->items()
             ->where('is_in_storage', false)
-            ->whereHas('definition', fn ($q) => $q->whereNotIn('type', ['potion', 'gem']))
+            ->whereHas('definition', fn ($q) => $q->where('type', '!=', 'gem'))
             ->with('definition')
             ->get();
 
@@ -761,7 +688,7 @@ class GameInventoryService
         }
 
         $type = $item->definition?->type;
-        if (in_array($type, ['potion', 'gem'], true)) {
+        if ($type === 'gem') {
             return false;
         }
 

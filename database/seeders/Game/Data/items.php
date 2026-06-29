@@ -11,7 +11,6 @@ $items = array_merge(
     require $dir . '/belts.php',
     require $dir . '/rings.php',
     require $dir . '/amulets.php',
-    require $dir . '/potions.php',
     require $dir . '/gems.php'
 );
 
@@ -154,14 +153,6 @@ $prompts = [
     '混沌护符' => 'RPG item icon, chaos amulet, chaos pendant, dark energy, detailed game item, soft shading, square, transparent background',
     '创世护符' => 'RPG item icon, creation amulet, creation tier pendant, powerful aura, detailed game item, soft shading, square, transparent background',
     '神王护符' => 'RPG item icon, god king amulet, supreme amulet, divine glory, detailed game item, soft shading, square, transparent background',
-    '轻型生命药水' => 'RPG item icon, exactly one bottle only, a single tiny red health potion, one small glass vial, thumb-sized, red liquid glow, cork, no second bottle no third bottle no group no row, just one potion centered, detailed game item, soft shading, square, transparent background',
-    '生命药水' => 'RPG item icon, small red health potion, one medium glass bottle, palm-sized vessel, crimson liquid, label, detailed game item, soft shading, square, transparent background',
-    '强效生命药水' => 'RPG item icon, strong red health potion, one medium glass bottle, palm-sized vessel, crimson liquid, label, detailed game item, soft shading, square, transparent background',
-    '超级生命药水' => 'RPG item icon, super red health potion, one extra-large glass bottle, forearm-sized ornate vessel, bright red glow, detailed game item, soft shading, square, transparent background',
-    '轻型法力药水' => 'RPG item icon, single tiny blue mana potion only, one small glass vial alone, thumb-sized bottle, blue liquid glow, cork, no multiple bottles no duplicates, single object in frame, detailed game item, soft shading, square, transparent background',
-    '法力药水' => 'RPG item icon, small blue mana potion, one medium glass bottle, palm-sized vessel, azure liquid, label, detailed game item, soft shading, square, transparent background',
-    '强效法力药水' => 'RPG item icon, strong blue mana potion, one big glass bottle, fist-sized flask, glowing blue liquid, detailed game item, soft shading, square, transparent background',
-    '超级法力药水' => 'RPG item icon, super blue mana potion, one extra-large glass bottle, forearm-sized ornate vessel, bright blue glow, detailed game item, soft shading, square, transparent background',
 ];
 
 return array_map(

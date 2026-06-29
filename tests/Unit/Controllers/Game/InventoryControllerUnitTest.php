@@ -8,7 +8,6 @@ use App\Http\Requests\Game\MoveItemRequest;
 use App\Http\Requests\Game\SellItemRequest;
 use App\Http\Requests\Game\UnequipItemRequest;
 use App\Http\Requests\Game\UpdateAutoRecycleSettingsRequest;
-use App\Http\Requests\Game\UsePotionRequest;
 use App\Models\Game\GameCharacter;
 use App\Models\Game\GameItem;
 use App\Models\Game\GameItemDefinition;
@@ -216,42 +215,6 @@ class InventoryControllerUnitTest extends TestCase
 
         $this->assertSame(422, $response->getStatusCode());
         $this->assertSame('无法移动', $data['message']);
-    }
-
-    public function test_use_potion_returns_success(): void
-    {
-        $user = User::factory()->create();
-        $character = $this->createCharacter($user);
-        $item = $this->createInventoryItem($character, ['quantity' => 3]);
-
-        $this->inventoryService->shouldReceive('usePotion')->once()->with($this->sameCharacter($character), $item->id)->andReturn(['healed' => 20]);
-        $this->inventoryService->shouldReceive('getInventoryForBroadcast')->once()->with($this->sameCharacter($character))->andReturn(['items' => []]);
-
-        $response = $this->controller->usePotion($this->makeFormRequest(UsePotionRequest::class, $user, $character, [
-            'item_id' => $item->id,
-        ]));
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertSame(200, $response->getStatusCode());
-        $this->assertSame('使用药品成功', $data['message']);
-        $this->assertSame(20, $data['data']['healed']);
-    }
-
-    public function test_use_potion_returns_error_when_service_throws(): void
-    {
-        $user = User::factory()->create();
-        $character = $this->createCharacter($user);
-        $item = $this->createInventoryItem($character, ['quantity' => 3]);
-
-        $this->inventoryService->shouldReceive('usePotion')->once()->with($this->sameCharacter($character), $item->id)->andThrow(new \RuntimeException('无法使用药品'));
-
-        $response = $this->controller->usePotion($this->makeFormRequest(UsePotionRequest::class, $user, $character, [
-            'item_id' => $item->id,
-        ]));
-        $data = json_decode($response->getContent(), true);
-
-        $this->assertSame(422, $response->getStatusCode());
-        $this->assertSame('无法使用药品', $data['message']);
     }
 
     public function test_sort_returns_default_message(): void

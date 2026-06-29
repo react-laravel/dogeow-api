@@ -86,7 +86,10 @@ class GameCombatLogServiceTest extends TestCase
                     'multiplier' => 3.0,
                 ],
             ],
-        ], ['hp' => ['name' => '小血瓶']], ['mp' => ['name' => '小蓝瓶']]);
+        ], [
+            'hp' => ['name' => '体力恢复', 'restored' => 10],
+            'mp' => ['name' => '能量恢复', 'restored' => 5],
+        ]);
 
         $fresh = GameCombatLog::findOrFail($log->id);
 
@@ -96,8 +99,10 @@ class GameCombatLogServiceTest extends TestCase
         $this->assertTrue($fresh->victory);
         $this->assertSame(['item' => 'fang'], $fresh->loot_dropped);
         $this->assertSame([101, 202], $fresh->skills_used);
-        $this->assertSame(['hp' => ['name' => '小血瓶']], $fresh->potion_used['before']);
-        $this->assertSame(['mp' => ['name' => '小蓝瓶']], $fresh->potion_used['after']);
+        $this->assertSame([
+            'hp' => ['name' => '体力恢复', 'restored' => 10],
+            'mp' => ['name' => '能量恢复', 'restored' => 5],
+        ], $fresh->potion_used['after']);
         $this->assertSame(12, $fresh->character_level);
         $this->assertSame(99, $fresh->character_attack);
         $this->assertSame(8, $fresh->monster_level);
@@ -119,12 +124,12 @@ class GameCombatLogServiceTest extends TestCase
             'round_damage_dealt' => 5,
             'round_damage_taken' => 3,
             'skills_used_this_round' => [],
-        ], [], []);
+        ]);
 
         $this->assertSame(7, $log->character_level);
         $this->assertSame('warrior', $log->character_class);
         $this->assertNull($log->loot_dropped);
-        $this->assertSame(['before' => null, 'after' => null], $log->potion_used);
+        $this->assertNull($log->potion_used);
         $this->assertFalse($log->victory);
     }
 
@@ -209,10 +214,10 @@ class GameCombatLogServiceTest extends TestCase
         $result = $this->service->getCombatLogs($character);
 
         $this->assertCount(50, $result['logs']);
-        $this->assertEquals(55, (int) $result['logs']->first()->damage_dealt);
-        $this->assertEquals(6, (int) $result['logs']->last()->damage_dealt);
-        $this->assertSame($monster->name, $result['logs']->first()->monster->name);
-        $this->assertSame($map->name, $result['logs']->first()->map->name);
+        $this->assertEquals(55, (int) $result['logs'][0]['damage_dealt']);
+        $this->assertEquals(6, (int) $result['logs'][49]['damage_dealt']);
+        $this->assertSame($monster->name, $result['logs'][0]['monster']);
+        $this->assertSame($map->name, $result['logs'][0]['map']);
     }
 
     public function test_get_combat_log_detail_returns_error_when_missing_and_formats_existing_log(): void
@@ -234,7 +239,7 @@ class GameCombatLogServiceTest extends TestCase
             'copper_gained' => 7,
             'duration_seconds' => 18,
             'skills_used' => [101],
-            'potion_used' => ['before' => null, 'after' => ['hp' => ['name' => '药水']]],
+            'potion_used' => ['after' => ['hp' => ['name' => '体力恢复', 'restored' => 10]]],
             'character_level' => 10,
             'character_class' => 'warrior',
             'character_attack' => 50,
@@ -273,6 +278,7 @@ class GameCombatLogServiceTest extends TestCase
         $this->assertSame(20.0, $detail['log']['damage_detail']['defense_reduction_percent']);
         $this->assertTrue($detail['log']['battle']['is_crit']);
         $this->assertSame(1.75, (float) $detail['log']['difficulty']['multiplier']);
+        $this->assertSame(['hp' => ['name' => '体力恢复', 'restored' => 10]], $detail['log']['round_regen']);
         $this->assertSame($log->created_at->toISOString(), $detail['log']['created_at']);
     }
 

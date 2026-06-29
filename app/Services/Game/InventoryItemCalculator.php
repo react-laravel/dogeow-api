@@ -43,7 +43,6 @@ class InventoryItemCalculator
         'belt' => 0.7,
         'ring' => 1.5,
         'amulet' => 1.8,
-        'potion' => 0.5,
         'gem' => 1.0,
     ];
 
@@ -59,7 +58,6 @@ class InventoryItemCalculator
         }
 
         return match ($definition->type) {
-            'potion' => $this->calculatePotionSellPrice($item),
             'gem' => $this->calculateGemSellPrice($definition),
             default => $this->calculateEquipmentSellPrice($item),
         };
@@ -145,11 +143,6 @@ class InventoryItemCalculator
             return 0;
         }
 
-        // 仅药水使用定义表固定标价；装备按实例属性计价
-        if ($item->buy_price > 0 && $item->type === 'potion') {
-            return $item->buy_price;
-        }
-
         /** @var array<string, mixed>|null $baseStats */
         $baseStats = $item->base_stats;
         if (is_array($baseStats) && isset($baseStats['price']) && is_numeric($baseStats['price']) && (int) $baseStats['price'] > 0) {
@@ -157,7 +150,6 @@ class InventoryItemCalculator
         }
 
         return match ($item->type) {
-            'potion' => $this->calculatePotionBuyPrice($stats, $baseStats),
             'gem' => $stats !== []
                 ? $this->calculateGemBuyPriceFromStats($stats)
                 : $this->calculateGemBuyPrice($item),
@@ -175,7 +167,7 @@ class InventoryItemCalculator
             return 0;
         }
 
-        if ($definition->type === 'potion' || $definition->type === 'gem') {
+        if ($definition->type === 'gem') {
             return $this->calculateBuyPrice($definition, $this->resolvePricingStats($item), $item->quality ?? 'common');
         }
 
@@ -245,39 +237,6 @@ class InventoryItemCalculator
         return (int) (($basePrice * $qualityMultiplier * $typeMultiplier * $levelMultiplier) + $socketBonus);
     }
 
-    private function calculatePotionSellPrice(GameItem $item): int
-    {
-        $stats = $this->normalizePricingStats($item->stats ?? []);
-        if ($stats === [] && $item->definition instanceof GameItemDefinition) {
-            $baseStats = $item->definition->base_stats;
-            if (is_array($baseStats)) {
-                $stats = $this->normalizePricingStats($baseStats);
-            }
-        }
-
-        $hpRestore = (int) ($stats['max_hp'] ?? 0);
-        $manaRestore = (int) ($stats['max_mana'] ?? 0);
-        $price = (int) ($hpRestore * 0.3 + $manaRestore * 0.2);
-
-        return max(1, $price);
-    }
-
-    /**
-     * @param  array<string, int|float>  $stats
-     * @param  array<string, mixed>|null  $definitionBaseStats
-     */
-    private function calculatePotionBuyPrice(array $stats, ?array $definitionBaseStats): int
-    {
-        $normalized = $this->normalizePricingStats($stats);
-        if ($normalized === [] && is_array($definitionBaseStats)) {
-            $normalized = $this->normalizePricingStats($definitionBaseStats);
-        }
-
-        $sellPrice = max(1, (int) (($normalized['max_hp'] ?? 0) * 0.3 + ($normalized['max_mana'] ?? 0) * 0.2));
-
-        return max(1, $sellPrice * self::SHOP_BUY_TO_SELL_MULTIPLIER);
-    }
-
     private function calculateGemSellPrice(GameItemDefinition $definition): int
     {
         return $this->calculateGemPriceFromStats($definition->gem_stats ?? []);
@@ -320,59 +279,6 @@ class InventoryItemCalculator
         }
 
         return max(1, $price);
-    }
-
-    /**
-     * 获取药品效果
-     *
-     * @return array{hp:int, mana:int}
-     */
-    public function getPotionEffects(GameItem $item): array
-    {
-        $def = $item->definition;
-        /** @var array<string, mixed>|null $rawStats */
-        $rawStats = $def !== null ? $def->base_stats : null;
-        /** @var array<string, mixed> $baseStats */
-        $baseStats = $rawStats ?? [];
-
-        $hp = 0;
-        if (isset($baseStats['max_hp']) && is_numeric($baseStats['max_hp'])) {
-            $hp = (int) $baseStats['max_hp'];
-        } elseif (isset($baseStats['restore_amount']) && is_numeric($baseStats['restore_amount'])) {
-            $hp = (int) $baseStats['restore_amount'];
-        }
-
-        $mana = 0;
-        if (isset($baseStats['max_mana']) && is_numeric($baseStats['max_mana'])) {
-            $mana = (int) $baseStats['max_mana'];
-        }
-
-        return [
-            'hp' => $hp,
-            'mana' => $mana,
-        ];
-    }
-
-    /**
-     * 格式化恢复消息
-     *
-     * @param  array<string,int>  $effects
-     */
-    public function formatRestoreMessage(array $effects): string
-    {
-        $restoreText = [];
-
-        $hp = (int) ($effects['hp'] ?? 0);
-        $mana = (int) ($effects['mana'] ?? 0);
-
-        if ($hp > 0) {
-            $restoreText[] = "{$hp} 点生命值";
-        }
-        if ($mana > 0) {
-            $restoreText[] = "{$mana} 点法力值";
-        }
-
-        return implode('和', $restoreText);
     }
 
     private function resolveStatPrice(string $stat): float

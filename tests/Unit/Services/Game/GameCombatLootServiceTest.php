@@ -42,10 +42,9 @@ class GameCombatLootServiceTest extends TestCase
         $this->assertSame([], $character->fresh()->discovered_monsters ?? []);
     }
 
-    public function test_process_death_loot_discovers_dead_monster_and_creates_item_and_potion(): void
+    public function test_process_death_loot_discovers_dead_monster_and_creates_item(): void
     {
         config([
-            'game.potion_drop.chance' => 1.0,
             'game.equipment_drop.chance' => 1.0,
         ]);
 
@@ -61,7 +60,6 @@ class GameCombatLootServiceTest extends TestCase
             'level' => 10,
             'drop_table' => [
                 'item_chance' => 1.0,
-                'potion_chance' => 1.0,
                 'item_types' => ['weapon'],
             ],
         ]);
@@ -74,17 +72,13 @@ class GameCombatLootServiceTest extends TestCase
         ]);
 
         $this->assertArrayHasKey('item', $result);
-        $this->assertArrayHasKey('potion', $result);
         $this->assertInstanceOf(GameItem::class, $result['item']);
-        $this->assertInstanceOf(GameItem::class, $result['potion']);
         $this->assertSame($weaponDefinition->id, $result['item']->definition_id);
-        $this->assertSame('potion', $result['potion']->definition->type);
 
         $character = $character->fresh();
         $this->assertContains($monster->id, $character->discovered_monsters);
         $this->assertContains($weaponDefinition->id, $character->discovered_items);
-        $this->assertContains($result['potion']->definition_id, $character->discovered_items);
-        $this->assertDatabaseCount('game_items', 2);
+        $this->assertDatabaseCount('game_items', 1);
     }
 
     public function test_process_death_loot_preserves_existing_loot_entries(): void
@@ -93,7 +87,6 @@ class GameCombatLootServiceTest extends TestCase
         $monster = $this->createMonsterDefinition([
             'drop_table' => [
                 'item_chance' => 1.0,
-                'potion_chance' => 1.0,
                 'item_types' => ['weapon'],
             ],
         ]);
@@ -104,12 +97,10 @@ class GameCombatLootServiceTest extends TestCase
             ],
             'loot' => [
                 'item' => 'existing-item',
-                'potion' => 'existing-potion',
             ],
         ]);
 
         $this->assertSame('existing-item', $result['item']);
-        $this->assertSame('existing-potion', $result['potion']);
         $this->assertContains($monster->id, $character->fresh()->discovered_monsters);
     }
 
@@ -289,88 +280,6 @@ class GameCombatLootServiceTest extends TestCase
         $this->assertSame(0, $item->slot_index);
         $this->assertGreaterThan(0, $item->sell_price);
         $this->assertTrue($character->fresh()->hasDiscoveredItem($definition->id));
-    }
-
-    public function test_create_potion_returns_null_for_invalid_config(): void
-    {
-        $character = $this->createCharacter();
-
-        $this->assertNull($this->service->createPotion($character, [
-            'sub_type' => 'rage',
-            'level' => 'minor',
-        ]));
-    }
-
-    public function test_create_potion_increments_existing_stack(): void
-    {
-        $character = $this->createCharacter();
-        $definition = $this->createItemDefinition([
-            'name' => '轻型生命药水',
-            'type' => 'potion',
-            'sub_type' => 'hp',
-            'base_stats' => ['max_hp' => 25],
-            'gem_stats' => ['restore' => 25],
-            'icon' => 'potion',
-        ]);
-        $existingPotion = GameItem::create([
-            'character_id' => $character->id,
-            'definition_id' => $definition->id,
-            'quality' => 'common',
-            'stats' => $definition->base_stats,
-            'affixes' => [],
-            'is_in_storage' => false,
-            'is_equipped' => false,
-            'quantity' => 2,
-            'slot_index' => 0,
-            'sockets' => 0,
-            'sell_price' => 1,
-        ]);
-
-        $result = $this->service->createPotion($character, [
-            'sub_type' => 'hp',
-            'level' => 'minor',
-        ]);
-
-        $this->assertInstanceOf(GameItem::class, $result);
-        $this->assertSame($existingPotion->id, $result->id);
-        $this->assertSame(3, $existingPotion->fresh()->quantity);
-    }
-
-    public function test_create_potion_returns_null_when_inventory_is_full_and_no_stack_exists(): void
-    {
-        $character = $this->createCharacter();
-        $definition = $this->createItemDefinition([
-            'name' => 'Inventory Filler',
-            'type' => 'weapon',
-            'sub_type' => 'sword',
-        ]);
-        $this->fillInventory($character, $definition);
-
-        $result = $this->service->createPotion($character, [
-            'sub_type' => 'hp',
-            'level' => 'minor',
-        ]);
-
-        $this->assertNull($result);
-    }
-
-    public function test_create_potion_creates_definition_and_item_when_missing(): void
-    {
-        $character = $this->createCharacter();
-
-        $potion = $this->service->createPotion($character, [
-            'sub_type' => 'hp',
-            'level' => 'minor',
-        ]);
-
-        $this->assertInstanceOf(GameItem::class, $potion);
-        $this->assertSame('potion', $potion->definition->type);
-        $this->assertSame('hp', $potion->definition->sub_type);
-        $this->assertSame(['max_hp' => 25], $potion->definition->base_stats);
-        $this->assertSame(['restore' => 25], $potion->definition->gem_stats);
-        $this->assertSame(0, $potion->slot_index);
-        $this->assertGreaterThan(0, $potion->sell_price);
-        $this->assertTrue($character->fresh()->hasDiscoveredItem($potion->definition_id));
     }
 
     public function test_create_gem_returns_null_when_inventory_is_full(): void

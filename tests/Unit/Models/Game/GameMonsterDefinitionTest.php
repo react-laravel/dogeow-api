@@ -100,36 +100,15 @@ class GameMonsterDefinitionTest extends TestCase
         $this->assertEmpty($loot);
     }
 
-    public function test_generate_loot_with_potion_chance(): void
-    {
-        config([
-            'game.potion_drop.chance' => 1.0,
-            'game.equipment_drop.chance' => 0.0,
-        ]);
-
-        $monster = new GameMonsterDefinition([
-            'level' => 10,
-            'drop_table' => [
-                'potion_chance' => 1.0,
-                'item_chance' => 0,
-            ],
-        ]);
-        $loot = $monster->generateLoot(10);
-        $this->assertArrayHasKey('potion', $loot);
-        $this->assertEquals('potion', $loot['potion']['type']);
-    }
-
     public function test_generate_loot_with_item_chance(): void
     {
         config([
-            'game.potion_drop.chance' => 0.0,
             'game.equipment_drop.chance' => 1.0,
         ]);
 
         $monster = new GameMonsterDefinition([
             'level' => 10,
             'drop_table' => [
-                'potion_chance' => 0,
                 'item_chance' => 1.0,
                 'item_types' => ['weapon'],
             ],
@@ -137,54 +116,6 @@ class GameMonsterDefinitionTest extends TestCase
         $loot = $monster->generateLoot(10);
         $this->assertArrayHasKey('item', $loot);
         $this->assertEquals('weapon', $loot['item']['type']);
-    }
-
-    public function test_generate_loot_potion_level_based_on_monster_level(): void
-    {
-        config([
-            'game.potion_drop.chance' => 1.0,
-            'game.equipment_drop.chance' => 0.0,
-        ]);
-
-        $monster = new GameMonsterDefinition([
-            'level' => 5,
-            'drop_table' => [
-                'potion_chance' => 1.0,
-                'item_chance' => 0,
-            ],
-        ]);
-        $loot = $monster->generateLoot(5);
-        $this->assertEquals('minor', $loot['potion']['level']);
-
-        $monster = new GameMonsterDefinition([
-            'level' => 20,
-            'drop_table' => [
-                'potion_chance' => 1.0,
-                'item_chance' => 0,
-            ],
-        ]);
-        $loot = $monster->generateLoot(20);
-        $this->assertEquals('light', $loot['potion']['level']);
-
-        $monster = new GameMonsterDefinition([
-            'level' => 45,
-            'drop_table' => [
-                'potion_chance' => 1.0,
-                'item_chance' => 0,
-            ],
-        ]);
-        $loot = $monster->generateLoot(45);
-        $this->assertEquals('medium', $loot['potion']['level']);
-
-        $monster = new GameMonsterDefinition([
-            'level' => 70,
-            'drop_table' => [
-                'potion_chance' => 1.0,
-                'item_chance' => 0,
-            ],
-        ]);
-        $loot = $monster->generateLoot(70);
-        $this->assertEquals('full', $loot['potion']['level']);
     }
 
     public function test_generate_item_quality_uses_config(): void
@@ -226,44 +157,5 @@ class GameMonsterDefinitionTest extends TestCase
         $method->setAccessible(true);
 
         $this->assertTrue($method->invoke($monster));
-    }
-
-    public function test_weighted_random_with_zero_sum(): void
-    {
-        $monster = new GameMonsterDefinition(['level' => 10]);
-        $reflection = new \ReflectionClass($monster);
-        $method = $reflection->getMethod('weightedRandom');
-        $method->setAccessible(true);
-
-        // 所有权重都是 0，sum 为 0
-        $result = $method->invoke($monster, ['hp' => 0, 'mp' => 0]);
-        $this->assertContains($result, ['hp', 'mp']);
-    }
-
-    public function test_weighted_random_fallback_to_last_key(): void
-    {
-        $monster = new GameMonsterDefinition(['level' => 10]);
-        $reflection = new \ReflectionClass($monster);
-        $method = $reflection->getMethod('weightedRandom');
-        $method->setAccessible(true);
-
-        // 运行大量次数以触发 fallback 分支(由于浮点数精度问题)
-        // 使用不规则的权重值增加浮点数精度误差的可能性
-        $results = [];
-        for ($i = 0; $i < 5000; $i++) {
-            // 使用多种不同的权重组合
-            $weights = match ($i % 5) {
-                0 => ['hp' => 0.1, 'mp' => 0.2, 'sp' => 0.3, 'ep' => 0.15],
-                1 => ['a' => 0.333, 'b' => 0.333, 'c' => 0.334],
-                2 => ['x' => 1 / 3, 'y' => 1 / 3, 'z' => 1 / 3],
-                3 => ['p' => 0.25, 'q' => 0.25, 'r' => 0.25, 's' => 0.25],
-                4 => ['m' => 0.7, 'n' => 0.29, 'o' => 0.01],
-            };
-            $result = $method->invoke($monster, $weights);
-            $results[] = $result;
-        }
-
-        // 应该能返回各种键
-        $this->assertGreaterThan(0, count(array_unique($results)));
     }
 }

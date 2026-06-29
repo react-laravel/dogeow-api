@@ -246,21 +246,6 @@ class GameItemTest extends TestCase
         $this->assertEquals('1.0000', $totalStats['defense']);
     }
 
-    public function test_calculate_sell_price_for_potion(): void
-    {
-        $definition = new GameItemDefinition([
-            'type' => 'potion',
-            'required_level' => 1,
-            'base_stats' => ['max_hp' => 100, 'max_mana' => 50],
-        ]);
-        $item = new GameItem;
-        $item->definition = $definition;
-
-        $price = $item->calculateSellPrice();
-
-        $this->assertSame(40, $price);
-    }
-
     public function test_calculate_sell_price_for_gem(): void
     {
         $definition = new GameItemDefinition([

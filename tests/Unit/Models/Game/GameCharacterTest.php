@@ -337,4 +337,18 @@ class GameCharacterTest extends TestCase
         $this->assertSame(19, $character->current_hp);
         $this->assertSame(33, $character->current_mana);
     }
+
+    public function test_hp_regen_per_round_scales_with_vitality(): void
+    {
+        $character = new GameCharacter(['vitality' => 15]);
+
+        $this->assertSame(15, $character->getHpRegenPerRound());
+    }
+
+    public function test_mana_regen_per_round_scales_with_energy(): void
+    {
+        $character = new GameCharacter(['energy' => 12]);
+
+        $this->assertSame(12, $character->getManaRegenPerRound());
+    }
 }

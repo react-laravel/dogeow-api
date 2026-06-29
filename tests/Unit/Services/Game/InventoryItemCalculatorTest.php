@@ -28,24 +28,6 @@ class InventoryItemCalculatorTest extends TestCase
         $this->assertSame(0, $result);
     }
 
-    public function test_calculate_sell_price_for_potion_uses_restore_stats(): void
-    {
-        $definition = new GameItemDefinition;
-        $definition->buy_price = 0;
-        $definition->base_stats = null;
-        $definition->required_level = 1;
-        $definition->type = 'potion';
-
-        $item = new GameItem;
-        $item->definition = $definition;
-        $item->stats = ['max_hp' => 100, 'max_mana' => 50];
-        $item->quality = 'common';
-
-        $sellPrice = $this->calculator->calculateSellPrice($item);
-
-        $this->assertSame(40, $sellPrice);
-    }
-
     public function test_calculate_sell_price_includes_affixes_in_total_stats(): void
     {
         $definition = new GameItemDefinition;
@@ -92,19 +74,6 @@ class InventoryItemCalculatorTest extends TestCase
         $result = $this->calculator->calculateBuyPrice(null);
 
         $this->assertSame(0, $result);
-    }
-
-    public function test_calculate_buy_price_uses_fixed_price_when_available(): void
-    {
-        $definition = new GameItemDefinition;
-        $definition->buy_price = 500;
-        $definition->base_stats = null;
-        $definition->required_level = 1;
-        $definition->type = 'potion';
-
-        $result = $this->calculator->calculateBuyPrice($definition);
-
-        $this->assertSame(500, $result);
     }
 
     public function test_calculate_buy_price_uses_base_stats_price_when_no_fixed_price(): void
@@ -155,81 +124,6 @@ class InventoryItemCalculatorTest extends TestCase
         $sellPrice = $this->calculator->calculateSellPrice($item);
 
         $this->assertEqualsWithDelta($sellPrice * 2, $buyPrice, 1);
-    }
-
-    public function test_get_potion_effects_returns_hp_and_mana(): void
-    {
-        $definition = new GameItemDefinition;
-        $definition->base_stats = ['max_hp' => 50, 'max_mana' => 30];
-
-        $item = new GameItem;
-        $item->definition = $definition;
-
-        $effects = $this->calculator->getPotionEffects($item);
-
-        $this->assertArrayHasKey('hp', $effects);
-        $this->assertArrayHasKey('mana', $effects);
-        $this->assertSame(50, $effects['hp']);
-        $this->assertSame(30, $effects['mana']);
-    }
-
-    public function test_get_potion_effects_uses_restore_amount_as_hp(): void
-    {
-        $definition = new GameItemDefinition;
-        $definition->base_stats = ['restore_amount' => 100];
-
-        $item = new GameItem;
-        $item->definition = $definition;
-
-        $effects = $this->calculator->getPotionEffects($item);
-
-        $this->assertSame(100, $effects['hp']);
-    }
-
-    public function test_get_potion_effects_returns_zeros_when_no_effects(): void
-    {
-        $definition = new GameItemDefinition;
-        $definition->base_stats = [];
-
-        $item = new GameItem;
-        $item->definition = $definition;
-
-        $effects = $this->calculator->getPotionEffects($item);
-
-        $this->assertSame(0, $effects['hp']);
-        $this->assertSame(0, $effects['mana']);
-    }
-
-    public function test_format_restore_message_includes_hp_and_mana(): void
-    {
-        $effects = ['hp' => 50, 'mana' => 30];
-
-        $message = $this->calculator->formatRestoreMessage($effects);
-
-        $this->assertStringContainsString('50', $message);
-        $this->assertStringContainsString('30', $message);
-        $this->assertStringContainsString('点生命值', $message);
-        $this->assertStringContainsString('点法力值', $message);
-    }
-
-    public function test_format_restore_message_hp_only(): void
-    {
-        $effects = ['hp' => 50, 'mana' => 0];
-
-        $message = $this->calculator->formatRestoreMessage($effects);
-
-        $this->assertStringContainsString('50', $message);
-        $this->assertStringContainsString('点生命值', $message);
-    }
-
-    public function test_format_restore_message_mana_only(): void
-    {
-        $effects = ['hp' => 0, 'mana' => 30];
-
-        $message = $this->calculator->formatRestoreMessage($effects);
-
-        $this->assertStringContainsString('30', $message);
-        $this->assertStringContainsString('点法力值', $message);
     }
 
     public function test_calculate_buy_price_with_mythic_quality(): void

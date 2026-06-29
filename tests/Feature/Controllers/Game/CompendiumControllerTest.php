@@ -135,7 +135,6 @@ class CompendiumControllerTest extends TestCase
             ->assertJsonPath('monster.id', $monster->id)
             ->assertJsonPath('drop_rates.item', 20)
             ->assertJsonPath('drop_rates.gold', 80)
-            ->assertJsonPath('drop_rates.potion', 30)
             ->assertJsonPath('possible_items.0.id', $item->id);
     }
 

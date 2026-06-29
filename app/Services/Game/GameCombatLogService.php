@@ -19,8 +19,7 @@ class GameCombatLogService
         GameMapDefinition $map,
         int $monsterId,
         array $roundResult,
-        ?array $potionUsedBeforeRound = null,
-        ?array $potionUsedAfterRound = null
+        ?array $roundRegen = null
     ): GameCombatLog {
         $roundDetails = $roundResult['round_details'] ?? [];
 
@@ -36,10 +35,9 @@ class GameCombatLogService
             'copper_gained' => $roundResult['copper_gained'] ?? 0,
             'duration_seconds' => 0,
             'skills_used' => $roundResult['skills_used_this_round'],
-            'potion_used' => [
-                'before' => $potionUsedBeforeRound ?: null,
-                'after' => $potionUsedAfterRound ?: null,
-            ],
+            'potion_used' => $roundRegen !== null && $roundRegen !== []
+                ? ['after' => $roundRegen]
+                : null,
             // 角色属性
             'character_level' => $roundDetails['character']['level'] ?? $character->level,
             'character_class' => $roundDetails['character']['class'] ?? $character->class,
@@ -129,7 +127,7 @@ class GameCombatLogService
             ->limit(50)
             ->get();
 
-        return ['logs' => $logs];
+        return ['logs' => $this->formatLogsForResponse($logs)];
     }
 
     /**
@@ -163,7 +161,7 @@ class GameCombatLogService
             'duration_seconds' => $log->duration_seconds,
             'skills_used' => $log->skills_used,
             'loot_dropped' => $log->loot_dropped,
-            'potion_used' => $log->potion_used,
+            'round_regen' => $this->formatRoundRegen($log->potion_used),
             'created_at' => $log->created_at->toISOString(),
             // 角色属性
             'character' => [
@@ -261,6 +259,7 @@ class GameCombatLogService
                 'victory' => $log->victory,
                 'experience_gained' => $log->experience_gained,
                 'loot_dropped' => $log->loot_dropped,
+                'round_regen' => $this->formatRoundRegen($log->potion_used),
                 'duration_seconds' => $log->duration_seconds,
                 'created_at' => $log->created_at->toISOString(),
                 // 角色属性
@@ -299,6 +298,21 @@ class GameCombatLogService
 
             return $payload;
         })->toArray();
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $potionUsed
+     * @return array<string, array{name: string, restored: int}>|null
+     */
+    private function formatRoundRegen(?array $potionUsed): ?array
+    {
+        if (! is_array($potionUsed)) {
+            return null;
+        }
+
+        $after = $potionUsed['after'] ?? null;
+
+        return is_array($after) && $after !== [] ? $after : null;
     }
 
     /**

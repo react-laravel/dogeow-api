@@ -185,6 +185,9 @@ return [
         'defense_reduction' => 0.5,
         'aoe_damage_multiplier' => 0.7,
         'monster_defense_reduction' => 0.3,
+        // 每回合结束后的资源恢复：HP = 体力 × 系数，MP = 能量 × 系数
+        'hp_regen_per_vitality' => 1,
+        'mp_regen_per_energy' => 1,
         // 刷怪类型概率：普通 95%，剩余 5% 在地图已有的精英/Boss 类型间均分
         'monster_spawn' => [
             'normal_chance' => 95,
@@ -217,16 +220,6 @@ return [
         'chance' => 0.1,
         // 铜币数量 = 怪物层数 × per_layer（层数通常等于怪物 level）
         'per_layer' => 1,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | 药水掉落配置
-    |--------------------------------------------------------------------------
-    */
-    'potion_drop' => [
-        // 掉落概率(0-1)，0.1 = 10%
-        'chance' => 0.1,
     ],
 
     /*
@@ -279,8 +272,6 @@ return [
         ],
         // 铜币掉落概率加成
         'copper_drop_chance_multiplier' => 10, // 掉落概率 ×10(原本 10%变成 100%)
-        // 药水掉落概率加成
-        'potion_drop_chance_multiplier' => 10,
         // 装备掉落概率加成
         'equipment_drop_chance_multiplier' => 10,
         // 铜币掉落数量加成
