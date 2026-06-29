@@ -640,7 +640,7 @@ class GameInventoryService
         $result = match ($sortBy) {
             'quality' => $query->orderByDesc('quality')->orderBy('definition_id')->orderByDesc('quantity')->get(),
             'price' => $query->orderByDesc(\DB::raw('COALESCE(sell_price, 0) * quantity'))->orderBy('definition_id')->orderByDesc('quantity')->get(),
-            default => $query->orderBy('definition_id')->orderByDesc('quality')->orderByDesc('quantity')->get(),
+            default => $query->orderBy('id')->get(),
         };
 
         return $result;

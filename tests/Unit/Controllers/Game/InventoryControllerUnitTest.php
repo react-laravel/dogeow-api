@@ -229,7 +229,7 @@ class InventoryControllerUnitTest extends TestCase
             'sort_by' => 'default',
         ]));
 
-        $this->assertSame('整理完成', json_decode($response->getContent(), true)['message']);
+        $this->assertSame('按时间整理完成', json_decode($response->getContent(), true)['message']);
     }
 
     public function test_sort_returns_quality_message(): void

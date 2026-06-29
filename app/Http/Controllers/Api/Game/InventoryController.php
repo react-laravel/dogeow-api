@@ -192,7 +192,7 @@ class InventoryController extends Controller
             $message = match ($sortBy) {
                 'quality' => '按品质整理完成',
                 'price' => '按价格整理完成',
-                default => '整理完成',
+                default => '按时间整理完成',
             };
 
             return $this->success($result, $message);

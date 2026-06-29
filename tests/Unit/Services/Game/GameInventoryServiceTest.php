@@ -400,11 +400,11 @@ class GameInventoryServiceTest extends TestCase
 
         $this->service->sortInventory($character);
         $this->assertSame(
-            [$weaponDefinition->id, $ringDefinition->id, $amuletDefinition->id],
+            [$cheap->id, $expensive->id, $middle->id],
             GameItem::where('character_id', $character->id)
                 ->where('is_in_storage', false)
                 ->orderBy('slot_index')
-                ->pluck('definition_id')
+                ->pluck('id')
                 ->all()
         );
     }
