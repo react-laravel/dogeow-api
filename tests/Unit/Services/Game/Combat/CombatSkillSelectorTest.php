@@ -179,18 +179,45 @@ class CombatSkillSelectorTest extends TestCase
     }
 
     #[Test]
-    public function select_optimal_skill_prefers_efficient_skills_when_low_monster_hp(): void
+    public function select_optimal_skill_prefers_efficient_skills_when_single_monster_hp_is_low(): void
     {
         // Arrange - total monster HP is low (100), char attack is 50, so 50*2=100 threshold
         $lowCostSkill = ['skill' => (object) ['id' => 1], 'damage' => 30, 'mana_cost' => 2, 'is_aoe' => false];
         $highCostSkill = ['skill' => (object) ['id' => 2], 'damage' => 80, 'mana_cost' => 20, 'is_aoe' => false];
 
         // Act
-        $result = $this->selector->selectOptimalSkill([$lowCostSkill, $highCostSkill], 2, 0, 50, 50);
+        $result = $this->selector->selectOptimalSkill([$lowCostSkill, $highCostSkill], 1, 0, 50, 50);
 
         // Assert - should prefer low mana cost skill when monster HP is low
         $this->assertNotNull($result);
         $this->assertEquals(2, $result['mana_cost']); // low cost skill
+    }
+
+
+
+    #[Test]
+    public function select_optimal_skill_prefers_high_impact_aoe_when_multiple_monsters_are_alive(): void
+    {
+        $iceArrow = ['skill' => (object) ['id' => 1, 'name' => '冰箭'], 'damage' => 8, 'mana_cost' => 5, 'cooldown' => 0, 'is_aoe' => false];
+        $meteor = ['skill' => (object) ['id' => 2, 'name' => '陨石术'], 'damage' => 150, 'mana_cost' => 42, 'cooldown' => 8, 'is_aoe' => true];
+        $chainLightning = ['skill' => (object) ['id' => 3, 'name' => '连锁闪电'], 'damage' => 70, 'mana_cost' => 24, 'cooldown' => 5, 'is_aoe' => true];
+
+        $result = $this->selector->selectOptimalSkill([$iceArrow, $chainLightning, $meteor], 3, 0, 360, 50);
+
+        $this->assertNotNull($result);
+        $this->assertSame('陨石术', $result['skill']->name);
+    }
+
+    #[Test]
+    public function select_optimal_skill_uses_chain_lightning_when_meteor_is_unavailable(): void
+    {
+        $iceArrow = ['skill' => (object) ['id' => 1, 'name' => '冰箭'], 'damage' => 8, 'mana_cost' => 5, 'cooldown' => 0, 'is_aoe' => false];
+        $chainLightning = ['skill' => (object) ['id' => 3, 'name' => '连锁闪电'], 'damage' => 70, 'mana_cost' => 24, 'cooldown' => 5, 'is_aoe' => true];
+
+        $result = $this->selector->selectOptimalSkill([$iceArrow, $chainLightning], 3, 0, 240, 50);
+
+        $this->assertNotNull($result);
+        $this->assertSame('连锁闪电', $result['skill']->name);
     }
 
     #[Test]

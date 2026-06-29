@@ -4,10 +4,10 @@ use Database\Seeders\Game\Data\Skills\SkillTreeBuilder;
 
 return SkillTreeBuilder::merge(
     SkillTreeBuilder::line('mage', 'basic', 'mage_fireball', 'fireball', '小火球', [
-        'description' => '单体 2 点火焰伤害',
-        'base_damage' => 2,
-        'mana_cost' => 8,
-        'cooldown' => 0,
+        'description' => '中耗单体火焰弹，伤害高于冰箭；强化后可转溅射/AOE',
+        'base_damage' => 16,
+        'mana_cost' => 10,
+        'cooldown' => 1,
         'icon_prompt' => 'RPG skill icon, fireball, flaming orb, magic projectile, wizard spell, detailed fantasy icon, square, dark background',
     ], '强化火球术', [
         'description' => '爆炸范围 +30%',
@@ -23,7 +23,8 @@ return SkillTreeBuilder::merge(
         'effects' => ['damage_bonus' => 0.4, 'no_fire_pool' => true],
     ]),
     SkillTreeBuilder::line('mage', 'basic', 'mage_ice_arrow', 'ice-arrow', '冰箭', [
-        'description' => '单体 100% 魔法伤害',
+        'description' => '低耗单体冰伤，偏续航/控制，伤害低于小火球',
+        'base_damage' => 8,
         'mana_cost' => 5,
         'cooldown' => 0,
         'icon_prompt' => 'RPG skill icon, ice arrow, frost projectile, blue crystal shard, mage spell, detailed game icon, square, dark background',
@@ -40,9 +41,10 @@ return SkillTreeBuilder::merge(
         'effects' => ['pierce_count' => 2, 'pierce_falloff' => 0.2],
     ]),
     SkillTreeBuilder::line('mage', 'core', 'mage_frost_nova', 'frost-nova', '冰霜新星', [
-        'description' => '全体 80% 冰伤',
-        'mana_cost' => 20,
-        'cooldown' => 5,
+        'description' => '中耗全体冰伤 + 控制，适合 2+ 怪物',
+        'base_damage' => 45,
+        'mana_cost' => 18,
+        'cooldown' => 4,
         'target_type' => 'all',
         'icon_prompt' => 'RPG skill icon, frost nova, ice explosion ring, frozen shards, mage AOE, detailed fantasy icon, square, dark background',
     ], '强化冰霜新星', [
@@ -59,9 +61,10 @@ return SkillTreeBuilder::merge(
         'effects' => ['single_target_ratio' => 3.0],
     ]),
     SkillTreeBuilder::line('mage', 'core', 'mage_lightning', 'lightning', '雷击', [
-        'description' => '单体 180% 魔法伤害',
-        'mana_cost' => 15,
-        'cooldown' => 4,
+        'description' => '高效单体雷伤，介于小火球和奥术飞弹之间',
+        'base_damage' => 34,
+        'mana_cost' => 14,
+        'cooldown' => 3,
         'icon_prompt' => 'RPG skill icon, lightning bolt, electric strike, mage spell, bright yellow energy, detailed game icon, square, dark background',
     ], '强化雷击', [
         'description' => '暴击率 +15%',
@@ -76,9 +79,11 @@ return SkillTreeBuilder::merge(
         'effects' => ['non_crit_bonus' => 0.25, 'cooldown_reduction' => 1],
     ]),
     SkillTreeBuilder::line('mage', 'core', 'mage_chain_lightning', 'chain-lightning', '连锁闪电', [
-        'description' => '弹跳 3 次各 70% 伤害',
-        'mana_cost' => 25,
-        'cooldown' => 6,
+        'description' => '连锁多目标雷伤，2+ 怪物时优先级高于单体基础法术',
+        'base_damage' => 70,
+        'mana_cost' => 24,
+        'cooldown' => 5,
+        'target_type' => 'all',
         'icon_prompt' => 'RPG skill icon, chain lightning, electric arcs between targets, mage spell, dynamic energy, square, dark background',
     ], '强化连锁闪电', [
         'description' => '弹跳 +1 次',
@@ -94,7 +99,8 @@ return SkillTreeBuilder::merge(
         'effects' => ['bounce_count' => 2, 'bounce_ratio' => 1.2],
     ]),
     SkillTreeBuilder::line('mage', 'defensive', 'mage_shield', 'shield', '魔法护盾', [
-        'description' => '吸收 100 点伤害，持续 8 秒',
+        'description' => '吸收 100 点伤害，持续 8 秒（防御技能，不作为伤害技能优先选择）',
+        'base_damage' => 0,
         'mana_cost' => 20,
         'cooldown' => 15,
         'effects' => ['shield_amount' => 100, 'duration' => 8],
@@ -112,10 +118,10 @@ return SkillTreeBuilder::merge(
         'effects' => ['mana_restore_on_break' => 0.15],
     ]),
     SkillTreeBuilder::line('mage', 'special', 'mage_meteor', 'meteor', '陨石术', [
-        'description' => '全体 200% 火伤',
-        'base_damage' => 25,
-        'mana_cost' => 40,
-        'cooldown' => 12,
+        'description' => '高耗全体火伤，大波次清场技能',
+        'base_damage' => 150,
+        'mana_cost' => 42,
+        'cooldown' => 8,
         'target_type' => 'all',
         'icon_prompt' => 'RPG skill icon, meteor strike, falling fire rock, massive explosion, mage ultimate spell, square, dark background',
     ], '强化陨石', [
@@ -132,9 +138,10 @@ return SkillTreeBuilder::merge(
         'effects' => ['single_target_ratio' => 3.5],
     ]),
     SkillTreeBuilder::line('mage', 'special', 'mage_arcane_missile', 'arcane-missile', '奥术飞弹', [
-        'description' => '引导 3 秒，每秒 3 发各 40% 伤害',
-        'mana_cost' => 30,
-        'cooldown' => 8,
+        'description' => '高效单体持续输出，适合单个高血量目标',
+        'base_damage' => 85,
+        'mana_cost' => 28,
+        'cooldown' => 6,
         'effects' => ['channel_duration' => 3, 'missiles_per_second' => 3, 'missile_ratio' => 0.4],
         'icon_prompt' => 'RPG skill icon, arcane missiles, purple magic bolts, channeled spell, mage fantasy icon, square, dark background',
     ], '强化奥术飞弹', [
@@ -151,9 +158,10 @@ return SkillTreeBuilder::merge(
         'effects' => ['stack_bonus_per_hit' => 0.1],
     ]),
     SkillTreeBuilder::line('mage', 'ultimate', 'mage_cataclysm', 'element-cataclysm', '元素灾变', [
-        'description' => '依次释放火/冰/雷各一段 AOE，共 300% 伤害',
-        'mana_cost' => 55,
-        'cooldown' => 40,
+        'description' => '终极全体爆发，长冷却，适合高血量多目标',
+        'base_damage' => 240,
+        'mana_cost' => 60,
+        'cooldown' => 30,
         'target_type' => 'all',
         'icon_prompt' => 'RPG skill icon, elemental cataclysm, fire ice lightning fusion, epic mage ultimate, square, dark background',
     ], '强化元素灾变', [

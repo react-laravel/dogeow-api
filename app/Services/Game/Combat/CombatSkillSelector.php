@@ -144,29 +144,37 @@ class CombatSkillSelector
 
         $baseAttackDamage = (int) ($charAttack * 0.5);
 
-        // 策略 1: 怪物数量 >= 3 且有多只低血量怪物，优先使用群体技能
-        if ($aliveMonsterCount >= 3 && $lowHpMonsterCount >= 2) {
+        // 策略 1: 多目标战斗优先考虑群体技能。
+        // 旧逻辑只有“3 只怪且 2 只低血量”才看 AOE，导致冰箭这类 0CD 低耗单体在多数多怪回合被反复选择，
+        // 陨石术、连锁闪电、冰霜新星即使可用也很少出手。这里按“单次总期望伤害/耗蓝/冷却”综合评分。
+        if ($aliveMonsterCount >= 2) {
             $aoeSkills = array_filter($availableSkills, fn ($s) => $s['is_aoe']);
             if (! empty($aoeSkills)) {
-                usort($aoeSkills, fn (array $a, array $b) => $this->compareSkillsByEfficiency($a, $b));
+                usort($aoeSkills, fn (array $a, array $b) => $this->compareSkillsByCombatScore($a, $b, $aliveMonsterCount, $totalMonsterHp));
 
                 return $aoeSkills[0];
             }
         }
 
-        // 策略 2: 怪物总血量很低，优先使用低消耗技能
-        if ($totalMonsterHp <= $charAttack * 2) {
-            usort($availableSkills, function (array $firstSkill, array $secondSkill) {
+        // 策略 2: 单目标且残血时才省蓝，不要在多怪场景因为“总血量低”一直选冰箭。
+        if ($aliveMonsterCount <= 1 && $totalMonsterHp <= $charAttack * 2) {
+            usort($availableSkills, function (array $firstSkill, array $secondSkill) use ($totalMonsterHp) {
                 if ($firstSkill['mana_cost'] === 0 && $secondSkill['mana_cost'] > 0) {
                     return -1;
                 }
                 if ($secondSkill['mana_cost'] === 0 && $firstSkill['mana_cost'] > 0) {
                     return 1;
                 }
-                $efficiencyA = $firstSkill['mana_cost'] > 0 ? $firstSkill['damage'] / $firstSkill['mana_cost'] : $firstSkill['damage'] * 10;
-                $efficiencyB = $secondSkill['mana_cost'] > 0 ? $secondSkill['damage'] / $secondSkill['mana_cost'] : $secondSkill['damage'] * 10;
+                $effectiveDamageA = min((int) $firstSkill['damage'], $totalMonsterHp);
+                $effectiveDamageB = min((int) $secondSkill['damage'], $totalMonsterHp);
+                $efficiencyA = $firstSkill['mana_cost'] > 0 ? $effectiveDamageA / $firstSkill['mana_cost'] : $effectiveDamageA * 10;
+                $efficiencyB = $secondSkill['mana_cost'] > 0 ? $effectiveDamageB / $secondSkill['mana_cost'] : $effectiveDamageB * 10;
 
-                return $efficiencyB <=> $efficiencyA;
+                if (abs($efficiencyA - $efficiencyB) > 0.1) {
+                    return $efficiencyB <=> $efficiencyA;
+                }
+
+                return $firstSkill['mana_cost'] <=> $secondSkill['mana_cost'];
             });
 
             return $availableSkills[0];
@@ -175,7 +183,7 @@ class CombatSkillSelector
         // 策略 3: 正常战斗，选择伤害最高的技能
         $skillsWithDamage = array_filter($availableSkills, fn ($s) => $s['damage'] > 0);
         if (! empty($skillsWithDamage)) {
-            usort($skillsWithDamage, fn (array $a, array $b) => $this->compareSkillsByEfficiency($a, $b));
+            usort($skillsWithDamage, fn (array $a, array $b) => $this->compareSkillsByCombatScore($a, $b, $aliveMonsterCount, $totalMonsterHp));
 
             $bestSkill = $skillsWithDamage[0];
             $bestEfficiency = $bestSkill['mana_cost'] > 0 ? $bestSkill['damage'] / $bestSkill['mana_cost'] : $bestSkill['damage'];
@@ -274,5 +282,40 @@ class CombatSkillSelector
         }
 
         return $secondSkill['damage'] <=> $firstSkill['damage'];
+    }
+
+    /**
+     * 按战斗收益排序：多目标看总期望伤害，伤害接近时再看耗蓝/冷却。
+     *
+     * @param  array{damage: int, mana_cost: int, cooldown?: int, is_aoe?: bool}  $firstSkill
+     * @param  array{damage: int, mana_cost: int, cooldown?: int, is_aoe?: bool}  $secondSkill
+     */
+    private function compareSkillsByCombatScore(array $firstSkill, array $secondSkill, int $aliveMonsterCount, int $totalMonsterHp): int
+    {
+        $firstScore = $this->calculateCombatScore($firstSkill, $aliveMonsterCount, $totalMonsterHp);
+        $secondScore = $this->calculateCombatScore($secondSkill, $aliveMonsterCount, $totalMonsterHp);
+
+        if (abs($firstScore - $secondScore) > 0.1) {
+            return $secondScore <=> $firstScore;
+        }
+
+        return $this->compareSkillsByEfficiency($firstSkill, $secondSkill);
+    }
+
+    /**
+     * @param  array{damage: int, mana_cost: int, cooldown?: int, is_aoe?: bool}  $skill
+     */
+    private function calculateCombatScore(array $skill, int $aliveMonsterCount, int $totalMonsterHp): float
+    {
+        $targetCount = ($skill['is_aoe'] ?? false) ? max(1, $aliveMonsterCount) : 1;
+        $expectedDamage = (float) $skill['damage'] * $targetCount;
+        if ($totalMonsterHp > 0) {
+            $expectedDamage = min($expectedDamage, (float) $totalMonsterHp);
+        }
+
+        $manaPenalty = max(0, (int) $skill['mana_cost']) * 0.35;
+        $cooldownPenalty = max(0, (int) ($skill['cooldown'] ?? 0)) * 1.25;
+
+        return $expectedDamage - $manaPenalty - $cooldownPenalty;
     }
 }
