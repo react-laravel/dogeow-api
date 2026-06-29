@@ -20,7 +20,7 @@ class AutoCombatRoundJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout = 30;
+    public int $timeout = 35;
 
     private const REDIS_KEY_PREFIX = 'rpg:combat:auto:';
 
@@ -55,26 +55,22 @@ class AutoCombatRoundJob implements ShouldQueue
 
         $character = null;
 
+        // 解析初始 payload（仅读取一次 Redis）
+        $data = json_decode($payload, true);
+        if (! is_array($data)) {
+            $data = [];
+        }
+        $latestPayloadData = $data;
+
+        $skillIds = $data['skill_ids'] ?? null;
+        if ($skillIds !== null && ! is_array($skillIds)) {
+            $skillIds = [];
+        }
+        if (is_array($skillIds)) {
+            $skillIds = array_values(array_map('intval', $skillIds));
+        }
+
         try {
-            // 再次检查 Redis key 是否存在
-            if (Redis::get($key) === null) {
-                return;
-            }
-
-            $data = json_decode($payload, true);
-            if (! is_array($data)) {
-                $data = [];
-            }
-            $latestPayloadData = $data;
-
-            $skillIds = $data['skill_ids'] ?? null;
-            if ($skillIds !== null && ! is_array($skillIds)) {
-                $skillIds = [];
-            }
-            if (is_array($skillIds)) {
-                $skillIds = array_values(array_map('intval', $skillIds));
-            }
-
             // 检查是否有被取消的技能，如果有则从列表中移除
             $cancelledSkillIds = $data['cancelled_skill_ids'] ?? [];
             if (is_array($skillIds) && is_array($cancelledSkillIds) && ! empty($cancelledSkillIds)) {
@@ -126,10 +122,8 @@ class AutoCombatRoundJob implements ShouldQueue
             // 检查 Redis key 是否仍然存在
             if (Redis::get($key) !== false) {
                 self::writePayload($key, $latestPayloadData);
-                // 等待 3 秒后再调度下一个 job
-                // 这是一个简单但可靠的方法
-                sleep(3);
-                self::dispatch($this->characterId, []);
+                // 延迟 3 秒后调度下一个 job（不阻塞 Worker）
+                self::dispatch($this->characterId, [])->delay(now()->addSeconds(3));
             }
         } catch (RuntimeException|InvalidArgumentException $e) {
             $this->broadcastAutoStoppedAndCleanup($character, $e, $key);

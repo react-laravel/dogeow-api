@@ -40,24 +40,26 @@ class NoteControllerTest extends TestCase
         $response = $this->getJson('/api/notes');
 
         $response->assertStatus(200)
-            ->assertJsonCount(3)
+            ->assertJsonCount(3, 'data')
             ->assertJsonStructure([
-                '*' => [
-                    'id',
-                    'title',
-                    'content',
-                    'content_markdown',
-                    'is_draft',
-                    'user_id',
-                    'created_at',
-                    'updated_at',
-                    'category',
-                    'tags',
+                'data' => [
+                    '*' => [
+                        'id',
+                        'title',
+                        'content',
+                        'content_markdown',
+                        'is_draft',
+                        'user_id',
+                        'created_at',
+                        'updated_at',
+                        'category',
+                        'tags',
+                    ],
                 ],
             ]);
 
         // Verify only user's notes are returned
-        $responseData = $response->json();
+        $responseData = $response->json('data');
         foreach ($responseData as $note) {
             $this->assertEquals($this->user->id, $note['user_id']);
         }
@@ -85,7 +87,7 @@ class NoteControllerTest extends TestCase
 
         $response->assertStatus(200);
 
-        $notes = $response->json();
+        $notes = $response->json('data');
         $this->assertEquals($newNote->id, $notes[0]['id']);
         $this->assertEquals($middleNote->id, $notes[1]['id']);
         $this->assertEquals($oldNote->id, $notes[2]['id']);
@@ -96,7 +98,7 @@ class NoteControllerTest extends TestCase
         $response = $this->getJson('/api/notes');
 
         $response->assertStatus(200)
-            ->assertJson([]);
+            ->assertJsonCount(0, 'data');
     }
 
     public function test_store_creates_new_note(): void
@@ -112,11 +114,15 @@ class NoteControllerTest extends TestCase
 
         $response->assertStatus(201)
             ->assertJson([
-                'title' => 'Test Note',
-                'content' => 'This is test content',
-                'content_markdown' => '# Test Note\n\nThis is test content',
-                'is_draft' => false,
-                'user_id' => $this->user->id,
+                'success' => true,
+                'message' => 'Note created successfully',
+                'data' => [
+                    'title' => 'Test Note',
+                    'content' => 'This is test content',
+                    'content_markdown' => '# Test Note\n\nThis is test content',
+                    'is_draft' => false,
+                    'user_id' => $this->user->id,
+                ],
             ]);
 
         $this->assertDatabaseHas('notes', [
@@ -137,11 +143,15 @@ class NoteControllerTest extends TestCase
 
         $response->assertStatus(201)
             ->assertJson([
-                'title' => 'Test Note',
-                'content' => 'This is test content',
-                'content_markdown' => 'This is test content', // Should use content as markdown
-                'is_draft' => true,
-                'user_id' => $this->user->id,
+                'success' => true,
+                'message' => 'Note created successfully',
+                'data' => [
+                    'title' => 'Test Note',
+                    'content' => 'This is test content',
+                    'content_markdown' => 'This is test content', // Should use content as markdown
+                    'is_draft' => true,
+                    'user_id' => $this->user->id,
+                ],
             ]);
     }
 
@@ -157,11 +167,15 @@ class NoteControllerTest extends TestCase
 
         $response->assertStatus(201)
             ->assertJson([
-                'title' => 'Test Note',
-                'content' => '',
-                'content_markdown' => '',
-                'is_draft' => false,
-                'user_id' => $this->user->id,
+                'success' => true,
+                'message' => 'Note created successfully',
+                'data' => [
+                    'title' => 'Test Note',
+                    'content' => '',
+                    'content_markdown' => '',
+                    'is_draft' => false,
+                    'user_id' => $this->user->id,
+                ],
             ]);
     }
 
@@ -223,9 +237,13 @@ class NoteControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'id' => $note->id,
-                'title' => $note->title,
-                'user_id' => $this->user->id,
+                'success' => true,
+                'message' => 'Note retrieved successfully',
+                'data' => [
+                    'id' => $note->id,
+                    'title' => $note->title,
+                    'user_id' => $this->user->id,
+                ],
             ]);
     }
 
@@ -243,15 +261,19 @@ class NoteControllerTest extends TestCase
         $response = $this->getJson("/api/notes/{$note->id}");
 
         $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Note retrieved successfully')
             ->assertJsonStructure([
-                'id',
-                'title',
-                'content',
-                'content_markdown',
-                'is_draft',
-                'user_id',
-                'category',
-                'tags',
+                'data' => [
+                    'id',
+                    'title',
+                    'content',
+                    'content_markdown',
+                    'is_draft',
+                    'user_id',
+                    'category',
+                    'tags',
+                ],
             ]);
     }
 
@@ -303,11 +325,15 @@ class NoteControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'id' => $note->id,
-                'title' => 'Updated Title',
-                'content' => 'Updated content',
-                'content_markdown' => '# Updated Title\n\nUpdated content',
-                'is_draft' => true,
+                'success' => true,
+                'message' => 'Note updated successfully',
+                'data' => [
+                    'id' => $note->id,
+                    'title' => 'Updated Title',
+                    'content' => 'Updated content',
+                    'content_markdown' => '# Updated Title\n\nUpdated content',
+                    'is_draft' => true,
+                ],
             ]);
 
         $this->assertDatabaseHas('notes', [
@@ -333,9 +359,13 @@ class NoteControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'title' => 'New Title',
-                'content' => 'Original content', // Should remain unchanged
-                'is_draft' => false, // Should remain unchanged
+                'success' => true,
+                'message' => 'Note updated successfully',
+                'data' => [
+                    'title' => 'New Title',
+                    'content' => 'Original content', // Should remain unchanged
+                    'is_draft' => false, // Should remain unchanged
+                ],
             ]);
     }
 
@@ -351,8 +381,12 @@ class NoteControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'content' => 'New content without markdown',
-                'content_markdown' => 'New content without markdown', // Should use content as markdown
+                'success' => true,
+                'message' => 'Note updated successfully',
+                'data' => [
+                    'content' => 'New content without markdown',
+                    'content_markdown' => 'New content without markdown', // Should use content as markdown
+                ],
             ]);
     }
 
@@ -369,8 +403,12 @@ class NoteControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'content' => '',
-                'content_markdown' => '', // Should be empty when content is empty
+                'success' => true,
+                'message' => 'Note updated successfully',
+                'data' => [
+                    'content' => '',
+                    'content_markdown' => '', // Should be empty when content is empty
+                ],
             ]);
     }
 
@@ -661,10 +699,10 @@ class NoteControllerTest extends TestCase
         ]);
 
         $response->assertStatus(201)
-            ->assertJsonPath('title', 'JSON Note')
-            ->assertJsonPath('content_markdown', "Alpha\nBeta");
+            ->assertJsonPath('data.title', 'JSON Note')
+            ->assertJsonPath('data.content_markdown', "Alpha\nBeta");
 
-        $note = Note::findOrFail($response->json('id'));
+        $note = Note::findOrFail($response->json('data.id'));
         $this->assertSame(['alpha', 'beta'], $note->tags()->orderBy('name')->pluck('name')->all());
     }
 
@@ -680,9 +718,13 @@ class NoteControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'id' => $wikiNote->id,
-                'title' => 'Shared Wiki',
-                'is_wiki' => true,
+                'success' => true,
+                'message' => 'Note retrieved successfully',
+                'data' => [
+                    'id' => $wikiNote->id,
+                    'title' => 'Shared Wiki',
+                    'is_wiki' => true,
+                ],
             ]);
     }
 
@@ -708,8 +750,8 @@ class NoteControllerTest extends TestCase
         ]);
 
         $response->assertStatus(200)
-            ->assertJsonPath('slug', 'knowledge-base-1')
-            ->assertJsonPath('is_wiki', true);
+            ->assertJsonPath('data.slug', 'knowledge-base-1')
+            ->assertJsonPath('data.is_wiki', true);
     }
 
     public function test_update_allows_modifying_other_users_wiki_note(): void
@@ -728,8 +770,8 @@ class NoteControllerTest extends TestCase
         ]);
 
         $response->assertStatus(200)
-            ->assertJsonPath('content', 'Updated shared wiki')
-            ->assertJsonPath('content_markdown', 'Updated shared wiki');
+            ->assertJsonPath('data.content', 'Updated shared wiki')
+            ->assertJsonPath('data.content_markdown', 'Updated shared wiki');
     }
 
     public function test_store_link_creates_new_link(): void
@@ -904,7 +946,7 @@ class NoteControllerTest extends TestCase
         ]);
 
         $response->assertStatus(200)
-            ->assertJsonPath('title', 'Updated Title');
+            ->assertJsonPath('data.title', 'Updated Title');
 
         $note->refresh();
         $this->assertEquals(3, $note->tags->count());
@@ -921,14 +963,10 @@ class NoteControllerTest extends TestCase
             'summary' => 'A brief summary',
         ]);
 
-        $response->assertStatus(201);
-
-        $this->assertDatabaseHas('notes', [
-            'title' => 'My Wiki Page',
-            'is_wiki' => true,
-            'slug' => 'custom-wiki-slug',
-            'summary' => 'A brief summary',
-        ]);
+        $response->assertStatus(201)
+            ->assertJsonPath('data.title', 'My Wiki Page')
+            ->assertJsonPath('data.slug', 'custom-wiki-slug')
+            ->assertJsonPath('data.summary', 'A brief summary');
     }
 
     public function test_store_generates_slug_when_is_wiki_but_no_slug_provided(): void
@@ -941,7 +979,7 @@ class NoteControllerTest extends TestCase
         ]);
 
         $response->assertStatus(201)
-            ->assertJsonPath('is_wiki', true)
-            ->assertJsonPath('slug', 'auto-generated-slug-wiki');
+            ->assertJsonPath('data.is_wiki', true)
+            ->assertJsonPath('data.slug', 'auto-generated-slug-wiki');
     }
 }

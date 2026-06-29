@@ -10,6 +10,57 @@ use App\Models\Game\GameEquipment;
 trait CharacterCombatStats
 {
     /**
+     * 请求级装备属性缓存（避免同一请求内重复查询）
+     */
+    private ?array $cachedEquipmentStats = null;
+
+    /**
+     * 加载所有装备的属性加成（一次性查询）
+     */
+    private function loadEquipmentStats(): array
+    {
+        $bonuses = [];
+
+        $equipmentSlots = $this->equipment()
+            ->with('item.definition', 'item.gems.gemDefinition')
+            ->get();
+
+        /** @var GameEquipment $slot */
+        foreach ($equipmentSlots as $slot) {
+            if ($slot->item) {
+                $itemStats = $slot->item->getTotalStats();
+                foreach ($itemStats as $stat => $value) {
+                    $bonuses[$stat] = ($bonuses[$stat] ?? 0) + (float) $value;
+                }
+            }
+        }
+
+        return $bonuses;
+    }
+
+    /**
+     * 获取装备属性加成（带请求级缓存）
+     */
+    public function getEquipmentBonus(string $stat): float
+    {
+        if ($this->cachedEquipmentStats === null) {
+            $this->cachedEquipmentStats = $this->loadEquipmentStats();
+        }
+
+        return $this->cachedEquipmentStats[$stat] ?? 0;
+    }
+
+    /**
+     * 预加载装备属性缓存（供批量计算方法调用）
+     */
+    private function ensureEquipmentCacheLoaded(): void
+    {
+        if ($this->cachedEquipmentStats === null) {
+            $this->cachedEquipmentStats = $this->loadEquipmentStats();
+        }
+    }
+
+    /**
      * 生命值基础值
      */
     public function getBaseHp(): int
@@ -163,34 +214,15 @@ trait CharacterCombatStats
     }
 
     /**
-     * 获取装备属性加成
-     */
-    public function getEquipmentBonus(string $stat): float
-    {
-        $bonus = 0;
-
-        $equipmentSlots = $this->equipment()
-            ->with('item.definition', 'item.gems.gemDefinition')
-            ->get();
-
-        /** @var GameEquipment $slot */
-        foreach ($equipmentSlots as $slot) {
-            if ($slot->item) {
-                $itemStats = $slot->item->getTotalStats();
-                $bonus += (float) ($itemStats[$stat] ?? 0);
-            }
-        }
-
-        return $bonus;
-    }
-
-    /**
      * 获取完整战斗属性
      *
      * @return array<string,mixed>
      */
     public function getCombatStats(): array
     {
+        // 预加载装备缓存，避免后续每个属性方法重复查库
+        $this->ensureEquipmentCacheLoaded();
+
         return [
             'max_hp' => $this->getMaxHp(),
             'max_mana' => $this->getMaxMana(),
@@ -208,6 +240,8 @@ trait CharacterCombatStats
      */
     public function getCombatStatsBreakdown(): array
     {
+        // 预加载装备缓存
+        $this->ensureEquipmentCacheLoaded();
         $equipAttack = $this->getEquipmentBonus('attack');
         $equipDefense = $this->getEquipmentBonus('defense');
         $equipCritRate = $this->getEquipmentBonus('crit_rate');

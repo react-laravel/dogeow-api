@@ -42,7 +42,7 @@ class NoteController extends Controller
         // a plain list. Previously this used the success() helper which added
         // a message and "notes" key. Returning the raw collection keeps the
         // API simple and aligns with store/update behaviors.
-        return response()->json($notes);
+        return $this->success($notes, 'Notes retrieved successfully');
     }
 
     /**
@@ -129,8 +129,7 @@ class NoteController extends Controller
 
         TriggerKnowledgeIndexBuildJob::dispatch();
 
-        // return note data directly (tests expect top-level keys)
-        return response()->json($note, 201);
+        return $this->success($note, 'Note created successfully', 201);
     }
 
     /**
@@ -144,7 +143,7 @@ class NoteController extends Controller
         // Return the note directly rather than wrapping it in the generic
         // success envelope. This keeps the payload predictable for clients
         // and matches the expectations of existing unit tests.
-        return response()->json($note);
+        return $this->success($note, 'Note retrieved successfully');
     }
 
     /**
@@ -166,8 +165,7 @@ class NoteController extends Controller
 
         TriggerKnowledgeIndexBuildJob::dispatch();
 
-        // return updated note data directly for tests
-        return response()->json($note);
+        return $this->success($note, 'Note updated successfully');
     }
 
     /**
