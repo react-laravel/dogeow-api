@@ -4,6 +4,7 @@ namespace Tests\Unit\Services\Game;
 
 use App\Events\Game\GameCombatUpdate;
 use App\Events\Game\GameInventoryUpdate;
+use App\Jobs\Game\AutoCombatRoundJob;
 use App\Models\Game\GameCharacter;
 use App\Models\Game\GameCombatLog;
 use App\Models\Game\GameEquipment;
@@ -18,6 +19,7 @@ use App\Services\Game\GameInventoryService;
 use App\Services\Game\GameMonsterService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Redis;
 use Mockery;
 use Tests\TestCase;
 
@@ -70,6 +72,21 @@ class GameCombatServiceTest extends TestCase
                 && $event->combatResult['character']['current_hp'] === 33
                 && $event->combatResult['character']['current_mana'] === 14;
         });
+    }
+
+    public function test_sync_combat_status_treats_phpredis_false_as_missing_payload(): void
+    {
+        $character = $this->createCharacter(['is_fighting' => true]);
+
+        Redis::shouldReceive('get')
+            ->once()
+            ->with(AutoCombatRoundJob::redisKey($character->id))
+            ->andReturn(false);
+
+        $service = $this->makeService();
+        $service->syncCombatStatusWithRedis($character);
+
+        $this->assertFalse((bool) $character->fresh()->is_fighting);
     }
 
     public function test_get_combat_status_returns_fight_state_from_current_monsters(): void

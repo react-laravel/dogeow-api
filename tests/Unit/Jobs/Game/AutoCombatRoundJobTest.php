@@ -111,6 +111,21 @@ class AutoCombatRoundJobTest extends TestCase
         $job->handle($combatService);
     }
 
+    public function test_handle_returns_early_when_redis_key_missing_under_phpredis(): void
+    {
+        Redis::shouldReceive('get')
+            ->with('rpg:combat:auto:999')
+            ->once()
+            ->andReturn(false);
+
+        $combatService = $this->mock(GameCombatService::class);
+        $combatService->shouldNotReceive('executeRound');
+        $combatService->shouldNotReceive('shouldRefreshMonsters');
+
+        $job = new AutoCombatRoundJob(999);
+        $job->handle($combatService);
+    }
+
     public function test_handle_returns_early_when_lock_not_acquired(): void
     {
         $key = 'rpg:combat:auto:1';
@@ -131,6 +146,40 @@ class AutoCombatRoundJobTest extends TestCase
 
         $job = new AutoCombatRoundJob(1);
         $job->handle($combatService);
+    }
+
+    public function test_handle_skips_round_when_next_round_at_is_in_future(): void
+    {
+        Bus::fake();
+
+        $key = 'rpg:combat:auto:1';
+        $payload = json_encode([
+            'skill_ids' => [101],
+            'next_round_at' => now()->addSeconds(2)->getTimestamp(),
+        ]);
+
+        Redis::shouldReceive('get')
+            ->with($key)
+            ->once()
+            ->andReturn($payload);
+
+        $lock = \Mockery::mock();
+        $lock->shouldReceive('get')->once()->andReturn(true);
+        $lock->shouldReceive('release')->once();
+
+        Cache::shouldReceive('lock')
+            ->with('rpg:combat:lock:1', 35)
+            ->once()
+            ->andReturn($lock);
+
+        $combatService = $this->mock(GameCombatService::class);
+        $combatService->shouldNotReceive('shouldRefreshMonsters');
+        $combatService->shouldNotReceive('executeRound');
+
+        $job = new AutoCombatRoundJob(1);
+        $job->handle($combatService);
+
+        Bus::assertNothingDispatched();
     }
 
     public function test_handle_returns_early_when_redis_key_deleted_after_lock(): void
@@ -568,17 +617,22 @@ class AutoCombatRoundJobTest extends TestCase
     public function test_handle_dispatches_next_round_when_redis_key_still_exists(): void
     {
         Bus::fake();
+        $this->travelTo(now()->startOfSecond());
 
         $map = $this->createMap();
         $character = $this->createCharacter(['current_map_id' => $map->id]);
 
         $key = 'rpg:combat:auto:' . $character->id;
         $payload = json_encode(['skill_ids' => [101]]);
+        $expectedPayload = json_encode([
+            'skill_ids' => [101],
+            'next_round_at' => now()->addSeconds(3)->getTimestamp(),
+        ]);
 
         Redis::shouldReceive('get')->with($key)->andReturn($payload, $payload);
         Redis::shouldReceive('setex')
             ->once()
-            ->with($key, AutoCombatRoundJob::ttl(), $payload)
+            ->with($key, AutoCombatRoundJob::ttl(), $expectedPayload)
             ->andReturnTrue();
 
         $lock = \Mockery::mock();

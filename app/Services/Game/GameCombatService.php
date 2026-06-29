@@ -74,7 +74,9 @@ class GameCombatService
      */
     public function syncCombatStatusWithRedis(GameCharacter $character): void
     {
-        $autoCombatRunning = Redis::get(AutoCombatRoundJob::redisKey($character->id)) !== null;
+        $autoCombatRunning = AutoCombatRoundJob::hasAutoCombatPayload(
+            Redis::get(AutoCombatRoundJob::redisKey($character->id))
+        );
 
         if ($character->is_fighting !== $autoCombatRunning) {
             $character->update(['is_fighting' => $autoCombatRunning]);

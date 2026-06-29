@@ -200,7 +200,7 @@ class CombatController extends Controller
             $key = AutoCombatRoundJob::redisKey($character->id);
             $payload = Redis::get($key);
 
-            if ($payload === null) {
+            if (! AutoCombatRoundJob::hasAutoCombatPayload($payload)) {
                 return $this->error('当前没有进行中的自动战斗');
             }
 

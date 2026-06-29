@@ -28,6 +28,10 @@ class AutoCombatRoundJob implements ShouldQueue
 
     private const LOCK_TIMEOUT = 35;
 
+    private const ROUND_INTERVAL_SECONDS = 3;
+
+    private const NEXT_ROUND_AT_KEY = 'next_round_at';
+
     public function __construct(
         public int $characterId,
         public ?array $skillIds = null
@@ -40,7 +44,7 @@ class AutoCombatRoundJob implements ShouldQueue
         $key = self::REDIS_KEY_PREFIX . $this->characterId;
         $payload = Redis::get($key);
 
-        if ($payload === null) {
+        if (! self::hasAutoCombatPayload($payload)) {
             return;
         }
 
@@ -56,10 +60,7 @@ class AutoCombatRoundJob implements ShouldQueue
         $character = null;
 
         // 解析初始 payload（仅读取一次 Redis）
-        $data = json_decode($payload, true);
-        if (! is_array($data)) {
-            $data = [];
-        }
+        $data = self::decodePayload($payload);
         $latestPayloadData = $data;
 
         $skillIds = $data['skill_ids'] ?? null;
@@ -71,6 +72,11 @@ class AutoCombatRoundJob implements ShouldQueue
         }
 
         try {
+            // 防止历史遗留或重复排队的 job 在 3 秒窗口内连续执行回合。
+            if (self::shouldWaitForNextRound($data)) {
+                return;
+            }
+
             // 检查是否有被取消的技能，如果有则从列表中移除
             $cancelledSkillIds = $data['cancelled_skill_ids'] ?? [];
             if (is_array($skillIds) && is_array($cancelledSkillIds) && ! empty($cancelledSkillIds)) {
@@ -98,9 +104,9 @@ class AutoCombatRoundJob implements ShouldQueue
 
             // 执行回合前再次从 Redis 读取技能列表，确保用户中途取消/启用技能能立即生效
             $freshPayload = Redis::get($key);
-            if ($freshPayload !== false) {
-                $freshData = json_decode($freshPayload, true);
-                if (is_array($freshData)) {
+            if (self::hasAutoCombatPayload($freshPayload)) {
+                $freshData = self::decodePayload($freshPayload);
+                if ($freshData !== []) {
                     $latestPayloadData = $freshData;
                     $freshSkillIds = array_key_exists('skill_ids', $freshData) ? $freshData['skill_ids'] : null;
                     if (is_array($freshSkillIds)) {
@@ -120,10 +126,12 @@ class AutoCombatRoundJob implements ShouldQueue
             }
 
             // 检查 Redis key 是否仍然存在
-            if (Redis::get($key) !== false) {
+            if (self::hasAutoCombatPayload(Redis::get($key))) {
+                $nextRoundAt = now()->addSeconds(self::ROUND_INTERVAL_SECONDS);
+                $latestPayloadData[self::NEXT_ROUND_AT_KEY] = $nextRoundAt->getTimestamp();
                 self::writePayload($key, $latestPayloadData);
                 // 延迟 3 秒后调度下一个 job（不阻塞 Worker）
-                self::dispatch($this->characterId, [])->delay(now()->addSeconds(3));
+                self::dispatch($this->characterId, [])->delay($nextRoundAt);
             }
         } catch (RuntimeException|InvalidArgumentException $e) {
             $this->broadcastAutoStoppedAndCleanup($character, $e, $key);
@@ -193,6 +201,11 @@ class AutoCombatRoundJob implements ShouldQueue
         return self::AUTO_COMBAT_TTL;
     }
 
+    public static function hasAutoCombatPayload(mixed $payload): bool
+    {
+        return $payload !== null && $payload !== false;
+    }
+
     /**
      * 原子占用自动战斗 Redis key（phpredis 需 EX/NX 五参数形式）
      */
@@ -215,6 +228,30 @@ class AutoCombatRoundJob implements ShouldQueue
     private static function writePayload(string $key, array $payload): void
     {
         Redis::setex($key, self::AUTO_COMBAT_TTL, json_encode($payload));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function decodePayload(mixed $payload): array
+    {
+        if (! is_string($payload)) {
+            return [];
+        }
+
+        $data = json_decode($payload, true);
+
+        return is_array($data) ? $data : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private static function shouldWaitForNextRound(array $payload): bool
+    {
+        $nextRoundAt = $payload[self::NEXT_ROUND_AT_KEY] ?? null;
+
+        return is_numeric($nextRoundAt) && (int) $nextRoundAt > now()->getTimestamp();
     }
 
     private function broadcaster(): GameCombatBroadcaster
