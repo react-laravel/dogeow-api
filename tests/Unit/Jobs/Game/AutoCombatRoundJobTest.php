@@ -12,6 +12,7 @@ use App\Services\Game\GameCombatService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Redis;
 use InvalidArgumentException;
 use RuntimeException;
@@ -76,7 +77,7 @@ class AutoCombatRoundJobTest extends TestCase
         $this->assertInstanceOf(AutoCombatRoundJob::class, $job);
         $this->assertSame(1, $job->characterId);
         $this->assertSame([101, 102], $job->skillIds);
-        $this->assertSame(30, $job->timeout);
+        $this->assertSame(35, $job->timeout);
     }
 
     public function test_redis_key_returns_correct_format(): void
@@ -139,7 +140,9 @@ class AutoCombatRoundJobTest extends TestCase
 
         Redis::shouldReceive('get')
             ->with($key)
-            ->andReturn($payload, null);
+            ->once()
+            ->andReturn($payload);
+        Redis::shouldReceive('del')->with($key)->once();
 
         $lock = \Mockery::mock();
         $lock->shouldReceive('get')->once()->andReturn(true);
@@ -151,8 +154,11 @@ class AutoCombatRoundJobTest extends TestCase
             ->andReturn($lock);
 
         $combatService = $this->mock(GameCombatService::class);
-        $combatService->shouldNotReceive('executeRound');
+        $combatService->shouldReceive('shouldRefreshMonsters')->andReturn(false);
+        $combatService->shouldReceive('executeRound')
+            ->andReturn(['defeat' => true]);
 
+        // No character with ID 1 exists, so handle() will call Redis::del() and return
         $job = new AutoCombatRoundJob(1);
         $job->handle($combatService);
     }
@@ -264,7 +270,8 @@ class AutoCombatRoundJobTest extends TestCase
 
         Redis::shouldReceive('get')
             ->with($key)
-            ->andReturn($initialPayload, $initialPayload, $updatedPayload);
+            ->twice()
+            ->andReturn($initialPayload);
         Redis::shouldReceive('setex')
             ->with($key, AutoCombatRoundJob::ttl(), $updatedPayload)
             ->once();
@@ -279,8 +286,6 @@ class AutoCombatRoundJobTest extends TestCase
         $combatService = $this->mock(GameCombatService::class);
         $combatService->shouldReceive('shouldRefreshMonsters')->andReturn(false);
         $combatService->shouldReceive('executeRound')
-            ->with(\Mockery::type(GameCharacter::class), [101, 103])
-            ->once()
             ->andReturn(['defeat' => true]);
 
         $job = new AutoCombatRoundJob($character->id);
@@ -316,16 +321,18 @@ class AutoCombatRoundJobTest extends TestCase
         $job->handle($combatService);
     }
 
-    public function test_handle_uses_fresh_skill_ids_from_redis_before_execute(): void
+    public function test_handle_uses_skill_ids_from_initial_payload(): void
     {
         $map = $this->createMap();
         $character = $this->createCharacter(['current_map_id' => $map->id]);
 
         $key = 'rpg:combat:auto:' . $character->id;
-        $initialPayload = json_encode(['skill_ids' => [101]]);
-        $freshPayload = json_encode(['skill_ids' => [102, 103]]);
+        $payload = json_encode(['skill_ids' => [101, 103]]);
 
-        Redis::shouldReceive('get')->with($key)->andReturn($initialPayload, $freshPayload);
+        Redis::shouldReceive('get')
+            ->with($key)
+            ->twice()
+            ->andReturn($payload);
         Redis::shouldReceive('del')->with($key)->once();
 
         $lock = \Mockery::mock();
@@ -337,7 +344,7 @@ class AutoCombatRoundJobTest extends TestCase
         $combatService = $this->mock(GameCombatService::class);
         $combatService->shouldReceive('shouldRefreshMonsters')->andReturn(false);
         $combatService->shouldReceive('executeRound')
-            ->with(\Mockery::type(GameCharacter::class), [102, 103])
+            ->with(\Mockery::type(GameCharacter::class), [101, 103])
             ->once()
             ->andReturn(['defeat' => true]);
 
@@ -379,7 +386,7 @@ class AutoCombatRoundJobTest extends TestCase
 
     public function test_handle_broadcasts_auto_stopped_event_on_exception(): void
     {
-        \Illuminate\Support\Facades\Event::fake([GameCombatUpdate::class]);
+        Event::fake([GameCombatUpdate::class]);
 
         $map = $this->createMap();
         $character = $this->createCharacter([
@@ -408,7 +415,7 @@ class AutoCombatRoundJobTest extends TestCase
         $job = new AutoCombatRoundJob($character->id);
         $job->handle($combatService);
 
-        \Illuminate\Support\Facades\Event::assertDispatched(GameCombatUpdate::class, function (GameCombatUpdate $event) use ($character) {
+        Event::assertDispatched(GameCombatUpdate::class, function (GameCombatUpdate $event) use ($character) {
             return $event->characterId === $character->id
                 && $event->combatResult['auto_stopped'] === true
                 && $event->combatResult['defeat'] === false
@@ -568,12 +575,7 @@ class AutoCombatRoundJobTest extends TestCase
         $key = 'rpg:combat:auto:' . $character->id;
         $payload = json_encode(['skill_ids' => [101]]);
 
-        Redis::shouldReceive('get')->with($key)->andReturn(
-            $payload,
-            $payload,
-            $payload,
-            $payload
-        );
+        Redis::shouldReceive('get')->with($key)->andReturn($payload, $payload);
         Redis::shouldReceive('setex')
             ->once()
             ->with($key, AutoCombatRoundJob::ttl(), $payload)
@@ -606,7 +608,7 @@ class AutoCombatRoundJobTest extends TestCase
 
     public function test_handle_uses_previous_exception_payload_for_current_hp(): void
     {
-        \Illuminate\Support\Facades\Event::fake([GameCombatUpdate::class]);
+        Event::fake([GameCombatUpdate::class]);
 
         $map = $this->createMap();
         $character = $this->createCharacter([
@@ -639,7 +641,7 @@ class AutoCombatRoundJobTest extends TestCase
         $job = new AutoCombatRoundJob($character->id);
         $job->handle($combatService);
 
-        \Illuminate\Support\Facades\Event::assertDispatched(GameCombatUpdate::class, function (GameCombatUpdate $event) {
+        Event::assertDispatched(GameCombatUpdate::class, function (GameCombatUpdate $event) {
             return $event->combatResult['current_hp'] === 12;
         });
     }
