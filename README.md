@@ -14,19 +14,18 @@
     - laravel-query-builder
     - laravel-permission
     - laravel-activitylog
-    - laravel-backup
     - laravel-medialibrary
     - Scout
     - intervention/image
 - 服务器
   - PHP 8.4
-  - MySQL 8
+  - PostgreSQL 18
   - Redis 7
   - Nginx
 
 ## 需要的扩展
 
-- php8.2-imagick
+- php[版本]-imagick
 
 ## 部署
 
