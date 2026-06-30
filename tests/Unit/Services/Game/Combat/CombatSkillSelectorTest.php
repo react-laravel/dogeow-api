@@ -138,6 +138,52 @@ class CombatSkillSelectorTest extends TestCase
     }
 
     #[Test]
+    public function resolve_round_skill_keeps_fireball_single_target_even_with_legacy_explosion_passive(): void
+    {
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, [
+            'class' => 'mage',
+            'energy' => 3,
+        ]);
+        $character->combat_monsters = array_fill(0, 5, ['hp' => 100, 'max_hp' => 100]);
+        $character->save();
+
+        $fireball = $this->createSkillDefinition([
+            'name' => '小火球',
+            'class_restriction' => 'mage',
+            'skill_line' => 'mage_fireball',
+            'base_damage' => 16,
+            'mana_cost' => 10,
+            'effect_key' => 'fireball',
+            'target_type' => 'single',
+        ]);
+        $legacyExplosionPassive = $this->createSkillDefinition([
+            'name' => '强化火球术',
+            'type' => 'passive',
+            'class_restriction' => 'mage',
+            'skill_line' => 'mage_fireball',
+            'effect_key' => 'fireball',
+            'effects' => ['explosion_radius_bonus' => 0.3],
+            'target_type' => 'single',
+            'base_damage' => 0,
+            'mana_cost' => 0,
+        ]);
+        $this->attachSkillToCharacter($character, $fireball);
+        $this->attachSkillToCharacter($character, $legacyExplosionPassive);
+
+        $result = $this->selector->resolveRoundSkill(
+            $character,
+            [$fireball->id],
+            currentRound: 1,
+            currentMana: 50,
+            skillCooldowns: []
+        );
+
+        $this->assertFalse($result['is_aoe']);
+        $this->assertSame('single', $result['skills_used_this_round'][0]['target_type']);
+    }
+
+    #[Test]
     public function select_optimal_skill_returns_null_for_empty_input(): void
     {
         // Act

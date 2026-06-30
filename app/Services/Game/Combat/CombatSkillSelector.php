@@ -63,8 +63,7 @@ class CombatSkillSelector
 
             if ($currentMana >= $skill->mana_cost && $cooldownEnd <= $currentRound) {
                 $passiveEffects = $this->getPassiveEffectsForSkill($skill, $passiveSkills);
-                $isAoe = ($skill->target_type ?? 'single') === 'all'
-                    || (($passiveEffects['explosion_radius_bonus'] ?? 0) > 0 && $aliveMonsterCount > 1);
+                $isAoe = ($skill->target_type ?? 'single') === 'all';
                 $damage = (int) ($skill->damage ?? $skill->base_damage ?? 0);
                 if (($passiveEffects['damage_bonus'] ?? 0) > 0) {
                     $damage = (int) round($damage * (1 + (float) $passiveEffects['damage_bonus']));
@@ -225,8 +224,8 @@ class CombatSkillSelector
     }
 
     /**
-     * 已学习的同技能线被动强化会改变主动技能的战斗形态。
-     * 例如“强化火球术”的 explosion_radius_bonus 让火球从单体变成可溅射多目标。
+     * 已学习的同技能线被动强化会改变主动技能数值。
+     * 小火球等单体技能不能因为被动强化变成 AOE；是否群体只由主动技能 target_type 决定。
      */
     private function getPassiveEffectsForSkill(object $activeSkill, $passiveSkills): array
     {

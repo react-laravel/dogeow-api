@@ -4,23 +4,22 @@ use Database\Seeders\Game\Data\Skills\SkillTreeBuilder;
 
 return SkillTreeBuilder::merge(
     SkillTreeBuilder::line('mage', 'basic', 'mage_fireball', 'fireball', '小火球', [
-        'description' => '中耗单体火焰弹，伤害高于冰箭；强化后可转溅射/AOE',
+        'description' => '中耗单体火焰弹，伤害高于冰箭；强化后保持单体爆发定位',
         'base_damage' => 16,
         'mana_cost' => 10,
         'cooldown' => 1,
         'icon_prompt' => 'RPG skill icon, fireball, flaming orb, magic projectile, wizard spell, detailed fantasy icon, square, dark background',
     ], '强化火球术', [
-        'description' => '爆炸范围 +30%',
-        'effects' => ['explosion_radius_bonus' => 0.3],
+        'description' => '单体伤害 +30%',
+        'effects' => ['damage_bonus' => 0.3],
     ], [
-        'name' => '烈焰蔓延',
-        'description' => '爆炸留下 3 秒火池 AOE（持续/群体）',
-        'effects' => ['fire_pool_duration' => 3],
-        'target_type' => 'all',
+        'name' => '灼烧火球',
+        'description' => '命中主目标后附加 3 秒灼烧（单体持续）',
+        'effects' => ['burn_duration' => 3],
     ], [
         'name' => '炽热聚焦',
-        'description' => '单体伤害 +40%，无火池（单体爆发）',
-        'effects' => ['damage_bonus' => 0.4, 'no_fire_pool' => true],
+        'description' => '单体伤害 +40%（单体爆发）',
+        'effects' => ['damage_bonus' => 0.4],
     ]),
     SkillTreeBuilder::line('mage', 'basic', 'mage_ice_arrow', 'ice-arrow', '冰箭', [
         'description' => '低耗单体冰伤，偏续航/控制，伤害低于小火球',
