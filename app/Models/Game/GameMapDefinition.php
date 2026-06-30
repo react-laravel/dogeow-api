@@ -4,9 +4,11 @@ namespace App\Models\Game;
 
 use App\Support\Game\RpgAssetIconNormalizer;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 /**
  * @property array<int, int>|null $monster_ids
@@ -56,30 +58,83 @@ class GameMapDefinition extends Model
 
     /**
      * 获取地图中的怪物列表
-     */
-    /**
-     * 获取地图中的怪物列表
      *
      * @return array<int, GameMonsterDefinition>
      */
     public function getMonsters(): array
     {
-        $ids = $this->monster_ids;
-        if (empty($ids)) {
-            return [];
+        if ($this->relationLoaded('preloadedMonsters')) {
+            /** @var EloquentCollection<int, GameMonsterDefinition> $monsters */
+            $monsters = $this->getRelation('preloadedMonsters');
+
+            return $monsters->all();
         }
 
-        $ids = array_map('intval', array_values($ids));
-        $ids = array_filter($ids, fn ($id) => $id > 0);
-        if (empty($ids)) {
+        $ids = self::normalizeMonsterIds($this->monster_ids);
+        if ($ids === []) {
             return [];
         }
 
         return GameMonsterDefinition::query()
-            ->whereIn('id', array_values(array_unique($ids)))
+            ->whereIn('id', $ids)
             ->where('is_active', true)
             ->get()
             ->all();
+    }
+
+    /**
+     * 批量预加载多张地图的怪物，避免 N+1 查询。
+     *
+     * @param  Collection<int, self>|array<int, self>  $maps
+     */
+    public static function preloadMonsters(Collection|array $maps): void
+    {
+        $maps = collect($maps);
+        if ($maps->isEmpty()) {
+            return;
+        }
+
+        $allIds = $maps
+            ->flatMap(fn (self $map): array => self::normalizeMonsterIds($map->monster_ids))
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($allIds === []) {
+            $maps->each(fn (self $map) => $map->setRelation('preloadedMonsters', new EloquentCollection));
+
+            return;
+        }
+
+        $monstersById = GameMonsterDefinition::query()
+            ->whereIn('id', $allIds)
+            ->where('is_active', true)
+            ->get()
+            ->keyBy('id');
+
+        $maps->each(function (self $map) use ($monstersById): void {
+            $monsters = collect(self::normalizeMonsterIds($map->monster_ids))
+                ->map(fn (int $id): ?GameMonsterDefinition => $monstersById->get($id))
+                ->filter()
+                ->values();
+
+            $map->setRelation('preloadedMonsters', $monsters);
+        });
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private static function normalizeMonsterIds(?array $ids): array
+    {
+        if (empty($ids)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(
+            array_map('intval', array_values($ids)),
+            fn (int $id): bool => $id > 0
+        )));
     }
 
     /**

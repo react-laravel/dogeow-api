@@ -34,6 +34,8 @@ class MapController extends Controller
             ->orderBy('id')
             ->get();
 
+        GameMapDefinition::preloadMonsters($maps);
+
         $mapsWithMonsters = $maps->map(function (GameMapDefinition $map) {
             $arr = $map->toArray();
             $arr['monsters'] = array_values(array_map(

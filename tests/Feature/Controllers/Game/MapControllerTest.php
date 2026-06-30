@@ -9,6 +9,7 @@ use App\Models\Game\GameMapDefinition;
 use App\Models\Game\GameMonsterDefinition;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Redis;
 use Tests\TestCase;
@@ -73,12 +74,25 @@ class MapControllerTest extends TestCase
     {
         $user = User::factory()->create();
         $character = $this->createCharacter($user);
-        $this->createMapDefinition();
+        $wolf = $this->createMonsterDefinition(['name' => 'Wolf']);
+        $goblin = $this->createMonsterDefinition(['name' => 'Goblin']);
+        $this->createMapDefinition(['monster_ids' => [$wolf->id]]);
+        $this->createMapDefinition(['name' => 'Cave', 'monster_ids' => [$goblin->id]]);
+
+        DB::enableQueryLog();
 
         $response = $this->actingAs($user)
             ->getJson('/api/rpg/maps?character_id=' . $character->id);
 
-        $response->assertStatus(200);
+        $monsterQueries = collect(DB::getQueryLog())
+            ->filter(fn (array $query): bool => str_contains($query['query'], 'game_monster_definitions'))
+            ->count();
+
+        $response->assertStatus(200)
+            ->assertJsonCount(2, 'data.maps')
+            ->assertJsonPath('data.maps.0.monsters.0.id', $wolf->id)
+            ->assertJsonPath('data.maps.1.monsters.0.id', $goblin->id);
+        $this->assertSame(1, $monsterQueries);
     }
 
     public function test_can_enter_map(): void

@@ -6,6 +6,7 @@ use App\Models\Game\GameMapDefinition;
 use App\Models\Game\GameMonsterDefinition;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class GameMapDefinitionTest extends TestCase
@@ -126,5 +127,58 @@ class GameMapDefinitionTest extends TestCase
 
         $this->assertCount(1, $monsters);
         $this->assertSame($activeMonster->id, $monsters[0]->id);
+    }
+
+    public function test_preload_monsters_batches_queries_for_multiple_maps(): void
+    {
+        $wolf = GameMonsterDefinition::create([
+            'name' => 'Wolf',
+            'type' => 'normal',
+            'level' => 3,
+            'hp_base' => 30,
+            'attack_base' => 8,
+            'defense_base' => 2,
+            'experience_base' => 5,
+            'is_active' => true,
+        ]);
+        $goblin = GameMonsterDefinition::create([
+            'name' => 'Goblin',
+            'type' => 'normal',
+            'level' => 4,
+            'hp_base' => 40,
+            'attack_base' => 9,
+            'defense_base' => 3,
+            'experience_base' => 6,
+            'is_active' => true,
+        ]);
+
+        $forest = GameMapDefinition::create([
+            'name' => 'Forest',
+            'act' => 1,
+            'monster_ids' => [$wolf->id],
+            'is_active' => true,
+        ]);
+        $cave = GameMapDefinition::create([
+            'name' => 'Cave',
+            'act' => 1,
+            'monster_ids' => [$goblin->id, $wolf->id],
+            'is_active' => true,
+        ]);
+
+        DB::enableQueryLog();
+
+        GameMapDefinition::preloadMonsters(collect([$forest, $cave]));
+        $forestMonsters = $forest->getMonsters();
+        $caveMonsters = $cave->getMonsters();
+
+        $monsterQueries = collect(DB::getQueryLog())
+            ->filter(fn (array $query): bool => str_contains($query['query'], 'game_monster_definitions'))
+            ->count();
+
+        $this->assertSame(1, $monsterQueries);
+        $this->assertCount(1, $forestMonsters);
+        $this->assertSame($wolf->id, $forestMonsters[0]->id);
+        $this->assertCount(2, $caveMonsters);
+        $this->assertSame([$goblin->id, $wolf->id], array_map(fn ($monster) => $monster->id, $caveMonsters));
     }
 }
