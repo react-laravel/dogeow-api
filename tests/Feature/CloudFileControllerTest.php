@@ -602,14 +602,14 @@ class CloudFileControllerTest extends TestCase
             'path' => 'cloud/previews/bounded.txt',
             'mime_type' => 'text/plain',
         ]);
-        // 文件未超过总大小上限，但内容会被读取上限截断
+        // 超过预览大小上限时不再内联读取，改为提示下载
         Storage::disk('public')->put($file->path, str_repeat('a', 600 * 1024));
 
         $response = $this->getJson("/api/cloud/files/{$file->id}/preview");
 
         $response->assertStatus(200)
-            ->assertJsonPath('type', 'text');
-        $this->assertLessThanOrEqual(512 * 1024, strlen((string) $response->json('content')));
+            ->assertJsonPath('type', 'document');
+        $this->assertNull($response->json('content'));
     }
 
     public function test_preview_rejects_oversized_text_file(): void

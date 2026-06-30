@@ -754,7 +754,7 @@ class NoteControllerTest extends TestCase
             ->assertJsonPath('data.is_wiki', true);
     }
 
-    public function test_update_allows_modifying_other_users_wiki_note(): void
+    public function test_update_rejects_modifying_other_users_wiki_note(): void
     {
         $wikiNote = Note::factory()->create([
             'user_id' => User::factory()->create()->id,
@@ -769,9 +769,8 @@ class NoteControllerTest extends TestCase
             'content' => 'Updated shared wiki',
         ]);
 
-        $response->assertStatus(200)
-            ->assertJsonPath('data.content', 'Updated shared wiki')
-            ->assertJsonPath('data.content_markdown', 'Updated shared wiki');
+        $response->assertStatus(403);
+        $this->assertSame('Old content', $wikiNote->fresh()->content);
     }
 
     public function test_store_link_creates_new_link(): void
