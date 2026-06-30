@@ -1,13 +1,13 @@
 <laravel-boost-guidelines>
 === foundation rules ===
 
-# Laravel Boost Guidelines
+# Laravel Boost 指导原则
 
-The Laravel Boost guidelines are specifically curated by Laravel maintainers for this application. These guidelines should be followed closely to ensure the best experience when building Laravel applications.
+Laravel Boost 指导原则由 Laravel 维护者根据本应用专门定制，应严格遵循以确保获得最佳的 Laravel 开发体验。
 
-## Foundational Context
+## 基础上下文
 
-This application is a Laravel application and its main Laravel ecosystems package & versions are below. You are an expert with them all. Ensure you abide by these specific packages & versions.
+本应用是一个 Laravel 应用，其主要 Laravel 生态包和版本如下。你是所有相关包的专家，必须遵守这些特定包和版本。
 
 - php - 8.4
 - laravel/framework (LARAVEL) - v13
@@ -26,101 +26,100 @@ This application is a Laravel application and its main Laravel ecosystems packag
 - laravel-echo (ECHO) - v2
 - tailwindcss (TAILWINDCSS) - v4
 
-## Skills Activation
+## 技能激活
 
-This project has domain-specific skills available. You MUST activate the relevant skill whenever you work in that domain—don't wait until you're stuck.
+本项目有领域特定的技能可用。每当你在某个领域工作时，必须激活相关技能——不要等到遇到困难才用。
 
-- `tailwindcss-development` — Always invoke when the user's message includes 'tailwind' in any form. Also invoke for: building responsive grid layouts (multi-column card grids, product grids), flex/grid page structures (dashboards with sidebars, fixed topbars, mobile-toggle navs), styling UI components (cards, tables, navbars, pricing sections, forms, inputs, badges), adding dark mode variants, fixing spacing or typography, and Tailwind v3/v4 work. The core use case: writing or fixing Tailwind utility classes in HTML templates (Blade, JSX, Vue). Skip for backend PHP logic, database queries, API routes, JavaScript with no HTML/CSS component, CSS file audits, build tool configuration, and vanilla CSS.
+- `tailwindcss-development` — 当用户消息中包含任何形式的 'tailwind' 时始终调用。也适用于以下场景：构建响应式网格布局（多列卡片网格、产品网格）、flex/grid 页面结构（带侧边栏的仪表板、固定顶栏、移动端切换导航）、样式化 UI 组件（卡片、表格、导航栏、定价区域、表单、输入框、徽章）、添加深色模式变体、修复间距或排版问题，以及 Tailwind v3/v4 相关工作。核心用例：在 HTML 模板（Blade、JSX、Vue）中编写或修复 Tailwind 工具类。以下情况跳过：后端 PHP 逻辑、数据库查询、API 路由、不含 HTML/CSS 组件的 JavaScript、CSS 文件审计、构建工具配置、原生 CSS。
 
-## Conventions
+## 约定
 
-- You must follow all existing code conventions used in this application. When creating or editing a file, check sibling files for the correct structure, approach, and naming.
-- Use descriptive names for variables and methods. For example, `isRegisteredForDiscounts`, not `discount()`.
-- Check for existing components to reuse before writing a new one.
+- 必须遵循本应用使用的所有现有代码约定。创建或编辑文件时，查看同级文件以获取正确的结构、方法和命名。
+- 使用描述性的变量和方法名。例如，使用 `isRegisteredForDiscounts`，而不是 `discount()`。
+- 在编写新组件之前，先检查是否有可复用的现有组件。
 
-## Verification Scripts
+## 验证脚本
 
-- Do not create verification scripts or tinker when tests cover that functionality and prove they work. Unit and feature tests are more important.
+- 当测试已覆盖某项功能并证明其正常工作时，不要创建验证脚本或 tinker。单元测试和功能测试更为重要。
 
-## Application Structure & Architecture
+## 应用结构与架构
 
-- Stick to existing directory structure; don't create new base folders without approval.
-- Do not change the application's dependencies without approval.
+- 遵循现有目录结构；未经批准不要创建新的基础文件夹。
+- 未经批准不要更改应用的依赖项。
 
-## Frontend Bundling
+## 前端打包
 
-- If the user doesn't see a frontend change reflected in the UI, it could mean they need to run `npm run build`, `npm run dev`, or `composer run dev`. Ask them.
+- 如果用户在 UI 中看不到前端变更，可能需要运行 `npm run build`、`npm run dev` 或 `composer run dev`。请询问用户。
 
-## Documentation Files
+## 文档文件
 
-- You must only create documentation files if explicitly requested by the user.
+- 只有在用户明确要求时，才能创建文档文件。
 
-## Replies
+## 回复
 
-- Be concise in your explanations - focus on what's important rather than explaining obvious details.
+- 保持解释简洁 — 专注于重要内容而非解释显而易见的细节。
 
 === boost rules ===
 
 # Laravel Boost
 
-- Laravel Boost is an MCP server that comes with powerful tools designed specifically for this application. Use them.
+- Laravel Boost 是一个 MCP 服务器，配备了专为本应用设计的强大工具。请使用它们。
 
-## Artisan Commands
+## Artisan 命令
 
-- Run Artisan commands directly via the command line (e.g., `php artisan route:list`, `php artisan tinker --execute "..."`).
-- Use `php artisan list` to discover available commands and `php artisan [command] --help` to check parameters.
+- 直接通过命令行运行 Artisan 命令（例如 `php artisan route:list`、`php artisan tinker --execute "..."`）。
+- 使用 `php artisan list` 发现可用命令，使用 `php artisan [command] --help` 检查参数。
 
-## URLs
+## URL
 
-- Whenever you share a project URL with the user, you should use the `get-absolute-url` tool to ensure you're using the correct scheme, domain/IP, and port.
+- 与用户分享项目 URL 时，应使用 `get-absolute-url` 工具以确保使用正确的 scheme、域名/IP 和端口。
 
-## Debugging
+## 调试
 
-- Use the `database-query` tool when you only need to read from the database.
-- Use the `database-schema` tool to inspect table structure before writing migrations or models.
-- To execute PHP code for debugging, run `php artisan tinker --execute "your code here"` directly.
-- To read configuration values, read the config files directly or run `php artisan config:show [key]`.
-- To inspect routes, run `php artisan route:list` directly.
-- To check environment variables, read the `.env` file directly.
+- 当只需要从数据库读取时，使用 `database-query` 工具。
+- 在编写迁移或模型之前，使用 `database-schema` 工具检查表结构。
+- 要执行 PHP 代码进行调试，直接运行 `php artisan tinker --execute "your code here"`。
+- 要读取配置值，直接读取配置文件或运行 `php artisan config:show [key]`。
+- 要检查路由，直接运行 `php artisan route:list`。
+- 要检查环境变量，直接读取 `.env` 文件。
 
-## Reading Browser Logs With the `browser-logs` Tool
+## 使用 `browser-logs` 工具读取浏览器日志
 
-- You can read browser logs, errors, and exceptions using the `browser-logs` tool from Boost.
-- Only recent browser logs will be useful - ignore old logs.
+- 可以使用 Boost 的 `browser-logs` 工具读取浏览器日志、错误和异常。
+- 只有最近的浏览器日志才有用 — 忽略旧日志。
 
-## Searching Documentation (Critically Important)
+## 搜索文档（非常重要）
 
-- Boost comes with a powerful `search-docs` tool you should use before trying other approaches when working with Laravel or Laravel ecosystem packages. This tool automatically passes a list of installed packages and their versions to the remote Boost API, so it returns only version-specific documentation for the user's circumstance. You should pass an array of packages to filter on if you know you need docs for particular packages.
-- Search the documentation before making code changes to ensure we are taking the correct approach.
-- Use multiple, broad, simple, topic-based queries at once. For example: `['rate limiting', 'routing rate limiting', 'routing']`. The most relevant results will be returned first.
-- Do not add package names to queries; package information is already shared. For example, use `test resource table`, not `filament 4 test resource table`.
+- Boost 配备了一个强大的 `search-docs` 工具，在处理 Laravel 或 Laravel 生态包时应在尝试其他方法之前使用。该工具会自动将已安装包及其版本列表传递给远程 Boost API，因此只返回与用户环境相关的版本特定文档。如果你知道需要特定包的文档，应传递一个包数组进行过滤。
+- 在修改代码之前搜索文档，以确保我们采取正确的方法。
+- 一次使用多个宽泛、简单的基于主题的查询。例如：`['rate limiting', 'routing rate limiting', 'routing']`。最相关的结果会优先返回。
+- 不要将包名添加到查询中；包信息已经共享。例如，使用 `test resource table`，而不是 `filament 4 test resource table`。
 
-### Available Search Syntax
+### 可用搜索语法
 
-1. Simple Word Searches with auto-stemming - query=authentication - finds 'authenticate' and 'auth'.
-2. Multiple Words (AND Logic) - query=rate limit - finds knowledge containing both "rate" AND "limit".
-3. Quoted Phrases (Exact Position) - query="infinite scroll" - words must be adjacent and in that order.
-4. Mixed Queries - query=middleware "rate limit" - "middleware" AND exact phrase "rate limit".
-5. Multiple Queries - queries=["authentication", "middleware"] - ANY of these terms.
+1. 带自动词干提取的简单单词搜索 - query=authentication - 找到 'authenticate' 和 'auth'。
+2. 多个单词（AND 逻辑）- query=rate limit - 找到包含 "rate" 和 "limit" 的知识。
+3. 带引号的短语（精确位置）- query="infinite scroll" - 单词必须相邻且顺序一致。
+4. 混合查询 - query=middleware "rate limit" - "middleware" 和精确短语 "rate limit"。
+5. 多个查询 - queries=["authentication", "middleware"] - 以上任意一个。
 
 === php rules ===
 
 # PHP
 
-- Always use curly braces for control structures, even for single-line bodies.
+- 控制结构始终使用花括号，即使是单行主体。
 
-## Constructors
+## 构造器
 
-- Use PHP 8 constructor property promotion in `__construct()`.
+- 在 `__construct()` 中使用 PHP 8 构造器属性提升。
     - `public function __construct(public GitHub $github) { }`
-- Do not allow empty `__construct()` methods with zero parameters unless the constructor is private.
+- 不允许零参数的空 `__construct()` 方法，除非构造器是私有的。
 
-## Type Declarations
+## 类型声明
 
-- Always use explicit return type declarations for methods and functions.
-- Use appropriate PHP type hints for method parameters.
+- 方法和函数始终使用显式返回类型声明。
+- 对方法参数使用适当的 PHP 类型提示。
 
-<!-- Explicit Return Types and Method Params -->
 ```php
 protected function isAccessible(User $user, ?string $path = null): bool
 {
@@ -128,128 +127,128 @@ protected function isAccessible(User $user, ?string $path = null): bool
 }
 ```
 
-## Enums
+## 枚举
 
-- Typically, keys in an Enum should be TitleCase. For example: `FavoritePerson`, `BestLake`, `Monthly`.
+- 枚举中的键通常应使用 TitleCase。例如：`FavoritePerson`、`BestLake`、`Monthly`。
 
-## Comments
+## 注释
 
-- Prefer PHPDoc blocks over inline comments. Never use comments within the code itself unless the logic is exceptionally complex.
+- 优先使用 PHPDoc 块而非行内注释。除非逻辑异常复杂，否则不要在代码内部使用注释。
 
-## PHPDoc Blocks
+## PHPDoc 块
 
-- Add useful array shape type definitions when appropriate.
+- 在适当时添加有用的数组形状类型定义。
 
 === tests rules ===
 
-# Test Enforcement
+# 测试执行
 
-- Every change must be programmatically tested. Write a new test or update an existing test, then run the affected tests to make sure they pass.
-- Run the minimum number of tests needed to ensure code quality and speed. Use `php artisan test --compact` with a specific filename or filter.
+- 每次变更都必须进行程序化测试。编写新测试或更新现有测试，然后运行受影响的测试以确保它们通过。
+- 运行确保代码质量和速度所需的最少测试。使用 `php artisan test --compact` 并指定特定文件名或过滤器。
 
 === laravel/core rules ===
 
-# Do Things the Laravel Way
+# 按 Laravel 的方式做事
 
-- Use `php artisan make:` commands to create new files (i.e. migrations, controllers, models, etc.). You can list available Artisan commands using `php artisan list` and check their parameters with `php artisan [command] --help`.
-- If you're creating a generic PHP class, use `php artisan make:class`.
-- Pass `--no-interaction` to all Artisan commands to ensure they work without user input. You should also pass the correct `--options` to ensure correct behavior.
+- 使用 `php artisan make:` 命令创建新文件（即迁移、控制器、模型等）。可以使用 `php artisan list` 列出可用 Artisan 命令，使用 `php artisan [command] --help` 检查参数。
+- 如果正在创建通用的 PHP 类，使用 `php artisan make:class`。
+- 向所有 Artisan 命令传递 `--no-interaction` 以确保它们无需用户输入即可工作。还应传递正确的 `--options` 以确保正确行为。
 
-## Database
+## 数据库
 
-- Always use proper Eloquent relationship methods with return type hints. Prefer relationship methods over raw queries or manual joins.
-- Use Eloquent models and relationships before suggesting raw database queries.
-- Avoid `DB::`; prefer `Model::query()`. Generate code that leverages Laravel's ORM capabilities rather than bypassing them.
-- Generate code that prevents N+1 query problems by using eager loading.
-- Use Laravel's query builder for very complex database operations.
+- 始终使用带返回类型提示的正确 Eloquent 关联方法。优先使用关联方法而非原生查询或手动连接。
+- 在建议原生数据库查询之前，先使用 Eloquent 模型和关联。
+- 避免使用 `DB::`；优先使用 `Model::query()`。生成利用 Laravel ORM 功能的代码，而非绕过它。
+- 通过使用预加载来防止 N+1 查询问题的代码生成。
+- 对非常复杂的数据库操作使用 Laravel 查询构建器。
 
-### Model Creation
+### 模型创建
 
-- When creating new models, create useful factories and seeders for them too. Ask the user if they need any other things, using `php artisan make:model --help` to check the available options.
+- 创建新模型时，同时创建有用的工厂和播种器。询问用户是否需要其他东西，使用 `php artisan make:model --help` 检查可用选项。
 
-### APIs & Eloquent Resources
+### API 和 Eloquent Resources
 
-- For APIs, default to using Eloquent API Resources and API versioning unless existing API routes do not, then you should follow existing application convention.
+- 对于 API，默认使用 Eloquent API Resources 和 API 版本控制，除非现有 API 路由不使用，否则应遵循现有应用约定。
 
-## Controllers & Validation
+## 控制器和校验
 
-- Always create Form Request classes for validation rather than inline validation in controllers. Include both validation rules and custom error messages.
-- Check sibling Form Requests to see if the application uses array or string based validation rules.
+- 始终创建 Form Request 类进行校验，而不是在控制器内联校验。同时包含校验规则和自定义错误消息。
+- 查看同级 Form Request 以了解应用使用数组还是字符串形式的校验规则。
 
-## Authentication & Authorization
+## 认证和授权
 
-- Use Laravel's built-in authentication and authorization features (gates, policies, Sanctum, etc.).
+- 使用 Laravel 内置的认证和授权功能（gates、policies、Sanctum 等）。
 
-## URL Generation
+## URL 生成
 
-- When generating links to other pages, prefer named routes and the `route()` function.
+- 生成到其他页面的链接时，优先使用命名路由和 `route()` 函数。
 
-## Queues
+## 队列
 
-- Use queued jobs for time-consuming operations with the `ShouldQueue` interface.
+- 对耗时的操作使用带 `ShouldQueue` 接口的排队任务。
 
-## Configuration
+## 配置
 
-- Use environment variables only in configuration files - never use the `env()` function directly outside of config files. Always use `config('app.name')`, not `env('APP_NAME')`.
+- 环境变量只能在配置文件中使用 — 不要在配置文件之外直接使用 `env()` 函数。始终使用 `config('app.name')`，而不是 `env('APP_NAME')`。
 
-## Testing
+## 测试
 
-- When creating models for tests, use the factories for the models. Check if the factory has custom states that can be used before manually setting up the model.
-- Faker: Use methods such as `$this->faker->word()` or `fake()->randomDigit()`. Follow existing conventions whether to use `$this->faker` or `fake()`.
-- When creating tests, make use of `php artisan make:test [options] {name}` to create a feature test, and pass `--unit` to create a unit test. Most tests should be feature tests.
+- 为测试创建模型时，使用模型的工厂。在手动设置模型之前，检查工厂是否有可用的自定义状态。
+- Faker：使用方法如 `$this->faker->word()` 或 `fake()->randomDigit()`。遵循现有约定使用 `$this->faker` 还是 `fake()`。
+- 创建测试时，使用 `php artisan make:test [options] {name}` 创建功能测试，并传递 `--unit` 创建单元测试。大多数测试应该是功能测试。
 
-## Vite Error
+## Vite 错误
 
-- If you receive an "Illuminate\Foundation\ViteException: Unable to locate file in Vite manifest" error, you can run `npm run build` or ask the user to run `npm run dev` or `composer run dev`.
+- 如果收到 "Illuminate\Foundation\ViteException: Unable to locate file in Vite manifest" 错误，可以运行 `npm run build` 或要求用户运行 `npm run dev` 或 `composer run dev`。
 
 === laravel/v13 rules ===
 
-# Laravel 13 is the latest version of Laravel, but this project is currently on Laravel 13. Be sure to check the version-specific documentation when working on this project, and use the `search-docs` tool to ensure you're referencing the correct version.
+# Laravel 13 是 Laravel 的最新版本，本项目当前使用 Laravel 13。在处理本项目时务必检查版本特定的文档，并使用 `search-docs` 工具确保引用正确的版本。
 
-- CRITICAL: ALWAYS use `search-docs` tool for version-specific Laravel documentation and updated code examples.
-- Since Laravel 11, Laravel has a new streamlined file structure which this project uses.
+- 关键：始终使用 `search-docs` 工具获取版本特定的 Laravel 文档和更新后的代码示例。
+- 自 Laravel 11 起，Laravel 采用了新的精简文件结构，本项目使用该结构。
 
-## Laravel 13 Structure
+## Laravel 13 结构
 
-- In Laravel 13, middleware are no longer registered in `app/Http/Kernel.php`.
-- Middleware are configured declaratively in `bootstrap/app.php` using `Application::configure()->withMiddleware()`.
-- `bootstrap/app.php` is the file to register middleware, exceptions, and routing files.
-- `bootstrap/providers.php` contains application specific service providers.
-- The `app/Console/Kernel.php` file no longer exists; use `bootstrap/app.php` or `routes/console.php` for console configuration.
-- Console commands in `app/Console/Commands/` are automatically available and do not require manual registration.
+- 在 Laravel 13 中，中间件不再在 `app/Http/Kernel.php` 中注册。
+- 中间件在 `bootstrap/app.php` 中使用 `Application::configure()->withMiddleware()` 进行声明式配置。
+- `bootstrap/app.php` 是注册中间件、异常和路由文件的文件。
+- `bootstrap/providers.php` 包含应用特定的服务提供者。
+- `app/Console/Kernel.php` 文件不再存在；使用 `bootstrap/app.php` 或 `routes/console.php` 进行控制台配置。
+- `app/Console/Commands/` 中的控制台命令自动可用，无需手动注册。
 
-## Database
+## 数据库
 
-- When modifying a column, the migration must include all of the attributes that were previously defined on the column. Otherwise, they will be dropped and lost.
-- Laravel 13 allows limiting eagerly loaded records natively, without external packages: `$query->latest()->limit(10);`.
+- 修改列时，迁移必须包含该列之前定义的所有属性。否则，它们将被删除并丢失。
+- Laravel 13 允许原生限制预加载的记录，无需外部包：`$query->latest()->limit(10);`。
 
-### Models
+### 模型
 
-- Casts can and likely should be set in a `casts()` method on a model rather than the `$casts` property. Follow existing conventions from other models.
+- 类型转换可以在模型的 `casts()` 方法中设置，而不是在 `$casts` 属性中设置。遵循其他模型的现有约定。
 
 === pint/core rules ===
 
-# Laravel Pint Code Formatter
+# Laravel Pint 代码格式化程序
 
-- If you have modified any PHP files, you must run `vendor/bin/pint --dirty --format agent` before finalizing changes to ensure your code matches the project's expected style.
-- Do not run `vendor/bin/pint --test --format agent`, simply run `vendor/bin/pint --format agent` to fix any formatting issues.
+- 如果修改了任何 PHP 文件，必须在最终确定更改之前运行 `vendor/bin/pint --dirty --format agent`，以确保代码匹配项目的预期样式。
+- 不要运行 `vendor/bin/pint --test --format agent`，只需运行 `vendor/bin/pint --format agent` 来修复任何格式问题。
 
 === phpunit/core rules ===
 
 # PHPUnit
 
-- This application uses PHPUnit for testing. All tests must be written as PHPUnit classes. Use `php artisan make:test --phpunit {name}` to create a new test.
-- If you see a test using "Pest", convert it to PHPUnit.
-- Every time a test has been updated, run that singular test.
-- When the tests relating to your feature are passing, ask the user if they would like to also run the entire test suite to make sure everything is still passing.
-- Tests should cover all happy paths, failure paths, and edge cases.
-- You must not remove any tests or test files from the tests directory without approval. These are not temporary or helper files; these are core to the application.
+- 本应用使用 PHPUnit 进行测试。所有测试必须编写为 PHPUnit 类。使用 `php artisan make:test --phpunit {name}` 创建新测试。
+- 如果看到使用 "Pest" 的测试，转换为 PHPUnit。
+- 每次更新测试时，运行该单个测试。
+- 当相关功能的测试通过时，询问用户是否愿意运行整个测试套件以确保一切仍然正常。
+- 测试应涵盖所有 happy paths、failure paths 和 edge cases。
+- 未经批准，不得从 tests 目录中删除任何测试或测试文件。这些不是临时或辅助文件；它们是应用的核心。
 
-## Running Tests
+## 运行测试
 
-- Run the minimal number of tests, using an appropriate filter, before finalizing.
-- To run all tests: `php artisan test --compact`.
-- To run all tests in a file: `php artisan test --compact tests/Feature/ExampleTest.php`.
-- To filter on a particular test name: `php artisan test --compact --filter=testName` (recommended after making a change to a related file).
+- 在最终确定之前，使用适当的过滤器运行最少数量的测试。
+- 运行所有测试：`php artisan test --compact`。
+- 运行文件中的所有测试：`php artisan test --compact tests/Feature/ExampleTest.php`。
+- 过滤特定测试名称：`php artisan test --compact --filter=testName`（修改相关文件后推荐使用）。
 
 </laravel-boost-guidelines>
