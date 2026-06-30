@@ -1,5 +1,7 @@
 <?php
 
+use NotificationChannels\WebPush\PushSubscription;
+
 return [
     'vapid' => [
         'subject' => env('VAPID_SUBJECT'),
@@ -8,7 +10,7 @@ return [
         'pem_file' => env('VAPID_PEM_FILE'),
     ],
 
-    'model' => \NotificationChannels\WebPush\PushSubscription::class,
+    'model' => PushSubscription::class,
     'table_name' => env('WEBPUSH_DB_TABLE', 'push_subscriptions'),
     'database_connection' => env('WEBPUSH_DB_CONNECTION', env('DB_CONNECTION', 'mysql')),
 
