@@ -155,8 +155,8 @@ class CombatSkillSelector
             }
         }
 
-        // 策略 2: 单目标且残血时才省蓝，不要在多怪场景因为“总血量低”一直选冰箭。
-        if ($aliveMonsterCount <= 1 && $totalMonsterHp <= $charAttack * 2) {
+        // 策略 2: 总血量很低时省蓝，避免在有零耗技能时浪费。
+        if ($totalMonsterHp <= $charAttack * 2) {
             usort($availableSkills, function (array $firstSkill, array $secondSkill) use ($totalMonsterHp) {
                 if ($firstSkill['mana_cost'] === 0 && $secondSkill['mana_cost'] > 0) {
                     return -1;

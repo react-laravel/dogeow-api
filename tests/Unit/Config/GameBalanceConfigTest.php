@@ -58,7 +58,7 @@ class GameBalanceConfigTest extends TestCase
         );
 
         $this->assertSame('小火球', $fireball['name'] ?? null);
-        $this->assertSame(2, $fireball['base_damage'] ?? null);
-        $this->assertSame(8, $fireball['mana_cost'] ?? null);
+        $this->assertSame(16, $fireball['base_damage'] ?? null);
+        $this->assertSame(10, $fireball['mana_cost'] ?? null);
     }
 }
