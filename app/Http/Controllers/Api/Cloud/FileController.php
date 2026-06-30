@@ -5,16 +5,70 @@ namespace App\Http\Controllers\Api\Cloud;
 use App\Http\Controllers\Concerns\GetCurrentUserId;
 use App\Http\Controllers\Controller;
 use App\Models\Cloud\File;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 class FileController extends Controller
 {
     use GetCurrentUserId;
+
+    /**
+     * 文本预览允许读取的最大字节数（512KB）。
+     * 上传上限为 100MB，但预览必须独立设限，避免大文件拖垮 worker。
+     */
+    private const MAX_TEXT_PREVIEW_BYTES = 512 * 1024;
+
+    /**
+     * 私有云盘磁盘名。新上传的文件写入此处，不可经 /storage 公开访问。
+     */
+    private const CLOUD_DISK = 'cloud';
+
+    /**
+     * 签名访问 URL 的有效期（分钟）。
+     */
+    private const SIGNED_URL_TTL_MINUTES = 60;
+
+    /**
+     * 允许以 inline 方式在浏览器内联展示的扩展名。
+     * 其余类型（含可携带脚本的 svg/html 等）一律强制下载，避免同源执行。
+     */
+    private const INLINE_PREVIEW_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'pdf'];
+
+    /**
+     * 解析文件实际所在磁盘：新文件在私有 cloud 盘，
+     * 历史文件可能仍在 public 盘，做向后兼容回退。
+     */
+    private function resolveDisk(File $file): string
+    {
+        if (Storage::disk(self::CLOUD_DISK)->exists($file->path)) {
+            return self::CLOUD_DISK;
+        }
+
+        if (Storage::disk('public')->exists($file->path)) {
+            return 'public';
+        }
+
+        return self::CLOUD_DISK;
+    }
+
+    /**
+     * 为文件生成短期签名访问 URL（仅在所有者已通过鉴权时调用）。
+     * 该 URL 指向认证控制器路由，签名防伪造/枚举，并有过期时间。
+     */
+    private function signedRawUrl(File $file): string
+    {
+        return URL::temporarySignedRoute(
+            'cloud.files.raw',
+            now()->addMinutes(self::SIGNED_URL_TTL_MINUTES),
+            ['id' => $file->id]
+        );
+    }
 
     /**
      * 获取所有文件列表
@@ -103,11 +157,11 @@ class FileController extends Controller
 
         Log::info("存储路径: {$path}");
 
-        // 保存文件 - 使用 stream 方式避免大文件内存问题
-        Storage::disk('public')->writeStream($path, fopen($uploadedFile->getRealPath(), 'r'));
+        // 保存文件到私有 cloud 盘 - 使用 stream 方式避免大文件内存问题
+        Storage::disk(self::CLOUD_DISK)->writeStream($path, fopen($uploadedFile->getRealPath(), 'r'));
 
         // 检查文件是否已保存
-        if (! Storage::disk('public')->exists($path)) {
+        if (! Storage::disk(self::CLOUD_DISK)->exists($path)) {
             Log::error("文件保存失败: {$path}");
 
             return response()->json(['error' => '文件保存失败'], 500);
@@ -147,11 +201,58 @@ class FileController extends Controller
             return response()->json(['error' => '不能下载文件夹'], 400);
         }
 
-        if (! Storage::disk('public')->exists($file->path)) {
+        $disk = $this->resolveDisk($file);
+
+        /** @var FilesystemAdapter $fs */
+        $fs = Storage::disk($disk);
+
+        if (! $fs->exists($file->path)) {
             return response()->json(['error' => '文件不存在'], 404);
         }
 
-        return response()->download(storage_path('app/public/' . $file->path), $file->original_name);
+        return $fs->download($file->path, $file->original_name, [
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    /**
+     * 通过短期签名 URL 流式提供文件内容。
+     *
+     * 该路由位于 auth:sanctum 之外（以便 <img>/<iframe> 直接加载），
+     * 由 signed 中间件校验签名；URL 仅在所有者鉴权后才会被生成。
+     * 所有响应附带 nosniff，非内联类型强制 attachment 下载。
+     */
+    public function raw($id, Request $request): Response
+    {
+        $file = File::findOrFail($id);
+
+        if ($file->is_folder) {
+            return response()->json(['error' => '不能预览文件夹'], 400);
+        }
+
+        $disk = $this->resolveDisk($file);
+
+        /** @var FilesystemAdapter $fs */
+        $fs = Storage::disk($disk);
+
+        if (! $fs->exists($file->path)) {
+            return response()->json(['error' => '文件不存在'], 404);
+        }
+
+        $extension = strtolower((string) $file->extension);
+        $disposition = in_array($extension, self::INLINE_PREVIEW_EXTENSIONS, true)
+            ? 'inline'
+            : 'attachment';
+
+        return $fs->response(
+            $file->path,
+            $file->original_name,
+            [
+                'Content-Type' => $file->mime_type ?: 'application/octet-stream',
+                'X-Content-Type-Options' => 'nosniff',
+            ],
+            $disposition
+        );
     }
 
     /**
@@ -167,10 +268,8 @@ class FileController extends Controller
         if ($file->is_folder) {
             $this->deleteFolderIteratively($file);
         } else {
-            // 删除存储的文件
-            if (Storage::disk('public')->exists($file->path)) {
-                Storage::disk('public')->delete($file->path);
-            }
+            // 删除存储的文件（兼容历史 public 盘文件）
+            $this->deleteStoredFile($file);
 
             // 删除数据库记录
             $file->delete();
@@ -202,9 +301,7 @@ class FileController extends Controller
                     $folderIds[] = $child->id;
                 } else {
                     // 删除子文件
-                    if (Storage::disk('public')->exists($child->path)) {
-                        Storage::disk('public')->delete($child->path);
-                    }
+                    $this->deleteStoredFile($child);
                     $child->delete();
                 }
             }
@@ -234,10 +331,23 @@ class FileController extends Controller
         $data = $file->toArray();
 
         if (! $file->is_folder && isset($data['path'])) {
-            $data['path'] = url('storage/' . $file->path);
+            // 不再暴露 /storage 公开路径，改为短期签名访问 URL
+            $data['path'] = $this->signedRawUrl($file);
         }
 
         return $data;
+    }
+
+    /**
+     * 删除文件实际占用的存储（兼容历史 public 盘）。
+     */
+    private function deleteStoredFile(File $file): void
+    {
+        foreach ([self::CLOUD_DISK, 'public'] as $disk) {
+            if (Storage::disk($disk)->exists($file->path)) {
+                Storage::disk($disk)->delete($file->path);
+            }
+        }
     }
 
     /**
@@ -361,7 +471,9 @@ class FileController extends Controller
             return response()->json(['error' => '不能预览文件夹'], 400);
         }
 
-        if (! Storage::disk('public')->exists($file->path)) {
+        $disk = $this->resolveDisk($file);
+
+        if (! Storage::disk($disk)->exists($file->path)) {
             Log::error("文件不存在: {$file->path}");
 
             return response()->json(['error' => '文件不存在'], 404);
@@ -370,17 +482,11 @@ class FileController extends Controller
         $extension = strtolower($file->extension);
         $mimeType = $file->mime_type;
 
-        // 图片文件
-        if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'])) {
-            $isThumb = $request->has('thumb') && $request->thumb === 'true';
-            Log::info("图片预览请求: ID={$id}, 是否缩略图={$isThumb}, 扩展名={$extension}");
-
-            $publicUrl = url('storage/' . $file->path);
-            Log::info("返回图片 URL: {$publicUrl}");
-
+        // 图片文件（svg 不走内联预览，避免脚本在同源执行）
+        if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'])) {
             return response()->json([
                 'type' => 'image',
-                'url' => $publicUrl,
+                'url' => $this->signedRawUrl($file),
             ]);
         }
 
@@ -388,7 +494,7 @@ class FileController extends Controller
         if ($extension === 'pdf') {
             return response()->json([
                 'type' => 'pdf',
-                'url' => url('storage/' . $file->path),
+                'url' => $this->signedRawUrl($file),
             ]);
         }
 
@@ -413,9 +519,21 @@ class FileController extends Controller
         // 文本文件
         if (in_array($extension, ['txt', 'md', 'json', 'xml', 'html', 'css', 'js', 'php']) ||
             Str::startsWith($mimeType, 'text/')) {
+            // 限制预览读取的字节数，避免将超大文本文件整体读入内存/响应导致资源耗尽
+            $size = Storage::disk($disk)->size($file->path);
+
+            if ($size !== false && $size > self::MAX_TEXT_PREVIEW_BYTES) {
+                return response()->json([
+                    'type' => 'document',
+                    'message' => '文件过大，无法在线预览，请下载后查看',
+                    'suggestion' => '当前仅支持预览不超过 '
+                        . (int) (self::MAX_TEXT_PREVIEW_BYTES / 1024) . 'KB 的文本文件',
+                ]);
+            }
+
             return response()->json([
                 'type' => 'text',
-                'content' => Storage::disk('public')->get($file->path),
+                'content' => $this->readBoundedText($disk, $file->path),
             ]);
         }
 
@@ -424,5 +542,25 @@ class FileController extends Controller
             'type' => 'unknown',
             'message' => '此文件类型不支持预览，请下载后查看',
         ]);
+    }
+
+    /**
+     * 以受限字节数读取文本内容，防止超大文件被整体载入响应。
+     */
+    private function readBoundedText(string $disk, string $path): string
+    {
+        $stream = Storage::disk($disk)->readStream($path);
+
+        if ($stream === false || $stream === null) {
+            return '';
+        }
+
+        try {
+            $content = fread($stream, self::MAX_TEXT_PREVIEW_BYTES);
+
+            return $content === false ? '' : $content;
+        } finally {
+            fclose($stream);
+        }
     }
 }

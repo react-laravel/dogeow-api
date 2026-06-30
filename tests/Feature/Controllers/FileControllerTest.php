@@ -22,6 +22,7 @@ class FileControllerTest extends TestCase
         $this->user = User::factory()->create();
         Auth::login($this->user);
         Storage::fake('public');
+        Storage::fake('cloud');
     }
 
     // ==================== INDEX TESTS ====================
@@ -106,7 +107,7 @@ class FileControllerTest extends TestCase
             ->assertJsonCount(1);
     }
 
-    public function test_index_returns_full_url_for_file_path()
+    public function test_index_returns_signed_url_for_file_path()
     {
         $file = File::factory()->create([
             'user_id' => $this->user->id,
@@ -118,8 +119,12 @@ class FileControllerTest extends TestCase
 
         $response = $this->getJson('/api/cloud/files');
 
-        $response->assertStatus(200)
-            ->assertJsonPath('0.path', url('storage/' . $file->path));
+        $response->assertStatus(200);
+        // 不再暴露 /storage 公开路径，改为带签名的 raw 访问 URL
+        $path = (string) $response->json('0.path');
+        $this->assertStringNotContainsString('/storage/', $path);
+        $this->assertStringContainsString("/cloud/files/{$file->id}/raw", $path);
+        $this->assertStringContainsString('signature=', $path);
     }
 
     public function test_index_filters_by_type_folder()

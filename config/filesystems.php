@@ -46,6 +46,16 @@ return [
             'report' => false,
         ],
 
+        // 私有云盘存储：文件不通过 /storage 公开访问，
+        // 只能经由认证 + 短期签名 URL 的控制器接口读取
+        'cloud' => [
+            'driver' => 'local',
+            'root' => storage_path('app/cloud'),
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

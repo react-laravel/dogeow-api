@@ -441,12 +441,12 @@ class LearningControllerTest extends TestCase
             ->assertJsonPath('message', '请输入搜索关键词');
     }
 
-    public function test_can_update_word(): void
+    public function test_admin_can_update_word(): void
     {
-        $user = User::factory()->create();
+        $admin = User::factory()->create(['is_admin' => true]);
         $word = $this->createWord();
 
-        $response = $this->actingAs($user)
+        $response = $this->actingAs($admin)
             ->patchJson('/api/word/' . $word->id, [
                 'explanation' => 'Updated explanation',
             ]);
@@ -454,6 +454,20 @@ class LearningControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonPath('message', '单词更新成功');
         $response->assertJsonPath('data.word.explanation', 'Updated explanation');
+    }
+
+    public function test_non_admin_cannot_update_global_word(): void
+    {
+        $user = User::factory()->create(['is_admin' => false]);
+        $word = $this->createWord(['explanation' => 'original']);
+
+        $response = $this->actingAs($user)
+            ->patchJson('/api/word/' . $word->id, [
+                'explanation' => 'tampered',
+            ]);
+
+        $response->assertStatus(403);
+        $this->assertSame('original', $word->fresh()->explanation);
     }
 
     public function test_can_create_word_and_attach_books_by_education_level(): void

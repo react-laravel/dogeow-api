@@ -96,7 +96,28 @@ class CategoryController extends Controller
             return ApiResponse::forbidden('无权更新此分类');
         }
 
-        $category->update($request->validated());
+        $validated = $request->validated();
+
+        // 与 store() 一致：校验替换后的父分类归属与层级，
+        // 防止把分类挂到其他用户的父分类下或形成非法层级/环
+        if (array_key_exists('parent_id', $validated) && $validated['parent_id'] !== null) {
+            if ((int) $validated['parent_id'] === (int) $category->id) {
+                return ApiResponse::error('不能将分类设置为自身的父分类');
+            }
+
+            $parentCategory = ItemCategory::find($validated['parent_id']);
+
+            if (! $parentCategory || ! Gate::allows('view', $parentCategory)) {
+                return ApiResponse::error('指定的父分类不存在或无权访问');
+            }
+
+            // 防止创建三级分类(子分类不能再有子分类)
+            if ($parentCategory->parent_id !== null) {
+                return ApiResponse::error('不能在子分类下创建分类');
+            }
+        }
+
+        $category->update($validated);
 
         return ApiResponse::updated($category, '分类更新成功');
     }

@@ -59,7 +59,9 @@ class SupervisorStatusCheckerTest extends TestCase
 
         $this->assertEquals('online', $result['status']);
         $this->assertEquals('RUNNING', $result['raw_state']);
-        $this->assertStringContainsString('PID 12345', $result['details']);
+        // 公开端点不应回显 PID 等进程细节
+        $this->assertStringNotContainsString('PID', $result['details']);
+        $this->assertStringContainsString('进程运行中', $result['details']);
     }
 
     #[Test]
@@ -150,7 +152,9 @@ class SupervisorStatusCheckerTest extends TestCase
 
         $this->assertEquals('error', $result['status']);
         $this->assertEquals('UNKNOWN', $result['raw_state']);
-        $this->assertStringContainsString('pgrep execution failed', $result['details']);
+        // 原始 stderr/stdout 不应泄露到公开响应
+        $this->assertStringNotContainsString('pgrep execution failed', $result['details']);
+        $this->assertEquals('进程探针执行失败', $result['details']);
     }
 
     #[Test]
@@ -168,31 +172,9 @@ class SupervisorStatusCheckerTest extends TestCase
 
         $this->assertEquals('error', $result['status']);
         $this->assertEquals('UNKNOWN', $result['raw_state']);
-        $this->assertStringContainsString('Process not found', $result['details']);
-    }
-
-    #[Test]
-    public function test_extract_first_pid_from_multiline_output(): void
-    {
-        $reflection = new \ReflectionClass($this->checker);
-        $method = $reflection->getMethod('extractFirstPid');
-        $method->setAccessible(true);
-
-        $result = $method->invoke($this->checker, "12345\n67890\n");
-
-        $this->assertEquals('12345', $result);
-    }
-
-    #[Test]
-    public function test_sanitize_normalizes_whitespace(): void
-    {
-        $reflection = new \ReflectionClass($this->checker);
-        $method = $reflection->getMethod('sanitize');
-        $method->setAccessible(true);
-
-        $result = $method->invoke($this->checker, "multiple   spaces\n\ttab", 100);
-
-        $this->assertEquals('multiple spaces tab', $result);
+        // 底层异常信息不应回显给匿名用户
+        $this->assertStringNotContainsString('Process not found', $result['details']);
+        $this->assertEquals('进程探针执行失败', $result['details']);
     }
 
     #[Test]

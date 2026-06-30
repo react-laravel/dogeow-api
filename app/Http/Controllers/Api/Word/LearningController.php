@@ -7,6 +7,7 @@ use App\Http\Requests\Word\CreateWordRequest;
 use App\Http\Requests\Word\EstimateVocabularyRequest;
 use App\Http\Requests\Word\MarkWordRequest;
 use App\Http\Resources\Word\WordResource;
+use App\Models\User;
 use App\Models\Word\Book;
 use App\Models\Word\EducationLevel;
 use App\Models\Word\UserSetting;
@@ -279,6 +280,14 @@ class LearningController extends Controller
      */
     public function updateWord(int $id): JsonResponse
     {
+        // words 是全局共享词库（无 user_id），仅管理员可修改，
+        // 避免任意认证用户篡改所有人共用的释义/例句
+        /** @var User|null $user */
+        $user = Auth::user();
+        if ($user === null || ! $user->isAdmin()) {
+            return $this->error('无权修改全局单词', [], 403);
+        }
+
         $word = Word::findOrFail($id);
 
         $rules = [

@@ -4,6 +4,7 @@ namespace Tests\Feature\Controllers;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Session;
@@ -285,8 +286,11 @@ class GithubControllerTest extends TestCase
             ], 200, ['Content-Type' => 'application/json']),
         ]);
 
+        $state = $this->seedOauthState();
+
         $response = $this->postJson('/api/auth/github/callback', [
             'code' => 'test_auth_code_123',
+            'state' => $state,
         ]);
 
         $response->assertStatus(200);
@@ -328,8 +332,11 @@ class GithubControllerTest extends TestCase
             ], 200, ['Content-Type' => 'application/json']),
         ]);
 
+        $state = $this->seedOauthState();
+
         $response = $this->postJson('/api/auth/github/callback', [
             'code' => 'existing_auth_code',
+            'state' => $state,
         ]);
 
         $response->assertStatus(200);
@@ -359,13 +366,109 @@ class GithubControllerTest extends TestCase
                 ]),
         ]);
 
+        $state = $this->seedOauthState();
+
         $response = $this->postJson('/api/auth/github/callback', [
             'code' => 'expired_code',
+            'state' => $state,
         ]);
 
         $response->assertStatus(401);
         $response->assertJson([
             'success' => false,
         ]);
+    }
+
+    public function test_exchange_requires_state(): void
+    {
+        $response = $this->postJson('/api/auth/github/callback', [
+            'code' => 'some_code',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJson([
+            'success' => false,
+            'message' => '缺少 state 参数',
+        ]);
+    }
+
+    public function test_exchange_rejects_invalid_state(): void
+    {
+        $response = $this->postJson('/api/auth/github/callback', [
+            'code' => 'some_code',
+            'state' => 'not-a-known-state',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJson([
+            'success' => false,
+            'message' => 'state 无效或已过期',
+        ]);
+    }
+
+    public function test_exchange_rejects_reused_state(): void
+    {
+        Http::fake([
+            'https://github.com/login/oauth/access_token' => Http::response([
+                'access_token' => 'gho_reuse_token',
+                'token_type' => 'bearer',
+            ], 200, ['Content-Type' => 'application/json']),
+            'https://api.github.com/user' => Http::response([
+                'id' => 777001,
+                'login' => 'reuseuser',
+                'name' => 'Reuse User',
+                'email' => 'reuse@example.com',
+                'avatar_url' => 'https://avatars.githubusercontent.com/u/777001',
+            ], 200, ['Content-Type' => 'application/json']),
+        ]);
+
+        $state = $this->seedOauthState();
+
+        // 首次使用成功
+        $this->postJson('/api/auth/github/callback', [
+            'code' => 'reuse_code',
+            'state' => $state,
+        ])->assertStatus(200);
+
+        // 同一 state 再次使用应被拒绝（单次有效）
+        $this->postJson('/api/auth/github/callback', [
+            'code' => 'reuse_code',
+            'state' => $state,
+        ])->assertStatus(422);
+    }
+
+    public function test_redirect_returns_state_and_caches_it(): void
+    {
+        $driver = Mockery::mock(GithubProvider::class)->makePartial();
+        $redirect = Mockery::mock();
+        $redirect->shouldReceive('getTargetUrl')
+            ->andReturn('https://github.com/login/oauth/authorize?client_id=test&state=abc');
+
+        $driver->shouldReceive('stateless')->andReturnSelf();
+        $driver->shouldReceive('scopes')->andReturnSelf();
+        $driver->shouldReceive('with')->andReturnSelf();
+        $driver->shouldReceive('redirect')->andReturn($redirect);
+
+        $this->mock(Factory::class, function ($mock) use ($driver) {
+            $mock->shouldReceive('driver')->with('github')->andReturn($driver);
+        });
+
+        $response = $this->getJson('/api/auth/github');
+
+        $response->assertStatus(200);
+        $state = $response->json('data.state');
+        $this->assertNotEmpty($state);
+        $this->assertTrue(Cache::has('github_oauth_state:' . $state));
+    }
+
+    /**
+     * 预置一个有效的 OAuth state（模拟 redirect 阶段下发）。
+     */
+    private function seedOauthState(): string
+    {
+        $state = 'valid-state-' . uniqid();
+        Cache::put('github_oauth_state:' . $state, true, now()->addMinutes(10));
+
+        return $state;
     }
 }

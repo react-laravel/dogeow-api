@@ -9,6 +9,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -25,6 +26,7 @@ class CloudFileControllerTest extends TestCase
         $this->user = User::factory()->create();
         $this->actingAs($this->user);
         Storage::fake('public');
+        Storage::fake('cloud');
     }
 
     public function test_index_filters_root_files_by_search_type_and_sorting(): void
@@ -127,8 +129,79 @@ class CloudFileControllerTest extends TestCase
             ->first();
 
         $this->assertNotNull($storedFile);
-        $this->assertSame(url('storage/' . $storedFile->path), $response->json('path'));
-        Storage::disk('public')->assertExists($storedFile->path);
+
+        // 文件写入私有 cloud 盘，而非公开 public 盘
+        Storage::disk('cloud')->assertExists($storedFile->path);
+        Storage::disk('public')->assertMissing($storedFile->path);
+
+        // 返回的不再是 /storage 公开 URL，而是带签名的 raw 访问路由
+        $path = (string) $response->json('path');
+        $this->assertStringNotContainsString('/storage/', $path);
+        $this->assertStringContainsString("/cloud/files/{$storedFile->id}/raw", $path);
+        $this->assertStringContainsString('signature=', $path);
+    }
+
+    public function test_uploaded_file_path_is_not_publicly_accessible_without_signature(): void
+    {
+        $file = UploadedFile::fake()->create('secret.txt', 8, 'text/plain');
+
+        $this->postJson('/api/cloud/files', ['file' => $file]);
+
+        $stored = File::where('original_name', 'secret.txt')->first();
+        $this->assertNotNull($stored);
+
+        // 未携带有效签名直接访问 raw 接口应被拒绝
+        $response = $this->get("/api/cloud/files/{$stored->id}/raw");
+        $response->assertStatus(403);
+    }
+
+    public function test_raw_serves_file_with_signed_url_and_nosniff(): void
+    {
+        $file = File::factory()->create([
+            'user_id' => $this->user->id,
+            'extension' => 'jpg',
+            'path' => 'cloud/raw/photo.jpg',
+            'mime_type' => 'image/jpeg',
+            'original_name' => 'photo.jpg',
+        ]);
+        Storage::disk('cloud')->put($file->path, 'image-bytes');
+
+        $signedUrl = URL::temporarySignedRoute(
+            'cloud.files.raw',
+            now()->addMinutes(60),
+            ['id' => $file->id]
+        );
+
+        $response = $this->get($signedUrl);
+
+        $response->assertStatus(200);
+        $this->assertSame('nosniff', $response->headers->get('x-content-type-options'));
+        $this->assertStringContainsString('inline', $response->headers->get('content-disposition', ''));
+    }
+
+    public function test_raw_forces_attachment_for_svg(): void
+    {
+        $file = File::factory()->create([
+            'user_id' => $this->user->id,
+            'extension' => 'svg',
+            'path' => 'cloud/raw/vector.svg',
+            'mime_type' => 'image/svg+xml',
+            'original_name' => 'vector.svg',
+        ]);
+        Storage::disk('cloud')->put($file->path, '<svg></svg>');
+
+        $signedUrl = URL::temporarySignedRoute(
+            'cloud.files.raw',
+            now()->addMinutes(60),
+            ['id' => $file->id]
+        );
+
+        $response = $this->get($signedUrl);
+
+        $response->assertStatus(200);
+        $this->assertSame('nosniff', $response->headers->get('x-content-type-options'));
+        // svg 可携带脚本，必须强制下载而非内联
+        $this->assertStringContainsString('attachment', $response->headers->get('content-disposition', ''));
     }
 
     public function test_download_returns_error_for_folder(): void
@@ -163,31 +236,39 @@ class CloudFileControllerTest extends TestCase
     public function test_download_returns_binary_response_for_existing_file(): void
     {
         $relativePath = 'cloud/downloads/' . Str::uuid() . '.txt';
-        $absolutePath = storage_path('app/public/' . $relativePath);
-        $directory = dirname($absolutePath);
+        Storage::disk('cloud')->put($relativePath, 'download me');
 
-        if (! is_dir($directory)) {
-            mkdir($directory, 0777, true);
-        }
+        $file = File::factory()->create([
+            'user_id' => $this->user->id,
+            'path' => $relativePath,
+            'original_name' => 'report.txt',
+            'is_folder' => false,
+        ]);
 
-        file_put_contents($absolutePath, 'download me');
-        Storage::disk('public')->put($relativePath, 'download me');
+        $response = $this->get("/api/cloud/files/{$file->id}/download");
 
-        try {
-            $file = File::factory()->create([
-                'user_id' => $this->user->id,
-                'path' => $relativePath,
-                'original_name' => 'report.txt',
-                'is_folder' => false,
-            ]);
+        $response->assertStatus(200);
+        $this->assertStringContainsString('attachment; filename=report.txt', $response->headers->get('content-disposition', ''));
+        $this->assertSame('nosniff', $response->headers->get('x-content-type-options'));
+    }
 
-            $response = $this->get("/api/cloud/files/{$file->id}/download");
+    public function test_download_still_serves_legacy_public_disk_files(): void
+    {
+        // 历史文件仍可能位于 public 盘，需向后兼容
+        $relativePath = 'cloud/legacy/' . Str::uuid() . '.txt';
+        Storage::disk('public')->put($relativePath, 'legacy bytes');
 
-            $response->assertStatus(200);
-            $this->assertStringContainsString('attachment; filename=report.txt', $response->headers->get('content-disposition', ''));
-        } finally {
-            @unlink($absolutePath);
-        }
+        $file = File::factory()->create([
+            'user_id' => $this->user->id,
+            'path' => $relativePath,
+            'original_name' => 'legacy.txt',
+            'is_folder' => false,
+        ]);
+
+        $response = $this->get("/api/cloud/files/{$file->id}/download");
+
+        $response->assertStatus(200);
+        $this->assertStringContainsString('attachment; filename=legacy.txt', $response->headers->get('content-disposition', ''));
     }
 
     public function test_destroy_removes_nested_folders_and_files(): void
@@ -462,13 +543,16 @@ class CloudFileControllerTest extends TestCase
             'path' => 'cloud/previews/photo.jpg',
             'mime_type' => 'image/jpeg',
         ]);
-        Storage::disk('public')->put($file->path, 'image-bytes');
+        Storage::disk('cloud')->put($file->path, 'image-bytes');
 
         $response = $this->getJson("/api/cloud/files/{$file->id}/preview?thumb=true");
 
         $response->assertStatus(200)
             ->assertJsonPath('type', 'image');
-        $this->assertStringEndsWith('/storage/' . $file->path, $response->json('url'));
+        $url = (string) $response->json('url');
+        $this->assertStringNotContainsString('/storage/', $url);
+        $this->assertStringContainsString("/cloud/files/{$file->id}/raw", $url);
+        $this->assertStringContainsString('signature=', $url);
     }
 
     public function test_preview_returns_pdf_url_for_pdfs(): void
@@ -479,13 +563,16 @@ class CloudFileControllerTest extends TestCase
             'path' => 'cloud/previews/manual.pdf',
             'mime_type' => 'application/pdf',
         ]);
-        Storage::disk('public')->put($file->path, 'pdf-bytes');
+        Storage::disk('cloud')->put($file->path, 'pdf-bytes');
 
         $response = $this->getJson("/api/cloud/files/{$file->id}/preview");
 
         $response->assertStatus(200)
             ->assertJsonPath('type', 'pdf');
-        $this->assertStringEndsWith('/storage/' . $file->path, $response->json('url'));
+        $url = (string) $response->json('url');
+        $this->assertStringNotContainsString('/storage/', $url);
+        $this->assertStringContainsString("/cloud/files/{$file->id}/raw", $url);
+        $this->assertStringContainsString('signature=', $url);
     }
 
     public function test_preview_returns_text_content_for_text_files(): void
@@ -505,6 +592,42 @@ class CloudFileControllerTest extends TestCase
                 'type' => 'text',
                 'content' => "line one\nline two",
             ]);
+    }
+
+    public function test_preview_truncates_text_content_to_byte_cap(): void
+    {
+        $file = File::factory()->create([
+            'user_id' => $this->user->id,
+            'extension' => 'txt',
+            'path' => 'cloud/previews/bounded.txt',
+            'mime_type' => 'text/plain',
+        ]);
+        // 文件未超过总大小上限，但内容会被读取上限截断
+        Storage::disk('public')->put($file->path, str_repeat('a', 600 * 1024));
+
+        $response = $this->getJson("/api/cloud/files/{$file->id}/preview");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('type', 'text');
+        $this->assertLessThanOrEqual(512 * 1024, strlen((string) $response->json('content')));
+    }
+
+    public function test_preview_rejects_oversized_text_file(): void
+    {
+        $file = File::factory()->create([
+            'user_id' => $this->user->id,
+            'extension' => 'txt',
+            'path' => 'cloud/previews/huge.txt',
+            'mime_type' => 'text/plain',
+        ]);
+        // 超过总大小上限时不读取内容，直接提示下载
+        Storage::disk('public')->put($file->path, str_repeat('b', 1024 * 1024));
+
+        $response = $this->getJson("/api/cloud/files/{$file->id}/preview");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('type', 'document');
+        $this->assertNull($response->json('content'));
     }
 
     public function test_preview_returns_apple_document_message(): void

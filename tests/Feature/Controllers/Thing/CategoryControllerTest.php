@@ -444,6 +444,67 @@ class CategoryControllerTest extends TestCase
             ->assertJsonValidationErrors(['name']);
     }
 
+    public function test_update_rejects_parent_owned_by_other_user()
+    {
+        $category = ItemCategory::factory()->create(['user_id' => $this->user->id]);
+        $foreignParent = ItemCategory::factory()->create([
+            'user_id' => $this->otherUser->id,
+            'parent_id' => null,
+        ]);
+
+        $response = $this->putJson("/api/things/categories/{$category->id}", [
+            'name' => 'Updated Category',
+            'parent_id' => $foreignParent->id,
+        ]);
+
+        $response->assertStatus(400)
+            ->assertJson(['message' => '指定的父分类不存在或无权访问']);
+
+        $this->assertDatabaseHas('thing_item_categories', [
+            'id' => $category->id,
+            'parent_id' => null,
+        ]);
+    }
+
+    public function test_update_rejects_setting_self_as_parent()
+    {
+        $category = ItemCategory::factory()->create([
+            'user_id' => $this->user->id,
+            'parent_id' => null,
+        ]);
+
+        $response = $this->putJson("/api/things/categories/{$category->id}", [
+            'name' => 'Self Parent',
+            'parent_id' => $category->id,
+        ]);
+
+        $response->assertStatus(400)
+            ->assertJson(['message' => '不能将分类设置为自身的父分类']);
+    }
+
+    public function test_update_allows_own_parent_category()
+    {
+        $parent = ItemCategory::factory()->create([
+            'user_id' => $this->user->id,
+            'parent_id' => null,
+        ]);
+        $category = ItemCategory::factory()->create([
+            'user_id' => $this->user->id,
+            'parent_id' => null,
+        ]);
+
+        $response = $this->putJson("/api/things/categories/{$category->id}", [
+            'name' => 'Child Category',
+            'parent_id' => $parent->id,
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('thing_item_categories', [
+            'id' => $category->id,
+            'parent_id' => $parent->id,
+        ]);
+    }
+
     public function test_update_validation_fails_with_invalid_parent_id()
     {
         $category = ItemCategory::factory()->create(['user_id' => $this->user->id]);

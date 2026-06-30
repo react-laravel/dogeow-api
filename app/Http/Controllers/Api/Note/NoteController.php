@@ -8,12 +8,14 @@ use App\Http\Requests\Note\UpdateNoteRequest;
 use App\Jobs\TriggerKnowledgeIndexBuildJob;
 use App\Models\Note\Note;
 use App\Models\Note\NoteLink;
+use App\Models\User;
 use App\Services\Note\NoteContentService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class NoteController extends Controller
 {
@@ -152,6 +154,10 @@ class NoteController extends Controller
     public function update(UpdateNoteRequest $request, string $id): JsonResponse
     {
         $note = $this->findUserNote($id);
+
+        // wiki 节点对所有认证用户可读，但写操作仍需所有者或管理员权限
+        $this->authorizeNoteWrite($note);
+
         $validatedData = $this->prepareUpdateData($request->validated(), $request, $note);
 
         $note->update($validatedData);
@@ -174,6 +180,10 @@ class NoteController extends Controller
     public function destroy(string $id)
     {
         $note = $this->findUserNote($id);
+
+        // wiki 节点对所有认证用户可读，但删除仍需所有者或管理员权限
+        $this->authorizeNoteWrite($note);
+
         $note->delete();
 
         TriggerKnowledgeIndexBuildJob::dispatch();
@@ -211,6 +221,23 @@ class NoteController extends Controller
         }
 
         return $note;
+    }
+
+    /**
+     * 校验当前用户对笔记的写权限（更新/删除）。
+     * 仅所有者或管理员可写，wiki 的可读性不等于可写性。
+     */
+    private function authorizeNoteWrite(Note $note): void
+    {
+        /** @var User|null $user */
+        $user = request()->user();
+
+        $isOwner = $note->user_id === $this->getCurrentUserId();
+        $isAdmin = $user !== null && $user->isAdmin();
+
+        if (! $isOwner && ! $isAdmin) {
+            throw new AccessDeniedHttpException('You do not have permission to modify this note');
+        }
     }
 
     /**

@@ -4,6 +4,12 @@ use App\Http\Controllers\Api\Cloud\FileController;
 use App\Http\Controllers\Api\Cloud\FileTreeController;
 use Illuminate\Support\Facades\Route;
 
+// 文件原始内容（私有盘）：通过短期签名 URL 访问，
+// 位于认证组之外以便 <img>/<iframe> 直接加载，由 signed 中间件校验签名
+Route::get('/cloud/files/{id}/raw', [FileController::class, 'raw'])
+    ->middleware('signed')
+    ->name('cloud.files.raw');
+
 // 云存储（需要认证）
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/cloud/files', [FileController::class, 'index']);

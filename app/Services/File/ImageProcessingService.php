@@ -64,10 +64,10 @@ class ImageProcessingService extends BaseService
                 return $this->processHeicImage($originPath, $compressedPath);
             }
 
-            $img = $this->manager->read($originPath);
+            // 复用校验阶段已读取的尺寸，避免为获取宽高再次完整解码原图
             $dimensions = [
-                'width' => $img->width(),
-                'height' => $img->height(),
+                'width' => $dimensionCheck['width'] ?? 0,
+                'height' => $dimensionCheck['height'] ?? 0,
             ];
 
             // 生成缩略图
@@ -303,6 +303,10 @@ class ImageProcessingService extends BaseService
 
         [$width, $height] = $sizeInfo;
 
+        if ($width * $height > self::MAX_PIXEL_COUNT) {
+            return $this->error('图片像素数超过最大限制');
+        }
+
         if ($width > self::MAX_IMAGE_DIMENSION || $height > self::MAX_IMAGE_DIMENSION) {
             return $this->error('图片尺寸超过最大限制');
         }
@@ -329,12 +333,12 @@ class ImageProcessingService extends BaseService
             $imagick->clear();
             $imagick->destroy();
 
-            if ($width > self::MAX_IMAGE_DIMENSION || $height > self::MAX_IMAGE_DIMENSION) {
-                return $this->error('图片尺寸超过最大限制');
-            }
-
             if ($width * $height > self::MAX_PIXEL_COUNT) {
                 return $this->error('图片像素数超过最大限制');
+            }
+
+            if ($width > self::MAX_IMAGE_DIMENSION || $height > self::MAX_IMAGE_DIMENSION) {
+                return $this->error('图片尺寸超过最大限制');
             }
 
             return $this->success(['width' => $width, 'height' => $height]);

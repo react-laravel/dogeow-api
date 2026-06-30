@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -16,16 +17,39 @@ use Laravel\Socialite\Facades\Socialite;
 class GithubController extends Controller
 {
     /**
-     * 跳转到 GitHub 授权页面
+     * OAuth state 在缓存中的有效期（分钟）。
+     */
+    private const STATE_TTL_MINUTES = 10;
+
+    /**
+     * 缓存 key 前缀。
+     */
+    private const STATE_CACHE_PREFIX = 'github_oauth_state:';
+
+    /**
+     * 跳转到 GitHub 授权页面。
+     *
+     * 由于 API 为无状态（SPA + Bearer），无法依赖 Socialite 的 session state，
+     * 这里自行生成一次性 state 并缓存，随授权 URL 下发；前端需存储并在 exchange 时回传，
+     * 用于防止登录 CSRF / 账号混淆。
      */
     public function redirect(): JsonResponse
     {
+        $state = Str::random(40);
+
+        // 缓存 state，单次使用、短期有效
+        Cache::put(self::STATE_CACHE_PREFIX . $state, true, now()->addMinutes(self::STATE_TTL_MINUTES));
+
+        $url = Socialite::driver('github')
+            ->stateless() // @phpstan-ignore method.notFound
+            ->scopes(['read:user', 'user:email'])
+            ->with(['state' => $state])
+            ->redirect()
+            ->getTargetUrl();
+
         return $this->success([
-            'url' => Socialite::driver('github')
-                ->stateless() // @phpstan-ignore method.notFound
-                ->scopes(['read:user', 'user:email'])
-                ->redirect()
-                ->getTargetUrl(),
+            'url' => $url,
+            'state' => $state,
         ]);
     }
 
@@ -59,6 +83,25 @@ class GithubController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => '缺少授权码',
+            ], 422);
+        }
+
+        // 校验 state：必须是本服务在 redirect 阶段下发且未被使用过的值，
+        // 以将本次回调绑定到发起授权的会话，防止登录 CSRF
+        $state = $request->input('state');
+
+        if (! is_string($state) || trim($state) === '') {
+            return response()->json([
+                'success' => false,
+                'message' => '缺少 state 参数',
+            ], 422);
+        }
+
+        // pull = 取出并删除，保证 state 单次有效
+        if (! Cache::pull(self::STATE_CACHE_PREFIX . $state)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'state 无效或已过期',
             ], 422);
         }
 

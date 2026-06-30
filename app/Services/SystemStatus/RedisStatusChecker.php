@@ -2,6 +2,7 @@
 
 namespace App\Services\SystemStatus;
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Throwable;
 
@@ -25,9 +26,12 @@ class RedisStatusChecker
                 'response_time' => $responseTime,
             ];
         } catch (Throwable $e) {
+            // 该状态接口为公开端点，不能向匿名用户回显底层异常细节
+            Log::warning('Redis 连接失败', ['error' => $e->getMessage()]);
+
             return [
                 'status' => 'error',
-                'details' => 'Redis 连接失败: ' . $e->getMessage(),
+                'details' => 'Redis 连接失败',
             ];
         }
     }

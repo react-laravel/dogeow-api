@@ -292,6 +292,62 @@ class NoteControllerTest extends TestCase
         $this->assertStringContainsString('new-wiki-title', (string) $updated->slug);
     }
 
+    public function test_non_owner_cannot_update_wiki_note()
+    {
+        $owner = User::factory()->create();
+        $wikiNote = Note::factory()->create([
+            'user_id' => $owner->id,
+            'is_wiki' => true,
+            'title' => 'Shared Wiki',
+            'slug' => 'shared-wiki',
+            'content' => 'original',
+        ]);
+
+        // 当前认证用户($this->user)并非所有者，也非管理员
+        $response = $this->putJson("/api/notes/{$wikiNote->id}", [
+            'content' => 'tampered',
+        ]);
+
+        $response->assertStatus(403);
+        $this->assertSame('original', $wikiNote->fresh()->content);
+    }
+
+    public function test_non_owner_cannot_delete_wiki_note()
+    {
+        $owner = User::factory()->create();
+        $wikiNote = Note::factory()->create([
+            'user_id' => $owner->id,
+            'is_wiki' => true,
+            'slug' => 'shared-wiki-delete',
+        ]);
+
+        $response = $this->deleteJson("/api/notes/{$wikiNote->id}");
+
+        $response->assertStatus(403);
+        $this->assertDatabaseHas('notes', ['id' => $wikiNote->id]);
+    }
+
+    public function test_admin_can_update_wiki_note_of_other_user()
+    {
+        $owner = User::factory()->create();
+        $wikiNote = Note::factory()->create([
+            'user_id' => $owner->id,
+            'is_wiki' => true,
+            'slug' => 'admin-editable-wiki',
+            'content' => 'original',
+        ]);
+
+        $admin = User::factory()->create(['is_admin' => true]);
+        Auth::login($admin);
+
+        $response = $this->putJson("/api/notes/{$wikiNote->id}", [
+            'content' => 'edited by admin',
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertSame('edited by admin', $wikiNote->fresh()->content);
+    }
+
     public function test_get_article_by_slug_returns_wiki_article()
     {
         $wikiNote = Note::factory()->create([
