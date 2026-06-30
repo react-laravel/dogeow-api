@@ -222,7 +222,7 @@ class InventoryControllerUnitTest extends TestCase
         $user = User::factory()->create();
         $character = $this->createCharacter($user);
 
-        $this->inventoryService->shouldReceive('sortInventory')->once()->with($this->sameCharacter($character), 'default')->andReturn(['sorted' => true]);
+        $this->inventoryService->shouldReceive('sortInventory')->once()->with($this->sameCharacter($character), 'default', false)->andReturn(['sorted' => true]);
         $this->inventoryService->shouldReceive('getInventoryForBroadcast')->once()->with($this->sameCharacter($character))->andReturn(['items' => []]);
 
         $response = $this->controller->sort($this->makeValidatedRequest($user, $character, [
@@ -237,7 +237,7 @@ class InventoryControllerUnitTest extends TestCase
         $user = User::factory()->create();
         $character = $this->createCharacter($user);
 
-        $this->inventoryService->shouldReceive('sortInventory')->once()->with($this->sameCharacter($character), 'quality')->andReturn(['sorted' => true]);
+        $this->inventoryService->shouldReceive('sortInventory')->once()->with($this->sameCharacter($character), 'quality', false)->andReturn(['sorted' => true]);
         $this->inventoryService->shouldReceive('getInventoryForBroadcast')->once()->with($this->sameCharacter($character))->andReturn(['items' => []]);
 
         $response = $this->controller->sort($this->makeValidatedRequest($user, $character, [
@@ -252,7 +252,7 @@ class InventoryControllerUnitTest extends TestCase
         $user = User::factory()->create();
         $character = $this->createCharacter($user);
 
-        $this->inventoryService->shouldReceive('sortInventory')->once()->with($this->sameCharacter($character), 'price')->andReturn(['sorted' => true]);
+        $this->inventoryService->shouldReceive('sortInventory')->once()->with($this->sameCharacter($character), 'price', false)->andReturn(['sorted' => true]);
         $this->inventoryService->shouldReceive('getInventoryForBroadcast')->once()->with($this->sameCharacter($character))->andReturn(['items' => []]);
 
         $response = $this->controller->sort($this->makeValidatedRequest($user, $character, [
@@ -267,7 +267,7 @@ class InventoryControllerUnitTest extends TestCase
         $user = User::factory()->create();
         $character = $this->createCharacter($user);
 
-        $this->inventoryService->shouldReceive('sortInventory')->once()->with($this->sameCharacter($character), 'default')->andThrow(new \RuntimeException('整理失败'));
+        $this->inventoryService->shouldReceive('sortInventory')->once()->with($this->sameCharacter($character), 'default', false)->andThrow(new \RuntimeException('整理失败'));
 
         $response = $this->controller->sort($this->makeValidatedRequest($user, $character, [
             'sort_by' => 'default',

@@ -409,6 +409,40 @@ class GameInventoryServiceTest extends TestCase
         );
     }
 
+    public function test_sort_storage_reorders_items_in_warehouse(): void
+    {
+        $character = $this->createCharacter();
+        $firstDefinition = $this->createItemDefinition(['name' => 'Stored A']);
+        $secondDefinition = $this->createItemDefinition([
+            'name' => 'Stored B',
+            'type' => 'ring',
+            'sub_type' => null,
+            'base_stats' => ['crit_rate' => 0.01],
+        ]);
+
+        $older = $this->createItem($character, $firstDefinition, [
+            'is_in_storage' => true,
+            'slot_index' => 2,
+            'sell_price' => 5,
+        ]);
+        $newer = $this->createItem($character, $secondDefinition, [
+            'is_in_storage' => true,
+            'slot_index' => 0,
+            'sell_price' => 50,
+        ]);
+
+        $this->service->sortInventory($character, 'price', true);
+
+        $this->assertSame(
+            [$newer->id, $older->id],
+            GameItem::where('character_id', $character->id)
+                ->where('is_in_storage', true)
+                ->orderBy('slot_index')
+                ->pluck('id')
+                ->all()
+        );
+    }
+
     public function test_sell_items_by_quality_sells_only_sellable_matching_items(): void
     {
         $character = $this->createCharacter(['copper' => 50]);

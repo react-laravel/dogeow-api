@@ -318,18 +318,22 @@ class GameInventoryService
     }
 
     /**
-     * 整理背包
+     * 整理背包或仓库
      *
-     * @return array{inventory: Collection<int, GameItem>}
+     * @return array{inventory?: Collection<int, GameItem>, storage?: Collection<int, GameItem>}
      */
-    public function sortInventory(GameCharacter $character, string $sortBy = 'default'): array
+    public function sortInventory(GameCharacter $character, string $sortBy = 'default', bool $inStorage = false): array
     {
         $query = $character->items()
-            ->where('is_in_storage', false)
-            ->where(function ($query) {
+            ->where('is_in_storage', $inStorage);
+
+        if (! $inStorage) {
+            $query->where(function ($query) {
                 $query->where('is_equipped', false)->orWhereNull('is_equipped');
-            })
-            ->with('definition');
+            });
+        }
+
+        $query->with('definition');
 
         $items = $this->sortItems($query, $sortBy);
 
@@ -348,7 +352,7 @@ class GameInventoryService
 
         $this->clearInventoryCache($character->id);
 
-        return ['inventory' => $items];
+        return $inStorage ? ['storage' => $items] : ['inventory' => $items];
     }
 
     /**

@@ -182,11 +182,13 @@ class InventoryController extends Controller
         try {
             $request->validate([
                 'sort_by' => 'nullable|string|in:quality,price,default',
+                'to_storage' => 'nullable|boolean',
             ]);
 
             $character = $this->getCharacter($request);
             $sortBy = $request->input('sort_by', 'default');
-            $result = $this->inventoryService->sortInventory($character, $sortBy);
+            $inStorage = $request->boolean('to_storage');
+            $result = $this->inventoryService->sortInventory($character, $sortBy, $inStorage);
             $this->broadcastInventoryUpdate($character);
 
             $message = match ($sortBy) {
