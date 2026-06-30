@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-- **类型**：Laravel 12 API 后端项目
+- **类型**：Laravel 13 API 后端项目
 - **用途**：为 dogeow (Next.js) 前端提供 RESTful API 服务
 - **语言**：中文回答与注释
 
