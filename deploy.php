@@ -146,6 +146,26 @@ after('deploy:shared', 'deploy:storage_permissions');
 after('deploy:symlink', 'artisan:queue:restart');
 after('artisan:queue:restart', 'supervisor:restart');
 
+desc('重启 Laravel Octane (Swoole)，避免 current 切换后仍引用已删除的 release');
+task('octane:restart', function () {
+    run(<<<'BASH'
+bash -lc '
+set -euo pipefail
+
+for bin in /usr/bin/systemctl /bin/systemctl; do
+  if [ -x "$bin" ] && sudo -n "$bin" restart dogeow-octane.service; then
+    exit 0
+  fi
+done
+
+echo "无法重启 dogeow-octane.service，请确认 sudoers 已放行 systemctl restart" >&2
+exit 1
+'
+BASH
+    );
+});
+after('supervisor:restart', 'octane:restart');
+
 desc('发送部署完成站内通知');
 task('deploy:notify', function () {
     run('cd {{current_path}} && {{bin/php}} artisan notify:deploy dogeow-api --no-interaction || true');
