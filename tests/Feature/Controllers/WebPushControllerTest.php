@@ -30,7 +30,7 @@ class WebPushControllerTest extends TestCase
     public function test_vapid_key_returns_public_key(): void
     {
         // Set the VAPID public key in config
-        config(['webpush.public_key' => 'test-public-key-12345']);
+        config(['webpush.vapid.public_key' => 'test-public-key-12345']);
 
         $response = $this->getJson('/api/webpush/vapid');
 
@@ -43,7 +43,7 @@ class WebPushControllerTest extends TestCase
     public function test_vapid_key_returns_error_when_not_configured(): void
     {
         // Ensure no VAPID key is configured
-        config(['webpush.public_key' => null]);
+        config(['webpush.vapid.public_key' => null]);
 
         $response = $this->getJson('/api/webpush/vapid');
 
@@ -55,7 +55,7 @@ class WebPushControllerTest extends TestCase
 
     public function test_vapid_key_is_public_without_authentication(): void
     {
-        config(['webpush.public_key' => 'test-public-key']);
+        config(['webpush.vapid.public_key' => 'test-public-key']);
 
         $response = $this->getJson('/api/webpush/vapid');
 

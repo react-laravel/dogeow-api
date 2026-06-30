@@ -15,7 +15,7 @@ class WebPushController extends Controller
      */
     public function vapidKey(): JsonResponse
     {
-        $key = config('webpush.public_key');
+        $key = config('webpush.vapid.public_key', config('webpush.public_key'));
         if (empty($key)) {
             return $this->error('服务端未配置 VAPID 公钥，请运行 php artisan webpush:vapid', [], 500);
         }
