@@ -14,6 +14,17 @@ class GameCombatBroadcaster
      */
     public function broadcastCombatUpdate(int $characterId, array $payload): void
     {
+        // 终止事件(死亡/自动停止)是该角色战斗的最后一条推送，一旦丢失前端会卡在死亡前状态。
+        // 记录一条日志，便于排查「websocket 是否发送」这类问题。
+        if (! empty($payload['defeat']) || ! empty($payload['auto_stopped'])) {
+            Log::info('广播战斗终止事件', [
+                'character_id' => $characterId,
+                'defeat' => $payload['defeat'] ?? false,
+                'auto_stopped' => $payload['auto_stopped'] ?? false,
+                'current_hp' => $payload['current_hp'] ?? null,
+            ]);
+        }
+
         $this->dispatchSafely(
             new GameCombatUpdate($characterId, $payload),
             'combat.update',
