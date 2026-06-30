@@ -114,6 +114,27 @@ class InventoryControllerTest extends TestCase
             ]);
     }
 
+    public function test_can_sell_all_qualities_in_single_request(): void
+    {
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, ['copper' => 0]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/rpg/inventory/sell-by-quality?character_id=' . $character->id, [
+                'quality' => 'all',
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+            ])
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data' => ['count', 'total_price', 'copper'],
+            ]);
+    }
+
     public function test_can_update_auto_recycle_settings(): void
     {
         $user = User::factory()->create();

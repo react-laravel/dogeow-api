@@ -362,7 +362,9 @@ class GameInventoryService
      */
     public function sellItemsByQuality(GameCharacter $character, string $quality): array
     {
-        $items = $this->getSellableItemsByQuality($character, $quality);
+        $items = $quality === 'all'
+            ? $this->getSellableInventoryItems($character)
+            : $this->getSellableItemsByQuality($character, $quality);
 
         if ($items->isEmpty()) {
             return [

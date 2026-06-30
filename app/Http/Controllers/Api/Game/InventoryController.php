@@ -251,7 +251,7 @@ class InventoryController extends Controller
     {
         try {
             $request->validate([
-                'quality' => 'required|string|in:common,magic,rare,legendary,mythic',
+                'quality' => 'required|string|in:common,magic,rare,legendary,mythic,all',
             ]);
 
             $character = $this->getCharacter($request);
@@ -273,7 +273,9 @@ class InventoryController extends Controller
 
             $this->broadcastInventoryUpdate($character);
 
-            return $this->success($result, "已出售 {$result['count']} 件{$this->getQualityName($quality)}物品，获得 {$result['total_price']} 铜");
+            $qualityLabel = $quality === 'all' ? '' : $this->getQualityName($quality);
+
+            return $this->success($result, "已出售 {$result['count']} 件{$qualityLabel}物品，获得 {$result['total_price']} 铜");
         } catch (Throwable $e) {
             return $this->error($e->getMessage());
         }
