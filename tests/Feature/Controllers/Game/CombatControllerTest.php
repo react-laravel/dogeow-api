@@ -71,10 +71,17 @@ class CombatControllerTest extends TestCase
         $user = User::factory()->create();
         $character = $this->createCharacter($user, ['current_map_id' => 1, 'is_fighting' => false]);
 
+        $key = AutoCombatRoundJob::redisKey($character->id);
+
+        Redis::shouldReceive('get')
+            ->once()
+            ->with($key)
+            ->andReturn(null);
+
         Redis::shouldReceive('set')
             ->once()
-            ->withArgs(function ($key, $value, $ex, $ttl, $nx) use ($character) {
-                return str_ends_with($key, (string) $character->id)
+            ->withArgs(function ($redisKey, $value, $ex, $ttl, $nx) use ($character) {
+                return str_ends_with($redisKey, (string) $character->id)
                     && $ex === 'EX'
                     && $ttl === AutoCombatRoundJob::ttl()
                     && $nx === 'NX';
@@ -91,6 +98,27 @@ class CombatControllerTest extends TestCase
             ],
         ]);
         Bus::assertDispatched(AutoCombatRoundJob::class);
+    }
+
+    public function test_start_returns_success_when_auto_combat_already_running(): void
+    {
+        Bus::fake();
+
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, ['current_map_id' => 1, 'is_fighting' => false]);
+        $key = AutoCombatRoundJob::redisKey($character->id);
+
+        Redis::shouldReceive('get')
+            ->once()
+            ->with($key)
+            ->andReturn(json_encode(['skill_ids' => null]));
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/rpg/combat/start?character_id=' . $character->id);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('data.message', '自动战斗已在进行中，结果将通过 WebSocket 推送');
+        Bus::assertNothingDispatched();
     }
 
     public function test_start_rejects_dead_character(): void
