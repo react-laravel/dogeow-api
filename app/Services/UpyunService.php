@@ -63,6 +63,7 @@ class UpyunService
         }
 
         $normalizedRemotePath = $this->normalizeRemotePath($remotePath);
+        $encodedRemotePath = $this->encodeRemotePath($normalizedRemotePath);
 
         if (! is_file($localPath) || ! is_readable($localPath)) {
             return ['success' => false, 'message' => "本地文件不存在或不可读: {$localPath}"];
@@ -72,7 +73,7 @@ class UpyunService
         $contentMd5 = md5_file($localPath);
         $contentType = $contentType ?? $this->guessMimeType($localPath);
 
-        $uri = '/' . $this->bucket . '/' . $remotePath;
+        $uri = '/' . $this->bucket . $encodedRemotePath;
         $date = gmdate('D, d M Y H:i:s \G\M\T');
         $signature = $this->makeSignature('PUT', $uri, $date, $contentMd5);
 
