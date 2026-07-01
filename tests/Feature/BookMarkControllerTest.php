@@ -89,6 +89,43 @@ class BookMarkControllerTest extends TestCase
         $this->assertDatabaseCount('book_marks', 0);
     }
 
+    public function test_user_can_store_luxun_book_mark_with_string_chapter_id(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/books/luxun/marks', $this->bookmarkPayload([
+            'id' => 'luxun-mark-1',
+            'chapterId' => '0-0',
+            'chapterTitle' => '第1卷 · 一件小事',
+            'pairIndex' => null,
+            'excerpt' => '选中的片段',
+        ]))
+            ->assertCreated()
+            ->assertJsonPath('created', true)
+            ->assertJsonPath('mark.id', 'luxun-mark-1')
+            ->assertJsonPath('mark.bookId', 'luxun')
+            ->assertJsonPath('mark.chapterId', '0-0');
+
+        $this->getJson('/api/books/luxun/marks')
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.chapterId', '0-0');
+    }
+
+    public function test_numeric_chapter_id_is_accepted_as_string(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/books/hongloumeng/marks', $this->bookmarkPayload([
+            'id' => 'numeric-chapter-mark',
+            'chapterId' => '1',
+        ]))
+            ->assertCreated()
+            ->assertJsonPath('mark.chapterId', '1');
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
@@ -98,7 +135,7 @@ class BookMarkControllerTest extends TestCase
         return array_merge([
             'id' => 'mark-' . uniqid(),
             'kind' => 'position',
-            'chapterId' => 1,
+            'chapterId' => '1',
             'chapterTitle' => '第一回',
             'scrollTop' => 120,
             'pairIndex' => null,

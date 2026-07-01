@@ -28,7 +28,7 @@ class BookMarkController extends Controller
         $data = $request->validate([
             'id' => ['required', 'string', 'max:80'],
             'kind' => ['required', Rule::in(['position', 'collection'])],
-            'chapterId' => ['required', 'integer', 'min:1'],
+            'chapterId' => ['required', 'string', 'max:64'],
             'chapterTitle' => ['required', 'string', 'max:255'],
             'scrollTop' => ['required', 'numeric', 'min:0'],
             'pairIndex' => ['nullable', 'integer', 'min:0'],
@@ -97,7 +97,7 @@ class BookMarkController extends Controller
             return null;
         }
 
-        $chapterId = (int) $data['chapterId'];
+        $chapterId = (string) $data['chapterId'];
         if (array_key_exists('pairIndex', $data) && $data['pairIndex'] !== null) {
             return "chapter:{$chapterId}:pair:" . (int) $data['pairIndex'];
         }

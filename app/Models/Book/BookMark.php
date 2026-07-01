@@ -29,7 +29,6 @@ class BookMark extends Model
 
     protected $casts = [
         'user_id' => 'integer',
-        'chapter_id' => 'integer',
         'scroll_top' => 'float',
         'pair_index' => 'integer',
         'created_at_ms' => 'integer',
