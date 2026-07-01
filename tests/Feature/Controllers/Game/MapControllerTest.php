@@ -175,6 +175,97 @@ class MapControllerTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_enter_map_when_dead_does_not_start_combat(): void
+    {
+        Event::fake([GameCombatUpdate::class]);
+
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, [
+            'current_map_id' => 1,
+            'current_hp' => 0,
+            'is_fighting' => false,
+        ]);
+        $map = $this->createMapDefinition();
+
+        Redis::shouldReceive('del')
+            ->once()
+            ->with(AutoCombatRoundJob::redisKey($character->id))
+            ->andReturn(1);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/rpg/maps/' . $map->id . '/enter?character_id=' . $character->id);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.character.current_hp', 0)
+            ->assertJsonPath('data.monsters', []);
+
+        $character->refresh();
+        $this->assertFalse($character->is_fighting);
+        $this->assertSame($map->id, $character->current_map_id);
+
+        Event::assertNotDispatched(GameCombatUpdate::class);
+    }
+
+    public function test_teleport_from_death_revives_and_starts_combat(): void
+    {
+        Event::fake([GameCombatUpdate::class]);
+
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, [
+            'current_map_id' => 1,
+            'current_hp' => 0,
+            'is_fighting' => false,
+        ]);
+        $map = $this->createMapDefinition();
+
+        Redis::shouldReceive('del')
+            ->once()
+            ->with(AutoCombatRoundJob::redisKey($character->id))
+            ->andReturn(1);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/rpg/maps/' . $map->id . '/teleport?character_id=' . $character->id);
+
+        $response->assertStatus(200);
+
+        $character->refresh();
+        $this->assertTrue($character->is_fighting);
+        $this->assertGreaterThan(0, $character->current_hp);
+        $this->assertSame($map->id, $character->current_map_id);
+
+        Event::assertDispatched(GameCombatUpdate::class);
+    }
+
+    public function test_teleport_when_dead_and_still_fighting_does_not_start_combat(): void
+    {
+        Event::fake([GameCombatUpdate::class]);
+
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user, [
+            'current_map_id' => 1,
+            'current_hp' => 0,
+            'is_fighting' => true,
+        ]);
+        $map = $this->createMapDefinition();
+
+        Redis::shouldReceive('del')
+            ->once()
+            ->with(AutoCombatRoundJob::redisKey($character->id))
+            ->andReturn(1);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/rpg/maps/' . $map->id . '/teleport?character_id=' . $character->id);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.character.current_hp', 0)
+            ->assertJsonPath('data.monsters', []);
+
+        $character->refresh();
+        $this->assertFalse($character->is_fighting);
+
+        Event::assertNotDispatched(GameCombatUpdate::class);
+    }
+
     public function test_enter_map_clears_auto_combat_redis_key_so_combat_can_restart(): void
     {
         $user = User::factory()->create();

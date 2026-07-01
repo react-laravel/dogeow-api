@@ -63,17 +63,24 @@ class MapController extends Controller
         Redis::del(AutoCombatRoundJob::redisKey($character->id));
         $character->clearCombatState();
         $character->current_map_id = $mapId;
-        $character->is_fighting = true;
+        // 死亡角色(切图瞬间被打死)不进入战斗状态，需先复活，避免出现「HP=0 却在战斗中」的卡死状态
+        $isAlive = $character->getCurrentHp() > 0;
+        $character->is_fighting = $isAlive;
         $character->save();
 
         $character->refresh();
         $character->load('currentMap');
-        $this->combatService->broadcastMonstersAppear($character, $map);
+
+        $monsters = [];
+        if ($isAlive) {
+            $this->combatService->broadcastMonstersAppear($character, $map);
+            $monsters = $this->monsterService->formatMonstersForResponse($character->fresh())['monsters'] ?? [];
+        }
 
         return $this->success([
             'character' => $character->fresh('currentMap'),
             'map' => $map,
-            'monsters' => $this->monsterService->formatMonstersForResponse($character->fresh())['monsters'] ?? [],
+            'monsters' => $monsters,
         ], "已进入 {$map->name}");
     }
 
@@ -90,19 +97,26 @@ class MapController extends Controller
         Redis::del(AutoCombatRoundJob::redisKey($character->id));
         $character->clearCombatState();
         $character->current_map_id = $mapId;
-        $character->is_fighting = true;
         if ($wasNotFighting) {
             $character->applyReviveResources();
         }
+        // 与 enter 一致：复活后仍须存活才进入战斗，避免 HP=0 却 is_fighting=true
+        $isAlive = $character->getCurrentHp() > 0;
+        $character->is_fighting = $isAlive;
         $character->save();
 
         $character->refresh();
         $character->load('currentMap');
-        $this->combatService->broadcastMonstersAppear($character, $map);
+
+        $monsters = [];
+        if ($isAlive) {
+            $this->combatService->broadcastMonstersAppear($character, $map);
+            $monsters = $this->monsterService->formatMonstersForResponse($character->fresh())['monsters'] ?? [];
+        }
 
         return $this->success([
             'character' => $character->fresh('currentMap'),
-            'monsters' => $this->monsterService->formatMonstersForResponse($character->fresh())['monsters'] ?? [],
+            'monsters' => $monsters,
         ], "已传送到 {$map->name}");
     }
 

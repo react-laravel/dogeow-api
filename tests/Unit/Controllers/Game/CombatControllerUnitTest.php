@@ -188,13 +188,39 @@ class CombatControllerUnitTest extends TestCase
         $this->assertSame('角色未处于死亡状态', $data['message']);
     }
 
-    public function test_start_rejects_when_auto_combat_is_already_running(): void
+    public function test_start_returns_success_when_auto_combat_is_already_running(): void
     {
         Bus::fake();
 
         $user = User::factory()->create();
         $character = $this->createCharacter($user);
         $key = AutoCombatRoundJob::redisKey($character->id);
+
+        Redis::shouldReceive('get')
+            ->once()
+            ->with($key)
+            ->andReturn(json_encode(['skill_ids' => null]));
+
+        $response = $this->controller->start($this->makeRequest($user, $character));
+        $data = json_decode($response->getContent(), true);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('自动战斗已在进行中，结果将通过 WebSocket 推送', $data['data']['message']);
+        Bus::assertNothingDispatched();
+    }
+
+    public function test_start_rejects_when_auto_combat_acquire_fails_without_payload(): void
+    {
+        Bus::fake();
+
+        $user = User::factory()->create();
+        $character = $this->createCharacter($user);
+        $key = AutoCombatRoundJob::redisKey($character->id);
+
+        Redis::shouldReceive('get')
+            ->once()
+            ->with($key)
+            ->andReturn(null);
 
         // Redis::set with NX returns false when key already exists
         Redis::shouldReceive('set')
@@ -219,6 +245,8 @@ class CombatControllerUnitTest extends TestCase
         $request = $this->makeRequest($user, $character, ['skill_ids' => ['2', '7']]);
         $key = AutoCombatRoundJob::redisKey($character->id);
         $payload = json_encode(['skill_ids' => [2, 7]]);
+
+        Redis::shouldReceive('get')->once()->with($key)->andReturn(null);
 
         // Redis::set with NX returns true when key is successfully set
         Redis::shouldReceive('set')
@@ -245,6 +273,8 @@ class CombatControllerUnitTest extends TestCase
         $key = AutoCombatRoundJob::redisKey($character->id);
         $payload = json_encode(['skill_ids' => null]);
 
+        Redis::shouldReceive('get')->once()->with($key)->andReturn(null);
+
         // Redis::set with NX returns true when key is successfully set
         Redis::shouldReceive('set')
             ->once()
@@ -265,10 +295,13 @@ class CombatControllerUnitTest extends TestCase
 
         $user = User::factory()->create();
         $character = $this->createCharacter($user);
+        $key = AutoCombatRoundJob::redisKey($character->id);
+
+        Redis::shouldReceive('get')->once()->with($key)->andReturn(null);
 
         Redis::shouldReceive('set')
             ->once()
-            ->with(AutoCombatRoundJob::redisKey($character->id), Mockery::any(), 'EX', AutoCombatRoundJob::ttl(), 'NX')
+            ->with($key, Mockery::any(), 'EX', AutoCombatRoundJob::ttl(), 'NX')
             ->andThrow(new \RuntimeException(''));
 
         $response = $this->controller->start($this->makeRequest($user, $character));
