@@ -26,6 +26,7 @@ class MonopolyPlayer extends Model
         'jail_turns',
         'jail_cards',
         'last_roll',
+        'houses_built_this_turn',
     ];
 
     protected $casts = [
@@ -40,6 +41,7 @@ class MonopolyPlayer extends Model
         'jail_turns' => 'integer',
         'jail_cards' => 'integer',
         'last_roll' => 'integer',
+        'houses_built_this_turn' => 'integer',
     ];
 
     /**

@@ -108,7 +108,7 @@ class MonopolyControllerTest extends TestCase
         $this->postJson("/api/monopoly/rooms/{$roomId}/start")->assertOk();
 
         $player = MonopolyPlayer::where('room_id', $roomId)->where('user_id', $this->host->id)->firstOrFail();
-        $player->update(['position' => 1, 'cash' => 5_000_000]);
+        $player->update(['position' => 1, 'cash' => 5_000_000, 'last_roll' => 1]);
 
         $buy = $this->postJson("/api/monopoly/rooms/{$roomId}/buy")->assertOk();
         $propertyId = $buy->json('data.property.id');
@@ -120,17 +120,21 @@ class MonopolyControllerTest extends TestCase
             'houses' => 2,
         ])->assertOk()
             ->assertJsonPath('data.property.houses', 2)
+            ->assertJsonPath('data.state.players.0.houses_built_this_turn', 2)
             ->assertJsonPath('data.state.properties.0.current_rent', 110000);
 
         $this->postJson("/api/monopoly/rooms/{$roomId}/build", [
             'property_id' => $propertyId,
             'houses' => 2,
-        ])->assertOk()->assertJsonPath('data.property.houses', 4);
+        ])->assertUnprocessable();
+
+        MonopolyPlayer::where('room_id', $roomId)->where('user_id', $this->host->id)->firstOrFail()
+            ->update(['houses_built_this_turn' => 0]);
 
         $this->postJson("/api/monopoly/rooms/{$roomId}/build", [
             'property_id' => $propertyId,
             'houses' => 2,
-        ])->assertUnprocessable();
+        ])->assertOk()->assertJsonPath('data.property.houses', 4);
     }
 
     #[Test]

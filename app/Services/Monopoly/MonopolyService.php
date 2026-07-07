@@ -219,14 +219,23 @@ class MonopolyService
     {
         return DB::transaction(function () use ($room, $userId, $propertyId, $houses) {
             $room = $this->lockRoom($room);
-            $player = $this->playerForUser($room, $userId);
+            $player = $this->currentHumanPlayer($room, $userId);
+            if ($player->last_roll === null) {
+                throw ValidationException::withMessages(['turn' => '请先掷骰子']);
+            }
+
             $property = $room->properties()->where('type', 'city')->findOrFail($propertyId);
 
             if ($property->owner_player_id !== $player->id) {
                 throw ValidationException::withMessages(['property' => '只能给自己的城市盖房']);
             }
 
-            $houses = max(1, min($houses, (int) config('monopoly.max_houses_per_build_action')));
+            $remainingBuilds = (int) config('monopoly.max_houses_per_build_action') - $player->houses_built_this_turn;
+            if ($remainingBuilds <= 0) {
+                throw ValidationException::withMessages(['houses' => '本回合最多建造 2 套房']);
+            }
+
+            $houses = max(1, min($houses, (int) config('monopoly.max_houses_per_build_action'), $remainingBuilds));
             if ($property->houses + $houses > (int) config('monopoly.max_houses_per_property')) {
                 throw ValidationException::withMessages(['houses' => '单个地皮最多 5 套房']);
             }
@@ -237,6 +246,7 @@ class MonopolyService
             }
 
             $player->decrement('cash', $cost);
+            $player->increment('houses_built_this_turn', $houses);
             $property->increment('houses', $houses);
             $this->log($room, $player, 'property.built', "{$player->name} 在 {$property->name} 建造 {$houses} 套房", [
                 'property_id' => $property->id,
@@ -322,6 +332,7 @@ class MonopolyService
                 'jail_turns' => $player->jail_turns,
                 'jail_cards' => $player->jail_cards,
                 'last_roll' => $player->last_roll,
+                'houses_built_this_turn' => $player->houses_built_this_turn,
             ])->values()->all(),
             'properties' => $room->properties->map(fn (MonopolyProperty $property) => [
                 'id' => $property->id,
@@ -655,7 +666,10 @@ class MonopolyService
 
         $currentIndex = $players->search(fn (MonopolyPlayer $player) => $player->turn_order === $room->current_turn_order);
         $next = $players[($currentIndex === false ? 0 : $currentIndex + 1) % $players->count()];
-        $players->each(fn (MonopolyPlayer $player) => $player->update(['last_roll' => null]));
+        $players->each(fn (MonopolyPlayer $player) => $player->update([
+            'last_roll' => null,
+            'houses_built_this_turn' => 0,
+        ]));
         $room->current_turn_order = $next->turn_order;
         if ($next->turn_order === 0) {
             $room->round++;
