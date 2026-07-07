@@ -194,10 +194,17 @@ class MonopolyService
 
             $roll = random_int(1, 6);
             $this->movePlayer($room, $player, $roll);
+            $landingTileType = $this->tile($player->position)['type'];
             $player->last_roll = $roll;
             $player->save();
             $this->resolveLanding($room, $player);
             $this->broadcast($room, 'dice.rolled', ['player_id' => $player->id, 'roll' => $roll]);
+            $player = $this->freshPlayer($player);
+            if ($this->shouldAutoEndAfterRoll($room, $player, $landingTileType)) {
+                $this->advanceTurn($room);
+                $this->broadcast($room, 'turn.advanced');
+                $this->runComputerTurns($room);
+            }
 
             return ['roll' => $roll, 'state' => $this->state($room)];
         });
@@ -293,7 +300,13 @@ class MonopolyService
 
             $player->update(['is_in_jail' => false, 'jail_turns' => 0]);
             $this->log($room, $player, 'jail.left', "{$player->name} 离开监狱");
-            $this->broadcast($room, 'state.updated');
+            if ($method === 'pay') {
+                $this->advanceTurn($room);
+                $this->broadcast($room, 'turn.advanced');
+                $this->runComputerTurns($room);
+            } else {
+                $this->broadcast($room, 'state.updated');
+            }
         });
     }
 
@@ -619,10 +632,52 @@ class MonopolyService
         $this->log($room, $player, 'start.landed', "{$player->name} 到达起点");
     }
 
+    private function shouldAutoEndAfterRoll(MonopolyRoom $room, MonopolyPlayer $player, string $landingTileType): bool
+    {
+        $room = $this->freshRoom($room);
+        if ($room->status !== 'playing' || $room->current_turn_order !== $player->turn_order) {
+            return false;
+        }
+
+        if ($player->is_bankrupt || $player->is_in_jail) {
+            return true;
+        }
+
+        if (in_array($landingTileType, ['start', 'chance', 'welfare', 'jail'], true)) {
+            return true;
+        }
+
+        return ! $this->hasPostRollAction($room, $player);
+    }
+
+    private function hasPostRollAction(MonopolyRoom $room, MonopolyPlayer $player): bool
+    {
+        if ($player->last_roll === null || $player->is_bankrupt || $player->is_in_jail) {
+            return false;
+        }
+
+        $property = $room->properties()->where('tile_index', $player->position)->first();
+        if (! $property) {
+            return false;
+        }
+
+        if ($property->owner_player_id === null) {
+            return $player->cash >= $property->price;
+        }
+
+        if ($property->owner_player_id !== $player->id || $property->type !== 'city') {
+            return false;
+        }
+
+        return $property->houses < (int) config('monopoly.max_houses_per_property')
+            && $player->houses_built_this_turn < (int) config('monopoly.max_houses_per_build_action')
+            && $player->cash >= $property->house_price;
+    }
+
     private function rent(MonopolyRoom $room, MonopolyProperty $property): int
     {
         if ($property->type === 'city') {
-            return (int) floor(($property->price + ($property->house_price * $property->houses)) * 0.1);
+            return (int) floor(($property->price + ($property->house_price * $property->houses)) * 0.2);
         }
 
         $ownedCount = $room->properties()
