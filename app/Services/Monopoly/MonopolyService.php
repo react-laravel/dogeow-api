@@ -44,6 +44,7 @@ class MonopolyService
                 'config' => [
                     'initial_cash' => (int) config('monopoly.initial_cash'),
                     'start_bonus' => (int) config('monopoly.start_bonus'),
+                    'max_rounds' => (int) config('monopoly.max_rounds'),
                     'max_houses_per_property' => (int) config('monopoly.max_houses_per_property'),
                     'max_houses_per_build_action' => (int) config('monopoly.max_houses_per_build_action'),
                 ],
@@ -261,6 +262,7 @@ class MonopolyService
 
     public function state(MonopolyRoom $room): array
     {
+        $this->syncProperties($room);
         $room = MonopolyRoom::with(['players.properties', 'properties.owner', 'events.player'])->findOrFail($room->id);
         $board = collect(config('monopoly.board'))->keyBy('index');
         $currentPlayer = $room->players->firstWhere('turn_order', $room->current_turn_order);
@@ -271,6 +273,7 @@ class MonopolyService
                 'name' => $room->name,
                 'status' => $room->status,
                 'max_players' => $room->max_players,
+                'max_rounds' => $this->maxRounds($room),
                 'current_turn_order' => $room->current_turn_order,
                 'round' => $room->round,
                 'created_by' => $room->created_by,
@@ -300,6 +303,7 @@ class MonopolyService
                 'name' => $property->name,
                 'price' => $property->price,
                 'base_rent' => $property->base_rent,
+                'current_rent' => $this->rent($room, $property),
                 'house_price' => $property->house_price,
                 'owner_player_id' => $property->owner_player_id,
                 'owner_name' => $property->owner?->name,
@@ -336,15 +340,30 @@ class MonopolyService
                 continue;
             }
 
-            MonopolyProperty::create([
-                'room_id' => $room->id,
-                'tile_index' => $tile['index'],
-                'type' => $tile['type'],
-                'name' => $tile['name'],
-                'price' => $tile['price'],
-                'base_rent' => $tile['rent'],
-                'house_price' => $tile['house_price'] ?? 0,
-            ]);
+            MonopolyProperty::updateOrCreate(
+                [
+                    'room_id' => $room->id,
+                    'tile_index' => $tile['index'],
+                ],
+                [
+                    'type' => $tile['type'],
+                    'name' => $tile['name'],
+                    'price' => $tile['price'],
+                    'base_rent' => $tile['rent'],
+                    'house_price' => $tile['house_price'] ?? 0,
+                ]
+            );
+        }
+    }
+
+    private function syncProperties(MonopolyRoom $room): void
+    {
+        $expectedCount = collect(config('monopoly.board'))
+            ->whereIn('type', ['city', 'rail', 'air'])
+            ->count();
+
+        if ($room->properties()->count() < $expectedCount) {
+            $this->createProperties($room);
         }
     }
 
@@ -500,7 +519,7 @@ class MonopolyService
             'move_to' => $this->moveTo($room, $player, (int) $card['position'], (bool) ($card['grant_start_bonus'] ?? false)),
             'move_steps' => $this->movePlayer($room, $player, (int) $card['steps']),
             'jail' => $this->sendToJail($room, $player, "{$player->name} 被送进监狱"),
-            'jail_card' => $player->increment('jail_cards'),
+            'jail_card' => $this->grantJailCard($room, $player),
             default => null,
         };
 
@@ -513,6 +532,7 @@ class MonopolyService
     {
         if ($amount >= 0) {
             $player->increment('cash', $amount);
+            $this->log($room, $player, 'cash.received', "{$player->name} 获得 {$amount}", ['amount' => $amount]);
 
             return;
         }
@@ -528,6 +548,12 @@ class MonopolyService
     {
         $player->decrement('cash', min($player->cash, $amount));
         $this->log($player->room()->firstOrFail(), $player, 'cash.paid', $message, ['amount' => $amount]);
+    }
+
+    private function grantJailCard(MonopolyRoom $room, MonopolyPlayer $player): void
+    {
+        $player->increment('jail_cards');
+        $this->log($room, $player, 'jail.card.received', "{$player->name} 获得 1 张出狱卡");
     }
 
     private function moveTo(MonopolyRoom $room, MonopolyPlayer $player, int $position, bool $grantStartBonus): void
@@ -558,7 +584,7 @@ class MonopolyService
     private function rent(MonopolyRoom $room, MonopolyProperty $property): int
     {
         if ($property->type === 'city') {
-            return $property->base_rent * (1 + $property->houses);
+            return (int) floor(($property->price + ($property->house_price * $property->houses)) * 0.1);
         }
 
         $ownedCount = $room->properties()
@@ -592,7 +618,10 @@ class MonopolyService
         if ($players->count() <= 1) {
             $winner = $players->first();
             $room->update(['status' => 'finished', 'finished_at' => now()]);
-            $this->log($room, $winner, 'game.finished', $winner ? "{$winner->name} 获胜" : '游戏结束');
+            $this->log($room, $winner, 'game.finished', $winner ? "{$winner->name} 获胜" : '游戏结束', [
+                'reason' => 'bankruptcy',
+                'winner_player_id' => $winner?->id,
+            ]);
 
             return;
         }
@@ -605,7 +634,90 @@ class MonopolyService
             $room->round++;
         }
         $room->save();
+
+        if ($room->round > $this->maxRounds($room)) {
+            $this->finishByNetWorth($room);
+
+            return;
+        }
+
         $this->log($room, $next, 'turn.advanced', "轮到 {$next->name}");
+    }
+
+    private function finishByNetWorth(MonopolyRoom $room): void
+    {
+        $standings = $room->players()
+            ->where('is_bankrupt', false)
+            ->orderBy('turn_order')
+            ->get()
+            ->map(fn (MonopolyPlayer $player) => [
+                'player' => $player,
+                'net_worth' => $this->netWorth($player),
+            ])
+            ->sort(function (array $left, array $right) {
+                /** @var MonopolyPlayer $leftPlayer */
+                $leftPlayer = $left['player'];
+                /** @var MonopolyPlayer $rightPlayer */
+                $rightPlayer = $right['player'];
+
+                return [$right['net_worth'], $rightPlayer->cash] <=> [$left['net_worth'], $leftPlayer->cash];
+            })
+            ->values();
+
+        $winnerEntry = $standings->first();
+        $winner = $winnerEntry['player'] ?? null;
+        $winnerNetWorth = (int) ($winnerEntry['net_worth'] ?? 0);
+        $room->update(['status' => 'finished', 'finished_at' => now()]);
+
+        $this->log(
+            $room,
+            $winner,
+            'game.finished',
+            $winner
+                ? "达到 {$this->maxRounds($room)} 轮，{$winner->name} 以净资产 {$this->formatAmount($winnerNetWorth)} 获胜"
+                : '达到最大轮数，游戏结束',
+            [
+                'reason' => 'max_rounds',
+                'max_rounds' => $this->maxRounds($room),
+                'winner_player_id' => $winner?->id,
+                'winner_net_worth' => $winner ? $winnerNetWorth : null,
+                'standings' => $standings->map(function (array $standing) {
+                    /** @var MonopolyPlayer $player */
+                    $player = $standing['player'];
+
+                    return [
+                        'player_id' => $player->id,
+                        'name' => $player->name,
+                        'cash' => $player->cash,
+                        'net_worth' => (int) $standing['net_worth'],
+                    ];
+                })->all(),
+            ]
+        );
+    }
+
+    private function netWorth(MonopolyPlayer $player): int
+    {
+        $assets = MonopolyProperty::query()
+            ->where('owner_player_id', $player->id)
+            ->get()
+            ->sum(fn (MonopolyProperty $property) => $property->price + ($property->house_price * $property->houses));
+
+        return $player->cash + (int) $assets;
+    }
+
+    private function maxRounds(MonopolyRoom $room): int
+    {
+        return max(1, (int) ($room->config['max_rounds'] ?? config('monopoly.max_rounds')));
+    }
+
+    private function formatAmount(int $amount): string
+    {
+        if ($amount >= 1_000_000) {
+            return rtrim(rtrim(number_format($amount / 1_000_000, 1), '0'), '.') . 'M';
+        }
+
+        return (int) floor($amount / 1_000) . 'K';
     }
 
     private function runComputerTurns(MonopolyRoom $room): void
@@ -664,7 +776,7 @@ class MonopolyService
             ->orderByDesc('base_rent')
             ->first();
 
-        if ($buildTarget && $player->cash - $buildTarget->house_price >= 300_000) {
+        if ($buildTarget && $player->cash - $buildTarget->house_price >= 500_000) {
             $player->decrement('cash', $buildTarget->house_price);
             $buildTarget->increment('houses');
             $this->log($room, $player, 'property.built', "{$player->name} 在 {$buildTarget->name} 建造 1 套房");

@@ -29,7 +29,7 @@ return new class extends Migration
             $table->string('name', 40);
             $table->string('type', 12)->default('human');
             $table->unsignedTinyInteger('turn_order');
-            $table->integer('cash')->default(800000);
+            $table->integer('cash')->default(8000000);
             $table->unsignedTinyInteger('position')->default(0);
             $table->boolean('is_host')->default(false);
             $table->boolean('is_bankrupt')->default(false);
