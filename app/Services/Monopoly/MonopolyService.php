@@ -2,6 +2,7 @@
 
 namespace App\Services\Monopoly;
 
+use App\Events\Monopoly\MonopolyLobbyUpdated;
 use App\Events\Monopoly\MonopolyStateUpdated;
 use App\Models\Monopoly\MonopolyEvent;
 use App\Models\Monopoly\MonopolyPlayer;
@@ -33,6 +34,26 @@ class MonopolyService
             ->all();
     }
 
+    public function lobbyRooms(): array
+    {
+        return MonopolyRoom::query()
+            ->withCount('players')
+            ->whereIn('status', ['waiting', 'playing'])
+            ->latest()
+            ->limit(30)
+            ->get()
+            ->map(fn (MonopolyRoom $room) => [
+                'id' => $room->id,
+                'name' => $room->name,
+                'status' => $room->status,
+                'players_count' => $room->players_count,
+                'max_players' => $room->max_players,
+                'is_member' => false,
+                'created_at' => $room->created_at?->toISOString(),
+            ])
+            ->all();
+    }
+
     public function createRoom(User $user, string $name): MonopolyRoom
     {
         return DB::transaction(function () use ($user, $name) {
@@ -55,6 +76,7 @@ class MonopolyService
             $this->log($room, null, 'room.created', "{$user->name} 创建了房间");
 
             $this->broadcast($room, 'state.updated');
+            $this->broadcastLobby();
 
             return $room;
         });
@@ -75,6 +97,7 @@ class MonopolyService
             $player = $this->createPlayer($room, $user->name, 'human', $user->id);
             $this->log($room, $player, 'player.joined', "{$player->name} 加入了房间");
             $this->broadcast($room, 'player.joined', ['player_id' => $player->id]);
+            $this->broadcastLobby();
 
             return $player;
         });
@@ -95,6 +118,7 @@ class MonopolyService
 
             $this->log($room, $player, 'player.left', "{$player->name} 离开了房间");
             $this->broadcast($room, 'player.left', ['player_id' => $player->id]);
+            $this->broadcastLobby();
         });
     }
 
@@ -110,6 +134,7 @@ class MonopolyService
             $player = $this->createPlayer($room, "电脑 {$number}", 'computer');
             $this->log($room, $player, 'player.joined', "{$player->name} 加入了房间");
             $this->broadcast($room, 'player.joined', ['player_id' => $player->id]);
+            $this->broadcastLobby();
 
             return $player;
         });
@@ -128,6 +153,7 @@ class MonopolyService
             $this->resequencePlayers($room);
             $this->log($room, null, 'player.left', "{$name} 离开了房间");
             $this->broadcast($room, 'player.left', ['player_id' => $playerId]);
+            $this->broadcastLobby();
         });
     }
 
@@ -150,6 +176,7 @@ class MonopolyService
             ]);
             $this->log($room, null, 'game.started', '游戏开始');
             $this->broadcast($room, 'state.updated');
+            $this->broadcastLobby();
             $this->runComputerTurns($room);
 
             return $room;
@@ -824,5 +851,10 @@ class MonopolyService
     private function broadcast(MonopolyRoom $room, string $type, array $payload = []): void
     {
         broadcast(new MonopolyStateUpdated($room->id, $type, $this->state($room), $payload))->toOthers();
+    }
+
+    private function broadcastLobby(): void
+    {
+        broadcast(new MonopolyLobbyUpdated($this->lobbyRooms()))->toOthers();
     }
 }

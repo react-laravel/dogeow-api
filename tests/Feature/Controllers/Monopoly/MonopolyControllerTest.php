@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Controllers\Monopoly;
 
+use App\Events\Monopoly\MonopolyLobbyUpdated;
 use App\Events\Monopoly\MonopolyStateUpdated;
 use App\Models\Monopoly\MonopolyPlayer;
 use App\Models\Monopoly\MonopolyRoom;
@@ -44,6 +45,7 @@ class MonopolyControllerTest extends TestCase
         ]);
         $this->assertDatabaseHas('monopoly_properties', ['name' => '罗马']);
         Event::assertDispatched(MonopolyStateUpdated::class);
+        Event::assertDispatched(MonopolyLobbyUpdated::class);
     }
 
     #[Test]
