@@ -200,6 +200,11 @@ class MonopolyControllerTest extends TestCase
                 ],
             ],
         ]);
+        Event::assertDispatched(
+            MonopolyStateUpdated::class,
+            fn (MonopolyStateUpdated $event) => $event->type === 'dice.rolled'
+                && MonopolyPlayer::find($event->payload['player_id'] ?? null)?->type === 'computer'
+        );
 
         $room = MonopolyRoom::findOrFail($roomId);
         $guestPlayer = MonopolyPlayer::where('room_id', $roomId)->where('user_id', $guest->id)->firstOrFail();
