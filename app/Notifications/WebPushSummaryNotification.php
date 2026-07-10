@@ -17,7 +17,7 @@ class WebPushSummaryNotification extends Notification implements ShouldQueue
 
     public function __construct(
         public int $unreadCount,
-        public string $url = '/chat'
+        public string $url = '/'
     ) {}
 
     /**

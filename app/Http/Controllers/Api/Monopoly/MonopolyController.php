@@ -118,9 +118,12 @@ class MonopolyController extends Controller
 
     public function endTurn(MonopolyRoom $room): JsonResponse
     {
-        $this->service->endTurn($room, $this->getCurrentUserId());
+        $animations = $this->service->endTurn($room, $this->getCurrentUserId());
 
-        return $this->success(['state' => $this->service->state($room)]);
+        return $this->success([
+            'animations' => $animations,
+            'state' => $this->service->state($room),
+        ]);
     }
 
     public function leaveJail(MonopolyRoom $room, Request $request): JsonResponse
@@ -129,9 +132,12 @@ class MonopolyController extends Controller
             'method' => ['required', 'in:pay,card'],
         ]);
 
-        $this->service->leaveJail($room, $this->getCurrentUserId(), $validated['method']);
+        $animations = $this->service->leaveJail($room, $this->getCurrentUserId(), $validated['method']);
 
-        return $this->success(['state' => $this->service->state($room)]);
+        return $this->success([
+            'animations' => $animations,
+            'state' => $this->service->state($room),
+        ]);
     }
 
     private function authorizeRoomMember(MonopolyRoom $room): void

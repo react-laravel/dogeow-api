@@ -57,7 +57,7 @@ class NotificationController extends Controller
             return;
         }
 
-        $user->notify(new WebPushSummaryNotification($unreadCount, '/chat'));
+        $user->notify(new WebPushSummaryNotification($unreadCount));
         Cache::put($cacheKey, now(), now()->addMinutes(self::SUMMARY_PUSH_COOLDOWN_MINUTES + 1));
     }
 

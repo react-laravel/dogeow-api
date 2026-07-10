@@ -124,6 +124,14 @@ class MonopolyControllerTest extends TestCase
 
         $this->postJson("/api/monopoly/rooms/{$roomId}/roll")
             ->assertOk()
+            ->assertJsonCount(1, 'data.animations')
+            ->assertJsonStructure([
+                'data' => [
+                    'animations' => [
+                        '*' => ['player_id', 'roll', 'state'],
+                    ],
+                ],
+            ])
             ->assertJsonPath('data.state.current_player_id', $guestPlayer->id);
     }
 
@@ -176,13 +184,22 @@ class MonopolyControllerTest extends TestCase
 
         Sanctum::actingAs($this->host);
         $this->postJson("/api/monopoly/rooms/{$roomId}/start")->assertOk();
-        $this->postJson("/api/monopoly/rooms/{$roomId}/roll")->assertOk();
+        $animationResponse = $this->postJson("/api/monopoly/rooms/{$roomId}/roll")->assertOk();
 
         $hostPlayer = MonopolyPlayer::where('room_id', $roomId)->where('user_id', $this->host->id)->firstOrFail();
         $room = MonopolyRoom::findOrFail($roomId);
         if ($room->current_turn_order === $hostPlayer->turn_order) {
-            $this->postJson("/api/monopoly/rooms/{$roomId}/end-turn")->assertOk();
+            $animationResponse = $this->postJson("/api/monopoly/rooms/{$roomId}/end-turn")->assertOk();
         }
+
+        $this->assertNotEmpty($animationResponse->json('data.animations'));
+        $animationResponse->assertJsonStructure([
+            'data' => [
+                'animations' => [
+                    '*' => ['player_id', 'roll', 'state'],
+                ],
+            ],
+        ]);
 
         $room = MonopolyRoom::findOrFail($roomId);
         $guestPlayer = MonopolyPlayer::where('room_id', $roomId)->where('user_id', $guest->id)->firstOrFail();

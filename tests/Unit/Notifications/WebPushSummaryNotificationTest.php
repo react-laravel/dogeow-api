@@ -2,8 +2,13 @@
 
 namespace Tests\Unit\Notifications;
 
+use App\Models\User;
 use App\Notifications\WebPushSummaryNotification;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Channels\DatabaseChannel;
+use Illuminate\Notifications\Notification;
 use NotificationChannels\WebPush\WebPushChannel;
+use NotificationChannels\WebPush\WebPushMessage;
 use Tests\TestCase;
 
 class WebPushSummaryNotificationTest extends TestCase
@@ -27,14 +32,14 @@ class WebPushSummaryNotificationTest extends TestCase
         );
 
         $this->assertEquals(10, $notification->unreadCount);
-        $this->assertEquals('/chat', $notification->url);
+        $this->assertEquals('/', $notification->url);
     }
 
     public function test_via_returns_only_web_push_channel()
     {
         $notification = new WebPushSummaryNotification(unreadCount: 1);
 
-        $channels = $notification->via(new \App\Models\User);
+        $channels = $notification->via(new User);
 
         $this->assertCount(1, $channels);
         $this->assertContains(WebPushChannel::class, $channels);
@@ -44,25 +49,25 @@ class WebPushSummaryNotificationTest extends TestCase
     {
         $notification = new WebPushSummaryNotification(unreadCount: 1);
 
-        $channels = $notification->via(new \App\Models\User);
+        $channels = $notification->via(new User);
 
-        $this->assertNotContains(\Illuminate\Notifications\Channels\DatabaseChannel::class, $channels);
+        $this->assertNotContains(DatabaseChannel::class, $channels);
     }
 
     public function test_to_web_push_returns_web_push_message()
     {
         $notification = new WebPushSummaryNotification(unreadCount: 5);
 
-        $message = $notification->toWebPush(new \App\Models\User, new \Illuminate\Notifications\Notification);
+        $message = $notification->toWebPush(new User, new Notification);
 
-        $this->assertInstanceOf(\NotificationChannels\WebPush\WebPushMessage::class, $message);
+        $this->assertInstanceOf(WebPushMessage::class, $message);
     }
 
     public function test_to_web_push_title_for_single_unread()
     {
         $notification = new WebPushSummaryNotification(unreadCount: 1);
 
-        $message = $notification->toWebPush(new \App\Models\User, new \Illuminate\Notifications\Notification);
+        $message = $notification->toWebPush(new User, new Notification);
 
         $title = $message->toArray()['title'];
         $this->assertStringContainsString('1 条未读消息', $title);
@@ -72,7 +77,7 @@ class WebPushSummaryNotificationTest extends TestCase
     {
         $notification = new WebPushSummaryNotification(unreadCount: 5);
 
-        $message = $notification->toWebPush(new \App\Models\User, new \Illuminate\Notifications\Notification);
+        $message = $notification->toWebPush(new User, new Notification);
 
         $title = $message->toArray()['title'];
         $this->assertStringContainsString('5 条未读消息', $title);
@@ -82,7 +87,7 @@ class WebPushSummaryNotificationTest extends TestCase
     {
         $notification = new WebPushSummaryNotification(unreadCount: 0);
 
-        $message = $notification->toWebPush(new \App\Models\User, new \Illuminate\Notifications\Notification);
+        $message = $notification->toWebPush(new User, new Notification);
 
         $title = $message->toArray()['title'];
         $this->assertStringContainsString('0 条未读消息', $title);
@@ -92,7 +97,7 @@ class WebPushSummaryNotificationTest extends TestCase
     {
         $notification = new WebPushSummaryNotification(unreadCount: 1);
 
-        $message = $notification->toWebPush(new \App\Models\User, new \Illuminate\Notifications\Notification);
+        $message = $notification->toWebPush(new User, new Notification);
 
         $body = $message->toArray()['body'];
         $this->assertEquals('点击查看', $body);
@@ -105,7 +110,7 @@ class WebPushSummaryNotificationTest extends TestCase
             url: '/custom-path'
         );
 
-        $message = $notification->toWebPush(new \App\Models\User, new \Illuminate\Notifications\Notification);
+        $message = $notification->toWebPush(new User, new Notification);
 
         $data = $message->toArray()['data'];
         $this->assertEquals('/custom-path', $data['url']);
@@ -115,7 +120,7 @@ class WebPushSummaryNotificationTest extends TestCase
     {
         $notification = new WebPushSummaryNotification(unreadCount: 1);
 
-        $message = $notification->toWebPush(new \App\Models\User, new \Illuminate\Notifications\Notification);
+        $message = $notification->toWebPush(new User, new Notification);
 
         $icon = $message->toArray()['icon'];
         $this->assertEquals('/480.png', $icon);
@@ -125,7 +130,7 @@ class WebPushSummaryNotificationTest extends TestCase
     {
         $notification = new WebPushSummaryNotification(unreadCount: 1);
 
-        $message = $notification->toWebPush(new \App\Models\User, new \Illuminate\Notifications\Notification);
+        $message = $notification->toWebPush(new User, new Notification);
 
         $badge = $message->toArray()['badge'];
         $this->assertEquals('/80.png', $badge);
@@ -135,7 +140,7 @@ class WebPushSummaryNotificationTest extends TestCase
     {
         $notification = new WebPushSummaryNotification(unreadCount: 1);
 
-        $message = $notification->toWebPush(new \App\Models\User, new \Illuminate\Notifications\Notification);
+        $message = $notification->toWebPush(new User, new Notification);
 
         $options = $message->getOptions();
         $this->assertArrayHasKey('TTL', $options);
@@ -146,6 +151,6 @@ class WebPushSummaryNotificationTest extends TestCase
     {
         $notification = new WebPushSummaryNotification(unreadCount: 1);
 
-        $this->assertInstanceOf(\Illuminate\Contracts\Queue\ShouldQueue::class, $notification);
+        $this->assertInstanceOf(ShouldQueue::class, $notification);
     }
 }

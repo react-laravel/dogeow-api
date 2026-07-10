@@ -199,14 +199,19 @@ class MonopolyService
             $player->save();
             $this->resolveLanding($room, $player);
             $this->broadcast($room, 'dice.rolled', ['player_id' => $player->id, 'roll' => $roll]);
+            $animations = [$this->rollAnimation($room, $player, $roll)];
             $player = $this->freshPlayer($player);
             if ($this->shouldAutoEndAfterRoll($room, $player, $landingTileType)) {
                 $this->advanceTurn($room);
                 $this->broadcast($room, 'turn.advanced');
-                $this->runComputerTurns($room);
+                $animations = array_merge($animations, $this->runComputerTurns($room));
             }
 
-            return ['roll' => $roll, 'state' => $this->state($room)];
+            return [
+                'roll' => $roll,
+                'animations' => $animations,
+                'state' => $this->state($room),
+            ];
         });
     }
 
@@ -266,9 +271,9 @@ class MonopolyService
         });
     }
 
-    public function endTurn(MonopolyRoom $room, int $userId): void
+    public function endTurn(MonopolyRoom $room, int $userId): array
     {
-        DB::transaction(function () use ($room, $userId) {
+        return DB::transaction(function () use ($room, $userId) {
             $room = $this->lockRoom($room);
             $player = $this->currentHumanPlayer($room, $userId);
             if ($player->last_roll === null && ! $player->is_in_jail) {
@@ -277,13 +282,14 @@ class MonopolyService
 
             $this->advanceTurn($room);
             $this->broadcast($room, 'turn.advanced');
-            $this->runComputerTurns($room);
+
+            return $this->runComputerTurns($room);
         });
     }
 
-    public function leaveJail(MonopolyRoom $room, int $userId, string $method): void
+    public function leaveJail(MonopolyRoom $room, int $userId, string $method): array
     {
-        DB::transaction(function () use ($room, $userId, $method) {
+        return DB::transaction(function () use ($room, $userId, $method) {
             $room = $this->lockRoom($room);
             $player = $this->currentHumanPlayer($room, $userId);
             if (! $player->is_in_jail) {
@@ -303,10 +309,13 @@ class MonopolyService
             if ($method === 'pay') {
                 $this->advanceTurn($room);
                 $this->broadcast($room, 'turn.advanced');
-                $this->runComputerTurns($room);
+
+                return $this->runComputerTurns($room);
             } else {
                 $this->broadcast($room, 'state.updated');
             }
+
+            return [];
         });
     }
 
@@ -816,18 +825,19 @@ class MonopolyService
         return (int) floor($amount / 1_000) . 'K';
     }
 
-    private function runComputerTurns(MonopolyRoom $room): void
+    private function runComputerTurns(MonopolyRoom $room): array
     {
         $guard = 0;
+        $animations = [];
         while ($guard++ < 20) {
             $room = $this->freshRoom($room);
             if ($room->status !== 'playing') {
-                return;
+                return $animations;
             }
 
             $player = $room->players()->where('turn_order', $room->current_turn_order)->first();
             if (! $player?->isComputer() || $player->is_bankrupt) {
-                return;
+                return $animations;
             }
 
             if ($player->is_in_jail) {
@@ -847,10 +857,22 @@ class MonopolyService
             $player->update(['last_roll' => $roll]);
             $this->resolveLanding($room, $player);
             $this->computerBuyOrBuild($room, $this->freshPlayer($player));
+            $this->broadcast($room, 'dice.rolled', ['player_id' => $player->id, 'roll' => $roll]);
+            $animations[] = $this->rollAnimation($room, $player, $roll);
             $this->advanceTurn($room);
+            $this->broadcast($room, 'turn.advanced');
         }
 
-        $this->broadcast($this->freshRoom($room), 'turn.advanced');
+        return $animations;
+    }
+
+    private function rollAnimation(MonopolyRoom $room, MonopolyPlayer $player, int $roll): array
+    {
+        return [
+            'player_id' => $player->id,
+            'roll' => $roll,
+            'state' => $this->state($room),
+        ];
     }
 
     private function computerBuyOrBuild(MonopolyRoom $room, MonopolyPlayer $player): void

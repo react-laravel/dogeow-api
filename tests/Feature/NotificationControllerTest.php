@@ -113,7 +113,11 @@ class NotificationControllerTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonPath('data.count', 1);
 
-        Notification::assertSentTo($this->user, WebPushSummaryNotification::class);
+        Notification::assertSentTo(
+            $this->user,
+            WebPushSummaryNotification::class,
+            fn (WebPushSummaryNotification $notification): bool => $notification->url === '/'
+        );
         $this->assertNotNull(Cache::get("user:{$this->user->id}:unread_summary_push_at"));
     }
 
