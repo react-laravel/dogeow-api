@@ -37,6 +37,5 @@ Route::middleware('auth:sanctum')->group(function () {
     require base_path('routes/api/cache.php'); // 缓存管理
     require base_path('routes/api/dashboard.php'); // Dashboard
     require base_path('routes/api/knowledge.php'); // 知识图谱
-    require base_path('routes/api/minimax.php'); // MiniMax
 
 });

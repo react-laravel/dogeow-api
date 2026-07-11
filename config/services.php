@@ -85,13 +85,6 @@ return [
         'api_host' => env('UPYUN_API_HOST'),
     ],
 
-    'minimax' => [
-        'token_api_key' => env('MINIMAX_TOKEN_API_KEY'),
-        'balance_api_key' => env('MINIMAX_BALANCE_API_KEY'),
-        'group_id' => env('MINIMAX_GROUP_ID'),
-        'api_base_url' => env('MINIMAX_API_BASE_URL', 'https://api.minimaxi.com'),
-    ],
-
     'rmbg' => [
         'url' => env('RMBG_API_URL', 'https://rmbg.dogeow.com/api/remove-bg'),
         'timeout' => (int) env('RMBG_TIMEOUT', 600),
