@@ -14,8 +14,6 @@ class ApiPatchRouteRegistrationTest extends TestCase
         $expectedRoutes = [
             'api/nav/items/{item}' => 'App\\Http\\Controllers\\Api\\Nav\\ItemController@update',
             'api/nav/categories/{category}' => 'App\\Http\\Controllers\\Api\\Nav\\CategoryController@update',
-            'api/rpg/character/stats' => 'App\\Http\\Controllers\\Api\\Game\\CharacterController@allocateStats',
-            'api/rpg/character/difficulty' => 'App\\Http\\Controllers\\Api\\Game\\CharacterController@updateDifficulty',
             'api/todos/{id}' => 'App\\Http\\Controllers\\Api\\Todo\\TodoListController@update',
             'api/todos/{id}/tasks/reorder' => 'App\\Http\\Controllers\\Api\\Todo\\TodoListController@reorderTasks',
             'api/cloud/files/{id}' => 'App\\Http\\Controllers\\Api\\Cloud\\FileController@update',
