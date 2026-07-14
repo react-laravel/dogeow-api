@@ -25,7 +25,6 @@ Route::middleware('auth:sanctum')->group(function () {
     require base_path('routes/api/notification.php'); // Web Push + 通知
     require base_path('routes/api/websocket.php'); // WebSocket
     require base_path('routes/api/chat.php'); // 聊天室
-    require base_path('routes/api/game.php'); // 游戏
     require base_path('routes/api/monopoly.php'); // 大富翁
     require base_path('routes/api/item.php'); // 物品
     require base_path('routes/api/location.php'); // 地点

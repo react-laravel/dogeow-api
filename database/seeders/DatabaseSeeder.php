@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Database\Seeders\Game\GameSeeder;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -20,9 +19,6 @@ class DatabaseSeeder extends Seeder
         ]);
         $this->call([
             Word\CET46WordSeeder::class,
-        ]);
-        $this->call([
-            GameSeeder::class,
         ]);
     }
 }

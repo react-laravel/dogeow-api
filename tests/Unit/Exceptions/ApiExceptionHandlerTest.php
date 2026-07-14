@@ -3,10 +3,10 @@
 namespace Tests\Unit\Exceptions;
 
 use App\Exceptions\ApiExceptionHandler;
-use App\Exceptions\GameException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -54,7 +54,7 @@ class ApiExceptionHandlerTest extends TestCase
     public function test_handle_validation_exception(): void
     {
         $request = $this->createRequest();
-        $validator = \Illuminate\Support\Facades\Validator::make(
+        $validator = Validator::make(
             ['name' => ''],
             ['name' => 'required']
         );
@@ -66,18 +66,6 @@ class ApiExceptionHandlerTest extends TestCase
         $data = json_decode($response->getContent(), true);
         $this->assertFalse($data['success']);
         $this->assertEquals('Validation failed', $data['message']);
-    }
-
-    public function test_handle_game_exception(): void
-    {
-        $request = $this->createRequest();
-        $gameException = new GameException(400, 'Test game error');
-
-        $response = ApiExceptionHandler::handle($gameException, $request);
-
-        $this->assertEquals(400, $response->getStatusCode());
-        $data = json_decode($response->getContent(), true);
-        $this->assertFalse($data['success']);
     }
 
     public function test_handle_model_not_found_exception(): void

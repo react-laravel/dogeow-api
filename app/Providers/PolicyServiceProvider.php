@@ -5,8 +5,6 @@ namespace App\Providers;
 use App\Models\Chat\ChatMessage;
 use App\Models\Chat\ChatRoom;
 use App\Models\Chat\ChatRoomUser;
-use App\Models\Game\GameCharacter;
-use App\Models\Game\GameItem;
 use App\Models\Note\Note;
 use App\Models\Thing\Area;
 use App\Models\Thing\Item;
@@ -17,8 +15,6 @@ use App\Models\Word\Word;
 use App\Policies\Chat\ChatMessagePolicy;
 use App\Policies\Chat\ChatModerationPolicy;
 use App\Policies\Chat\ChatRoomPolicy;
-use App\Policies\Game\GameCharacterPolicy;
-use App\Policies\Game\GameItemPolicy;
 use App\Policies\Note\NotePolicy;
 use App\Policies\Thing\AreaPolicy;
 use App\Policies\Thing\ItemCategoryPolicy;
@@ -39,8 +35,6 @@ class PolicyServiceProvider extends ServiceProvider
         ChatRoom::class => ChatRoomPolicy::class,
         ChatMessage::class => ChatMessagePolicy::class,
         ChatRoomUser::class => ChatModerationPolicy::class,
-        GameCharacter::class => GameCharacterPolicy::class,
-        GameItem::class => GameItemPolicy::class,
         Note::class => NotePolicy::class,
         Area::class => AreaPolicy::class,
         Room::class => RoomPolicy::class,

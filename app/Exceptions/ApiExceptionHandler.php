@@ -25,7 +25,6 @@ class ApiExceptionHandler
         }
 
         return match (true) {
-            $exception instanceof GameException => self::handleGameException($exception),
             $exception instanceof ValidationException => self::handleValidationException($exception),
             $exception instanceof ModelNotFoundException => self::handleModelNotFoundException($exception),
             $exception instanceof NotFoundHttpException => self::handleNotFoundHttpException(),
@@ -45,14 +44,6 @@ class ApiExceptionHandler
             'message' => __('Validation failed'),
             'errors' => $exception->errors(),
         ], 422);
-    }
-
-    /**
-     * 处理游戏业务异常
-     */
-    private static function handleGameException(GameException $exception): JsonResponse
-    {
-        return response()->json($exception->toResponseArray(), 400);
     }
 
     /**
