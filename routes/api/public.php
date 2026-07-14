@@ -8,11 +8,13 @@ use App\Http\Controllers\Api\Dashboard\WebPushController;
 use App\Http\Controllers\Api\GithubController;
 use App\Http\Controllers\Api\GithubWebhookController;
 use App\Http\Controllers\Api\Note\NoteController;
+use App\Http\Controllers\Api\SsoController;
 use Illuminate\Support\Facades\Route;
 
 // Auth
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
+Route::post('/auth/sso/exchange', [SsoController::class, 'exchange'])->middleware('throttle:60,1');
 
 // GitHub OAuth
 Route::get('/auth/github', [GithubController::class, 'redirect']);

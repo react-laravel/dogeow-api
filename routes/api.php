@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\SsoController;
 use App\Http\Controllers\Api\UploadController;
 use Illuminate\Support\Facades\Route;
 
@@ -11,6 +12,7 @@ require base_path('routes/api/public.php');
 require base_path('routes/api/broadcast.php');
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/auth/sso/ticket', [SsoController::class, 'issue'])->middleware('throttle:30,1');
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::put('/user', [AuthController::class, 'update']);
