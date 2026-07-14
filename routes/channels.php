@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Chat\ChatRoomUser;
-use App\Models\Monopoly\MonopolyPlayer;
 use Illuminate\Support\Facades\Broadcast;
 
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
@@ -74,16 +73,4 @@ Broadcast::channel('user.{userId}.notifications', function ($user, $userId) {
 // 用户上传/去背景私有频道(如：user.1.uploads)
 Broadcast::channel('user.{userId}.uploads', function ($user, $userId) {
     return (int) $user->id === (int) $userId;
-});
-
-Broadcast::channel('monopoly.room.{roomId}', function ($user, $roomId) {
-    $player = MonopolyPlayer::where('room_id', $roomId)
-        ->where('user_id', $user->id)
-        ->first();
-
-    return $player ? [
-        'id' => $user->id,
-        'name' => $user->name,
-        'player_id' => $player->id,
-    ] : false;
 });
