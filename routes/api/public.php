@@ -8,7 +8,6 @@ use App\Http\Controllers\Api\Dashboard\WebPushController;
 use App\Http\Controllers\Api\GithubController;
 use App\Http\Controllers\Api\GithubWebhookController;
 use App\Http\Controllers\Api\Note\NoteController;
-use App\Http\Controllers\Api\SystemStatusController;
 use Illuminate\Support\Facades\Route;
 
 // Auth
@@ -29,9 +28,6 @@ Route::get('/webpush/vapid', [WebPushController::class, 'vapidKey']);
 Route::get('/client-basic-info', [ClientInfoController::class, 'getBasicInfo']);
 Route::get('/client-info', [ClientInfoController::class, 'getClientInfo']);
 Route::get('/client-location-info', [ClientInfoController::class, 'getLocationInfo']);
-
-// System status (public, for /about/site)
-Route::get('/system/status', [SystemStatusController::class, 'index']);
 
 // Cloud
 require base_path('routes/api/cloud.php');
