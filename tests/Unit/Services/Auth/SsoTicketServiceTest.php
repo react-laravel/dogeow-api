@@ -23,6 +23,11 @@ class SsoTicketServiceTest extends TestCase
             'callback_url' => 'https://rpg.dogeow.com/auth/callback',
             'return_origins' => ['https://rpg.dogeow.com'],
         ]);
+        Config::set('sso.clients.game', [
+            'secret' => 'game-secret',
+            'callback_url' => 'https://game.dogeow.com/auth/callback',
+            'return_origins' => ['https://game.dogeow.com'],
+        ]);
     }
 
     public function test_it_issues_a_short_lived_ticket_for_an_allowed_return_url(): void
@@ -32,7 +37,13 @@ class SsoTicketServiceTest extends TestCase
             ->with(
                 Mockery::on(fn (string $key): bool => str_starts_with($key, 'sso:ticket:')),
                 60,
-                Mockery::on(fn (string $payload): bool => json_decode($payload, true)['identity']['id'] === 42),
+                Mockery::on(function (string $payload): bool {
+                    $identity = json_decode($payload, true)['identity'];
+
+                    return $identity['id'] === 42
+                        && $identity['is_admin'] === true
+                        && $identity['permissions'] === ['admin'];
+                }),
             );
 
         $user = new User;
@@ -60,6 +71,19 @@ class SsoTicketServiceTest extends TestCase
 
         $this->expectException(InvalidArgumentException::class);
         app(SsoTicketService::class)->issue('rpg', 'https://evil.example/callback', $user);
+    }
+
+    public function test_it_issues_a_game_ticket_with_the_game_callback(): void
+    {
+        Redis::shouldReceive('setex')->once();
+
+        $user = new User;
+        $user->forceFill(['id' => 42, 'name' => 'Sam', 'is_admin' => false]);
+
+        $result = app(SsoTicketService::class)->issue('game', 'https://game.dogeow.com/2048', $user);
+
+        $this->assertStringStartsWith('https://game.dogeow.com/auth/callback?', $result['redirect_url']);
+        $this->assertStringContainsString('return_to=https%3A%2F%2Fgame.dogeow.com%2F2048', $result['redirect_url']);
     }
 
     public function test_it_atomically_consumes_a_ticket_and_checks_the_client_secret(): void

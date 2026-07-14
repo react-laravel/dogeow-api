@@ -27,7 +27,10 @@ class SsoTicketService
                 'name' => (string) $user->name,
                 'email' => $user->email !== null ? (string) $user->email : null,
                 'is_admin' => $user->isAdmin(),
-                'permissions' => [],
+                // The central account model currently exposes one global role.
+                // Carry it in both structured forms so standalone services can
+                // share authorization decisions without a central SQL link.
+                'permissions' => $user->isAdmin() ? ['admin'] : [],
             ],
         ], JSON_THROW_ON_ERROR);
 
