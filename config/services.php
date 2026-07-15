@@ -71,9 +71,6 @@ return [
         'client_id' => env('GITHUB_CLIENT_ID'),
         'client_secret' => env('GITHUB_CLIENT_SECRET'),
         'redirect' => env('GITHUB_REDIRECT_URI'),
-        'token' => env('GITHUB_TOKEN', env('GITHUB_PAT')),
-        'webhook_secret' => env('GITHUB_WEBHOOK_SECRET'),
-        'repo_watch_refresh_hours' => (int) env('GITHUB_REPO_WATCH_REFRESH_HOURS', 6),
     ],
 
     'upyun' => [

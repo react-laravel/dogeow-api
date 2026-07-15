@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\Dashboard\ClientInfoController;
 use App\Http\Controllers\Api\Dashboard\MusicController;
 use App\Http\Controllers\Api\Dashboard\WebPushController;
 use App\Http\Controllers\Api\GithubController;
-use App\Http\Controllers\Api\GithubWebhookController;
 use App\Http\Controllers\Api\Note\NoteController;
 use App\Http\Controllers\Api\SsoController;
 use Illuminate\Support\Facades\Route;
@@ -20,8 +19,6 @@ Route::post('/auth/sso/exchange', [SsoController::class, 'exchange'])->middlewar
 Route::get('/auth/github', [GithubController::class, 'redirect']);
 Route::get('/auth/github/callback', [GithubController::class, 'callback']);
 Route::post('/auth/github/callback', [GithubController::class, 'exchange']);
-
-Route::post('/github/webhooks/repo-watch', [GithubWebhookController::class, 'repoWatch']);
 
 // Web Push：VAPID 公钥(公开，供前端订阅使用)
 Route::get('/webpush/vapid', [WebPushController::class, 'vapidKey']);

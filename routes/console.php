@@ -15,8 +15,3 @@ Schedule::command('scheduler:heartbeat')
     ->everyMinute()
     ->name('scheduler-heartbeat')
     ->withoutOverlapping();
-
-Schedule::command('repo-watch:refresh')
-    ->everyThirtyMinutes()
-    ->name('repo-watch-refresh')
-    ->withoutOverlapping();

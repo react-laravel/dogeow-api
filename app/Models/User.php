@@ -6,8 +6,6 @@ namespace App\Models;
 use App\Models\Chat\ChatMessage;
 use App\Models\Chat\ChatRoom;
 use App\Models\Note\Note;
-use App\Models\Repo\WatchedPackage;
-use App\Models\Repo\WatchedRepository;
 use App\Models\Thing\Item;
 use App\Models\Todo\TodoList;
 use Database\Factories\UserFactory;
@@ -163,22 +161,6 @@ class User extends Authenticatable
     public function todoLists()
     {
         return $this->hasMany(TodoList::class);
-    }
-
-    /**
-     * Get the repositories watched by the user.
-     */
-    public function watchedRepositories()
-    {
-        return $this->hasMany(WatchedRepository::class);
-    }
-
-    /**
-     * Get the packages watched by the user.
-     */
-    public function watchedPackages()
-    {
-        return $this->hasMany(WatchedPackage::class);
     }
 
     /**
