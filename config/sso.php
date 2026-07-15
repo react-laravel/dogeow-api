@@ -15,6 +15,11 @@ $repoWatchReturnOrigins = array_values(array_filter(array_map(
     explode(',', (string) env('REPO_WATCH_SSO_RETURN_ORIGINS', 'https://repo-watch.dogeow.com,http://localhost:3012,http://127.0.0.1:3012'))
 )));
 
+$mysqlCompareReturnOrigins = array_values(array_filter(array_map(
+    static fn (string $origin): string => rtrim(trim($origin), '/'),
+    explode(',', (string) env('MYSQL_COMPARE_SSO_RETURN_ORIGINS', 'https://mysql-compare.dogeow.com,http://localhost:3006,http://127.0.0.1:3006'))
+)));
+
 return [
     'ticket_lifetime_seconds' => (int) env('SSO_TICKET_LIFETIME_SECONDS', 60),
 
@@ -33,6 +38,12 @@ return [
             'secret' => env('REPO_WATCH_SSO_CLIENT_SECRET'),
             'callback_url' => env('REPO_WATCH_SSO_CALLBACK_URL', 'https://repo-watch.dogeow.com/auth/callback'),
             'return_origins' => $repoWatchReturnOrigins,
+        ],
+        'mysql-compare' => [
+            'secret' => env('MYSQL_COMPARE_SSO_CLIENT_SECRET'),
+            'callback_url' => env('MYSQL_COMPARE_SSO_CALLBACK_URL', 'https://mysql-compare.dogeow.com/auth/callback'),
+            'return_origins' => $mysqlCompareReturnOrigins,
+            'admin_only' => true,
         ],
     ],
 ];

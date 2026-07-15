@@ -33,6 +33,12 @@ class SsoTicketServiceTest extends TestCase
             'callback_url' => 'https://repo-watch.dogeow.com/auth/callback',
             'return_origins' => ['https://repo-watch.dogeow.com'],
         ]);
+        Config::set('sso.clients.mysql-compare', [
+            'secret' => 'mysql-compare-secret',
+            'callback_url' => 'https://mysql-compare.dogeow.com/auth/callback',
+            'return_origins' => ['https://mysql-compare.dogeow.com'],
+            'admin_only' => true,
+        ]);
     }
 
     public function test_it_issues_a_short_lived_ticket_for_an_allowed_return_url(): void
@@ -107,6 +113,43 @@ class SsoTicketServiceTest extends TestCase
         $this->assertStringStartsWith(
             'https://repo-watch.dogeow.com/auth/callback?',
             $result['redirect_url']
+        );
+    }
+
+    public function test_it_issues_an_admin_only_mysql_compare_ticket(): void
+    {
+        Redis::shouldReceive('setex')->once();
+
+        $user = new User;
+        $user->forceFill(['id' => 42, 'name' => 'Sam', 'is_admin' => true]);
+
+        $result = app(SsoTicketService::class)->issue(
+            'mysql-compare',
+            'https://mysql-compare.dogeow.com/databases',
+            $user,
+        );
+
+        $this->assertStringStartsWith('https://mysql-compare.dogeow.com/auth/callback?', $result['redirect_url']);
+        $this->assertStringContainsString(
+            'return_to=https%3A%2F%2Fmysql-compare.dogeow.com%2Fdatabases',
+            $result['redirect_url'],
+        );
+    }
+
+    public function test_it_rejects_non_admin_mysql_compare_access(): void
+    {
+        Redis::shouldReceive('setex')->never();
+
+        $user = new User;
+        $user->forceFill(['id' => 42, 'name' => 'Sam', 'is_admin' => false]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('restricted to administrators');
+
+        app(SsoTicketService::class)->issue(
+            'mysql-compare',
+            'https://mysql-compare.dogeow.com/',
+            $user,
         );
     }
 

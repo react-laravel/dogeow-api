@@ -18,6 +18,10 @@ class SsoTicketService
         $configuration = $this->clientConfiguration($client);
         $this->assertAllowedReturnUrl($returnTo, $configuration['return_origins'] ?? []);
 
+        if (($configuration['admin_only'] ?? false) && ! $user->isAdmin()) {
+            throw new RuntimeException('SSO access is restricted to administrators.');
+        }
+
         $ticket = bin2hex(random_bytes(32));
         $lifetime = max(10, min(300, (int) config('sso.ticket_lifetime_seconds', 60)));
         $payload = json_encode([

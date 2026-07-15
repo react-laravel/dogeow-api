@@ -23,6 +23,8 @@ class SsoController extends Controller
             $result = $tickets->issue($validated['client'], $validated['return_to'], $request->user());
         } catch (InvalidArgumentException $exception) {
             return $this->error($exception->getMessage(), null, 422);
+        } catch (RuntimeException $exception) {
+            return $this->error($exception->getMessage(), null, 403);
         }
 
         return $this->success($result, 'SSO ticket issued');
