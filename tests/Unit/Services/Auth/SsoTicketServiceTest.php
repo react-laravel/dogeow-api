@@ -28,6 +28,11 @@ class SsoTicketServiceTest extends TestCase
             'callback_url' => 'https://game.dogeow.com/auth/callback',
             'return_origins' => ['https://game.dogeow.com'],
         ]);
+        Config::set('sso.clients.repo-watch', [
+            'secret' => 'repo-watch-secret',
+            'callback_url' => 'https://repo-watch.dogeow.com/auth/callback',
+            'return_origins' => ['https://repo-watch.dogeow.com'],
+        ]);
     }
 
     public function test_it_issues_a_short_lived_ticket_for_an_allowed_return_url(): void
@@ -84,6 +89,25 @@ class SsoTicketServiceTest extends TestCase
 
         $this->assertStringStartsWith('https://game.dogeow.com/auth/callback?', $result['redirect_url']);
         $this->assertStringContainsString('return_to=https%3A%2F%2Fgame.dogeow.com%2F2048', $result['redirect_url']);
+    }
+
+    public function test_it_issues_a_repo_watch_ticket_with_the_repo_watch_callback(): void
+    {
+        Redis::shouldReceive('setex')->once();
+
+        $user = new User;
+        $user->forceFill(['id' => 42, 'name' => 'Sam', 'is_admin' => false]);
+
+        $result = app(SsoTicketService::class)->issue(
+            'repo-watch',
+            'https://repo-watch.dogeow.com/',
+            $user
+        );
+
+        $this->assertStringStartsWith(
+            'https://repo-watch.dogeow.com/auth/callback?',
+            $result['redirect_url']
+        );
     }
 
     public function test_it_atomically_consumes_a_ticket_and_checks_the_client_secret(): void
