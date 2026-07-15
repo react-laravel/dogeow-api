@@ -3,8 +3,6 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Models\Chat\ChatMessage;
-use App\Models\Chat\ChatRoom;
 use App\Models\Note\Note;
 use App\Models\Thing\Item;
 use App\Models\Todo\TodoList;
@@ -76,24 +74,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if the user can moderate a chat room.
-     */
-    public function canModerate($room = null): bool
-    {
-        // Admins can moderate any room
-        if ($this->isAdmin()) {
-            return true;
-        }
-
-        // Room creators can moderate their own rooms
-        if ($room && $room->created_by === $this->id) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
      * Check if the user has a specific role.
      */
     public function hasRole(string $role): bool
@@ -127,32 +107,6 @@ class User extends Authenticatable
     public function notes()
     {
         return $this->hasMany(Note::class);
-    }
-
-    /**
-     * Get the chat rooms created by the user.
-     */
-    public function createdRooms()
-    {
-        return $this->hasMany(ChatRoom::class, 'created_by');
-    }
-
-    /**
-     * Get the chat rooms the user has joined.
-     */
-    public function joinedRooms()
-    {
-        return $this->belongsToMany(ChatRoom::class, 'chat_room_users', 'user_id', 'room_id')
-            ->withPivot(['joined_at', 'last_seen_at', 'is_online'])
-            ->withTimestamps();
-    }
-
-    /**
-     * Get the chat messages sent by the user.
-     */
-    public function chatMessages()
-    {
-        return $this->hasMany(ChatMessage::class);
     }
 
     /**
@@ -192,13 +146,5 @@ class User extends Authenticatable
         }
 
         return strtoupper(substr($name, 0, 2));
-    }
-
-    /**
-     * Check if user is online in any chat room.
-     */
-    public function isOnlineInAnyRoom(): bool
-    {
-        return $this->joinedRooms()->wherePivot('is_online', true)->exists();
     }
 }

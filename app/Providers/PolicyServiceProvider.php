@@ -2,9 +2,6 @@
 
 namespace App\Providers;
 
-use App\Models\Chat\ChatMessage;
-use App\Models\Chat\ChatRoom;
-use App\Models\Chat\ChatRoomUser;
 use App\Models\Note\Note;
 use App\Models\Thing\Area;
 use App\Models\Thing\Item;
@@ -12,9 +9,6 @@ use App\Models\Thing\ItemCategory;
 use App\Models\Thing\Room;
 use App\Models\Thing\Spot;
 use App\Models\Word\Word;
-use App\Policies\Chat\ChatMessagePolicy;
-use App\Policies\Chat\ChatModerationPolicy;
-use App\Policies\Chat\ChatRoomPolicy;
 use App\Policies\Note\NotePolicy;
 use App\Policies\Thing\AreaPolicy;
 use App\Policies\Thing\ItemCategoryPolicy;
@@ -32,9 +26,6 @@ class PolicyServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     protected $policies = [
-        ChatRoom::class => ChatRoomPolicy::class,
-        ChatMessage::class => ChatMessagePolicy::class,
-        ChatRoomUser::class => ChatModerationPolicy::class,
         Note::class => NotePolicy::class,
         Area::class => AreaPolicy::class,
         Room::class => RoomPolicy::class,

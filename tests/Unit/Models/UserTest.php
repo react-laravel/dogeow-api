@@ -2,9 +2,6 @@
 
 namespace Tests\Unit\Models;
 
-use App\Models\Chat\ChatMessage;
-use App\Models\Chat\ChatRoom;
-use App\Models\Chat\ChatRoomUser;
 use App\Models\Note\Note;
 use App\Models\Thing\Item;
 use App\Models\User;
@@ -66,33 +63,6 @@ class UserTest extends TestCase
 
         $this->assertTrue($adminUser->isAdmin());
         $this->assertFalse($regularUser->isAdmin());
-    }
-
-    public function test_can_moderate_method_with_admin()
-    {
-        $adminUser = User::factory()->create(['is_admin' => true]);
-        $otherUser = User::factory()->create();
-        $room = ChatRoom::factory()->create(['created_by' => $otherUser->id]);
-
-        $this->assertTrue($adminUser->canModerate());
-        $this->assertTrue($adminUser->canModerate($room));
-    }
-
-    public function test_can_moderate_method_with_room_creator()
-    {
-        $user = User::factory()->create(['is_admin' => false]);
-        $room = ChatRoom::factory()->create(['created_by' => $user->id]);
-
-        $this->assertTrue($user->canModerate($room));
-    }
-
-    public function test_can_moderate_method_with_non_creator_non_admin()
-    {
-        $user = User::factory()->create(['is_admin' => false]);
-        $otherUser = User::factory()->create();
-        $room = ChatRoom::factory()->create(['created_by' => $otherUser->id]);
-
-        $this->assertFalse($user->canModerate($room));
     }
 
     public function test_has_role_method()
@@ -180,43 +150,6 @@ class UserTest extends TestCase
         $this->assertEquals($note->id, $user->notes->first()->id);
     }
 
-    public function test_created_rooms_relationship()
-    {
-        $user = User::factory()->create();
-        $room = ChatRoom::factory()->create(['created_by' => $user->id]);
-
-        $this->assertCount(1, $user->createdRooms);
-        $this->assertEquals($room->id, $user->createdRooms->first()->id);
-    }
-
-    public function test_joined_rooms_relationship()
-    {
-        $user = User::factory()->create();
-        $room = ChatRoom::factory()->create();
-
-        ChatRoomUser::factory()->create([
-            'user_id' => $user->id,
-            'room_id' => $room->id,
-        ]);
-
-        $this->assertCount(1, $user->joinedRooms);
-        $this->assertEquals($room->id, $user->joinedRooms->first()->id);
-        $this->assertNotNull($user->joinedRooms->first()->pivot->joined_at);
-    }
-
-    public function test_chat_messages_relationship()
-    {
-        $user = User::factory()->create();
-        $room = ChatRoom::factory()->create();
-        $message = ChatMessage::factory()->create([
-            'user_id' => $user->id,
-            'room_id' => $room->id,
-        ]);
-
-        $this->assertCount(1, $user->chatMessages);
-        $this->assertEquals($message->id, $user->chatMessages->first()->id);
-    }
-
     public function test_active_scope()
     {
         $activeUser = User::factory()->create([
@@ -278,38 +211,5 @@ class UserTest extends TestCase
         ]);
 
         $this->assertEquals('TE', $user->initials);
-    }
-
-    public function test_is_online_in_any_room_returns_true_when_online()
-    {
-        $user = User::factory()->create();
-        $room = ChatRoom::factory()->create();
-
-        ChatRoomUser::factory()->online()->create([
-            'user_id' => $user->id,
-            'room_id' => $room->id,
-        ]);
-
-        $this->assertTrue($user->isOnlineInAnyRoom());
-    }
-
-    public function test_is_online_in_any_room_returns_false_when_offline()
-    {
-        $user = User::factory()->create();
-        $room = ChatRoom::factory()->create();
-
-        ChatRoomUser::factory()->offline()->create([
-            'user_id' => $user->id,
-            'room_id' => $room->id,
-        ]);
-
-        $this->assertFalse($user->isOnlineInAnyRoom());
-    }
-
-    public function test_is_online_in_any_room_returns_false_when_not_in_any_room()
-    {
-        $user = User::factory()->create();
-
-        $this->assertFalse($user->isOnlineInAnyRoom());
     }
 }

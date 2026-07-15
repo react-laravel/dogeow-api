@@ -2,10 +2,8 @@
 
 namespace App\Providers;
 
-use App\Events\Chat\WebSocketDisconnected;
 use App\Listeners\Notifications\BroadcastDatabaseNotification;
 use App\Listeners\WebPush\LogWebPushResult;
-use App\Listeners\WebSocketDisconnectListener;
 use App\Models\Notification;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Notifications\Events\NotificationSent as LaravelNotificationSent;
@@ -33,9 +31,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // 注册 WebSocket 断开连接事件监听器
-        Event::listen(WebSocketDisconnected::class, WebSocketDisconnectListener::class);
-
         // Web Push 发送结果日志(诊断用)
         Event::listen(WebPushNotificationSent::class, LogWebPushResult::class);
         Event::listen(WebPushNotificationFailed::class, LogWebPushResult::class);

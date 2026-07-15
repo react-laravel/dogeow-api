@@ -30,7 +30,7 @@
 ```plain
 app/
 ├── Http/
-│   ├── Controllers/Api/     # 按业务拆分：Game、Note、Word、Thing、Chat 等
+│   ├── Controllers/Api/     # 按业务拆分：Game、Note、Word、Thing 等
 │   ├── Requests/            # Form Request 按功能分类
 │   ├── Middleware/
 │   └── Resources/           # API Resource
@@ -42,7 +42,7 @@ app/
 routes/api/
 ├── public.php               # 公开 API
 ├── broadcast.php            # 广播认证
-├── chat.php, game.php, item.php, location.php
+├── game.php, item.php, location.php
 ├── note.php, profile.php, todo.php, word.php
 └── logs.php
 ```
@@ -92,7 +92,6 @@ routes/api/
 ## 主要业务模块
 
 - **系统本身（App）**：Web Push
-- **聊天 (Chat)**：房间、消息、WebSocket、Web Push
 - **游戏 (Game)**：角色、战斗、背包、商店、技能
 - **笔记 (Note)**：分类、标签
 - **地点/物品 (Thing)**：Location、Item、Category、Tag

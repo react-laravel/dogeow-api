@@ -24,7 +24,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // 引入各个项目的路由文件
     require base_path('routes/api/notification.php'); // Web Push + 通知
     require base_path('routes/api/websocket.php'); // WebSocket
-    require base_path('routes/api/chat.php'); // 聊天室
     require base_path('routes/api/item.php'); // 物品
     require base_path('routes/api/location.php'); // 地点
     require base_path('routes/api/note.php'); // 笔记

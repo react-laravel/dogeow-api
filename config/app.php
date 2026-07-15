@@ -185,9 +185,6 @@ return [
         'error_ttl' => 1800, // 30 minutes
         'prefixes' => [
             'title_favicon' => 'title_favicon',
-            'chat_rooms' => 'chat_rooms',
-            'online_users' => 'online_users',
-            'user_activity' => 'user_activity',
         ],
     ],
 

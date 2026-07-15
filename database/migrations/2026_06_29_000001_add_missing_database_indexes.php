@@ -46,26 +46,6 @@ return new class extends Migration
 
     public function up(): void
     {
-        // chat_messages — room_id+created_at cursor, user_id+created_at
-        Schema::table('chat_messages', function (Blueprint $table) {
-            if (! $this->indexExists('chat_messages', 'chat_messages_room_time_idx')) {
-                $table->index(['room_id', 'created_at'], 'chat_messages_room_time_idx');
-            }
-            if (! $this->indexExists('chat_messages', 'chat_messages_user_time_idx')) {
-                $table->index(['user_id', 'created_at'], 'chat_messages_user_time_idx');
-            }
-        });
-
-        // chat_room_users — room_id+is_online, user_id+is_online
-        Schema::table('chat_room_users', function (Blueprint $table) {
-            if (! $this->indexExists('chat_room_users', 'chat_room_users_room_online_idx')) {
-                $table->index(['room_id', 'is_online'], 'chat_room_users_room_online_idx');
-            }
-            if (! $this->indexExists('chat_room_users', 'chat_room_users_user_online_idx')) {
-                $table->index(['user_id', 'is_online'], 'chat_room_users_user_online_idx');
-            }
-        });
-
         // notes — user_id+is_wiki, is_wiki+slug
         Schema::table('notes', function (Blueprint $table) {
             if (! $this->indexExists('notes', 'notes_user_wiki_idx')) {
@@ -80,16 +60,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('chat_messages', function (Blueprint $table) {
-            $table->dropIndex('chat_messages_room_time_idx');
-            $table->dropIndex('chat_messages_user_time_idx');
-        });
-
-        Schema::table('chat_room_users', function (Blueprint $table) {
-            $table->dropIndex('chat_room_users_room_online_idx');
-            $table->dropIndex('chat_room_users_user_online_idx');
-        });
-
         Schema::table('notes', function (Blueprint $table) {
             $table->dropIndex('notes_user_wiki_idx');
             $table->dropIndex('notes_wiki_slug_idx');

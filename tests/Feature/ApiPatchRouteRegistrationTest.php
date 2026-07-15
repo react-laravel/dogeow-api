@@ -24,7 +24,6 @@ class ApiPatchRouteRegistrationTest extends TestCase
             'api/things/items/{item}' => 'App\\Http\\Controllers\\Api\\Thing\\ItemController@update',
             'api/things/categories/{category}' => 'App\\Http\\Controllers\\Api\\Thing\\CategoryController@update',
             'api/things/tags/{tag}' => 'App\\Http\\Controllers\\Api\\Thing\\TagController@update',
-            'api/chat/rooms/{roomId}' => 'App\\Http\\Controllers\\Api\\Chat\\ChatRoomController@update',
             'api/word/settings' => 'App\\Http\\Controllers\\Api\\Word\\SettingController@update',
         ];
 

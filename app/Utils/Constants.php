@@ -5,24 +5,6 @@ namespace App\Utils;
 class Constants
 {
     /**
-     * 获取聊天配置
-     */
-    public static function chat(?string $section = null, ?string $key = null): mixed
-    {
-        $config = config('chat');
-
-        if ($section && $key) {
-            return $config[$section][$key] ?? null;
-        }
-
-        if ($section) {
-            return $config[$section] ?? null;
-        }
-
-        return $config;
-    }
-
-    /**
      * 获取文件上传配置
      */
     public static function upload(?string $key = null): mixed
@@ -81,16 +63,6 @@ class Constants
     }
 
     // 快捷方法
-    public static function chatMessageMaxLength(): int
-    {
-        return (int) self::chat('message', 'max_length');
-    }
-
-    public static function chatRoomNameMaxLength(): int
-    {
-        return (int) self::chat('room', 'name_max_length');
-    }
-
     public static function maxFileSize(): int
     {
         return (int) self::upload('max_file_size');

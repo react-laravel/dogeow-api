@@ -7,27 +7,6 @@ use Tests\TestCase;
 
 class ConstantsTest extends TestCase
 {
-    public function test_chat_returns_config(): void
-    {
-        $result = Constants::chat();
-
-        $this->assertIsArray($result);
-    }
-
-    public function test_chat_with_section(): void
-    {
-        $result = Constants::chat('message');
-
-        $this->assertIsArray($result);
-    }
-
-    public function test_chat_with_section_and_key(): void
-    {
-        $result = Constants::chat('message', 'max_length');
-
-        $this->assertIsInt($result);
-    }
-
     public function test_upload_returns_config(): void
     {
         $result = Constants::upload();
@@ -84,22 +63,6 @@ class ConstantsTest extends TestCase
         $result = Constants::api();
 
         $this->assertIsArray($result);
-    }
-
-    public function test_chat_message_max_length(): void
-    {
-        $result = Constants::chatMessageMaxLength();
-
-        $this->assertIsInt($result);
-        $this->assertGreaterThan(0, $result);
-    }
-
-    public function test_chat_room_name_max_length(): void
-    {
-        $result = Constants::chatRoomNameMaxLength();
-
-        $this->assertIsInt($result);
-        $this->assertGreaterThan(0, $result);
     }
 
     public function test_max_file_size(): void
