@@ -32,13 +32,13 @@ class ItemSearchController extends Controller
             'limit' => 'nullable|integer|min:1|max:100',
         ]);
 
-        $query = $request->input('q', '');
+        $query = trim((string) $request->input('q', ''));
         $limit = (int) $request->input('limit', 20);
         $userId = $request->user()?->id;
 
-        if (empty($query)) {
+        if ($query === '') {
             return response()->json([
-                'search_term' => $query,
+                'search_term' => '',
                 'count' => 0,
                 'results' => [],
             ]);
@@ -48,6 +48,35 @@ class ItemSearchController extends Controller
 
         // Apply visibility filter
         $searchQuery->where('is_public', true);
+
+        if ($request->filled('category_id')) {
+            $searchQuery->where('category_id', $request->integer('category_id'));
+        }
+
+        if ($request->filled('tags')) {
+            /** @var list<string> $tags */
+            $tags = array_values(array_filter(
+                array_map(static fn (mixed $tag): string => trim((string) $tag), $request->input('tags', [])),
+                static fn (string $tag): bool => $tag !== ''
+            ));
+
+            if ($tags !== []) {
+                $searchQuery->whereHas('tags', function ($tagQuery) use ($tags): void {
+                    $tagQuery->where(function ($inner) use ($tags): void {
+                        $inner->whereIn('name', $tags);
+
+                        $numericIds = array_values(array_filter(
+                            array_map(static fn (string $tag): int => (int) $tag, $tags),
+                            static fn (int $id): bool => $id > 0
+                        ));
+
+                        if ($numericIds !== []) {
+                            $inner->orWhereIn('thing_tags.id', $numericIds);
+                        }
+                    });
+                });
+            }
+        }
 
         $results = $searchQuery->limit($limit)->get();
 
@@ -86,7 +115,12 @@ class ItemSearchController extends Controller
      */
     public function searchHistory(Request $request): JsonResponse
     {
-        $userId = $request->user()->id;
+        $userId = $request->user()?->id;
+        if ($userId === null) {
+            // Route is public-readable; guests get an empty history instead of a 500.
+            return response()->json(['history' => []]);
+        }
+
         $limit = (int) $request->input('limit', self::SEARCH_HISTORY_LIMIT);
 
         $history = $this->itemSearchService->getUserHistory($userId, $limit);

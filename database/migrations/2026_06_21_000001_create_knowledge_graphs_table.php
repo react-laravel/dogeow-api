@@ -15,6 +15,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->json('data')->nullable();
             $table->timestamps();
+            $table->softDeletes();
 
             $table->index(['user_id', 'created_at']);
         });
