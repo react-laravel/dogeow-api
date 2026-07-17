@@ -13,10 +13,14 @@ class SsoTicketService
     private const KEY_PREFIX = 'sso:ticket:';
 
     /** @return array{redirect_url:string,expires_in:int} */
-    public function issue(string $client, string $returnTo, User $user): array
+    public function issue(string $client, string $returnTo, User $user, ?string $codeChallenge = null): array
     {
         $configuration = $this->clientConfiguration($client);
         $this->assertAllowedReturnUrl($returnTo, $configuration['return_origins'] ?? []);
+
+        if (($configuration['public_client'] ?? false) && $codeChallenge === null) {
+            throw new InvalidArgumentException('SSO PKCE challenge is required.');
+        }
 
         if (($configuration['admin_only'] ?? false) && ! $user->isAdmin()) {
             throw new RuntimeException('SSO access is restricted to administrators.');
@@ -36,6 +40,7 @@ class SsoTicketService
                 // share authorization decisions without a central SQL link.
                 'permissions' => $user->isAdmin() ? ['admin'] : [],
             ],
+            'code_challenge' => $codeChallenge,
         ], JSON_THROW_ON_ERROR);
 
         Redis::setex($this->ticketKey($ticket), $lifetime, $payload);
@@ -57,13 +62,20 @@ class SsoTicketService
     }
 
     /** @return array{id:int,name:string,email:string|null,is_admin:bool,permissions:array<int,string>} */
-    public function exchange(string $client, string $ticket, ?string $providedSecret): array
-    {
+    public function exchange(
+        string $client,
+        string $ticket,
+        ?string $providedSecret,
+        ?string $codeVerifier = null,
+    ): array {
         $configuration = $this->clientConfiguration($client);
-        $expectedSecret = (string) ($configuration['secret'] ?? '');
+        $isPublicClient = (bool) ($configuration['public_client'] ?? false);
 
-        if ($expectedSecret === '' || $providedSecret === null || ! hash_equals($expectedSecret, $providedSecret)) {
-            throw new RuntimeException('Invalid SSO client credentials.');
+        if (! $isPublicClient) {
+            $expectedSecret = (string) ($configuration['secret'] ?? '');
+            if ($expectedSecret === '' || $providedSecret === null || ! hash_equals($expectedSecret, $providedSecret)) {
+                throw new RuntimeException('Invalid SSO client credentials.');
+            }
         }
 
         $payload = $this->consume($this->ticketKey($ticket));
@@ -74,6 +86,14 @@ class SsoTicketService
         $decoded = json_decode($payload, true);
         if (! is_array($decoded) || ($decoded['client'] ?? null) !== $client || ! is_array($decoded['identity'] ?? null)) {
             throw new RuntimeException('SSO ticket payload is invalid.');
+        }
+
+        if ($isPublicClient) {
+            $expectedChallenge = $decoded['code_challenge'] ?? null;
+            $actualChallenge = $codeVerifier !== null ? $this->pkceChallenge($codeVerifier) : null;
+            if (! is_string($expectedChallenge) || $actualChallenge === null || ! hash_equals($expectedChallenge, $actualChallenge)) {
+                throw new RuntimeException('Invalid SSO PKCE verifier.');
+            }
         }
 
         $identity = $decoded['identity'];
@@ -123,6 +143,11 @@ class SsoTicketService
     private function ticketKey(string $ticket): string
     {
         return self::KEY_PREFIX . hash('sha256', $ticket);
+    }
+
+    private function pkceChallenge(string $verifier): string
+    {
+        return rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
     }
 
     private function consume(string $key): mixed

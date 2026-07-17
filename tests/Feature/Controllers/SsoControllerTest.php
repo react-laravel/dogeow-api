@@ -40,6 +40,12 @@ class SsoControllerTest extends TestCase
             'return_origins' => ['https://mysql-compare.dogeow.com'],
             'admin_only' => true,
         ]);
+        Config::set('sso.clients.knowledge-graph', [
+            'callback_url' => 'https://mind.dogeow.com/',
+            'return_origins' => ['https://mind.dogeow.com'],
+            'public_client' => true,
+            'issue_api_token' => true,
+        ]);
     }
 
     public function test_issue_requires_authentication(): void
@@ -231,6 +237,45 @@ class SsoControllerTest extends TestCase
         $response->assertStatus(401)
             ->assertJsonPath('success', false)
             ->assertJsonPath('message', 'SSO ticket is invalid, expired, or already used.');
+    }
+
+    public function test_public_client_uses_pkce_and_receives_an_api_token(): void
+    {
+        $user = User::factory()->create(['name' => 'Graph User']);
+        $verifier = str_repeat('v', 64);
+        $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+        $connection = Mockery::mock();
+        $connection->shouldReceive('command')
+            ->once()
+            ->with('getdel', Mockery::type('array'))
+            ->andReturn(json_encode([
+                'client' => 'knowledge-graph',
+                'identity' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'is_admin' => false,
+                    'permissions' => [],
+                ],
+                'code_challenge' => $challenge,
+            ]));
+        Redis::shouldReceive('connection')->once()->andReturn($connection);
+
+        $response = $this->postJson('/api/auth/sso/exchange', [
+            'client' => 'knowledge-graph',
+            'ticket' => str_repeat('e', 64),
+            'code_verifier' => $verifier,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.user.id', $user->id)
+            ->assertJsonPath('data.user.name', 'Graph User');
+        $this->assertIsString($response->json('data.token'));
+        $this->assertDatabaseHas('personal_access_tokens', [
+            'tokenable_id' => $user->id,
+            'name' => 'sso:knowledge-graph',
+        ]);
     }
 
     public function test_exchange_rejects_ticket_issued_for_another_client(): void

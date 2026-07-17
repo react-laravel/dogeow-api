@@ -39,6 +39,12 @@ class SsoTicketServiceTest extends TestCase
             'return_origins' => ['https://mysql-compare.dogeow.com'],
             'admin_only' => true,
         ]);
+        Config::set('sso.clients.knowledge-graph', [
+            'callback_url' => 'https://mind.dogeow.com/',
+            'return_origins' => ['https://mind.dogeow.com'],
+            'public_client' => true,
+            'issue_api_token' => true,
+        ]);
     }
 
     public function test_it_issues_a_short_lived_ticket_for_an_allowed_return_url(): void
@@ -183,5 +189,53 @@ class SsoTicketServiceTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         app(SsoTicketService::class)->exchange('rpg', str_repeat('a', 64), 'wrong-secret');
+    }
+
+    public function test_public_client_requires_a_pkce_challenge_when_issuing(): void
+    {
+        Redis::shouldReceive('setex')->never();
+
+        $user = new User;
+        $user->forceFill(['id' => 42, 'name' => 'Sam', 'is_admin' => false]);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('PKCE challenge');
+
+        app(SsoTicketService::class)->issue(
+            'knowledge-graph',
+            'https://mind.dogeow.com/',
+            $user,
+        );
+    }
+
+    public function test_public_client_exchanges_with_the_matching_pkce_verifier(): void
+    {
+        $verifier = str_repeat('v', 64);
+        $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+        $connection = Mockery::mock();
+        $connection->shouldReceive('command')
+            ->once()
+            ->with('getdel', Mockery::type('array'))
+            ->andReturn(json_encode([
+                'client' => 'knowledge-graph',
+                'identity' => [
+                    'id' => 42,
+                    'name' => 'Sam',
+                    'email' => null,
+                    'is_admin' => false,
+                    'permissions' => [],
+                ],
+                'code_challenge' => $challenge,
+            ]));
+        Redis::shouldReceive('connection')->once()->andReturn($connection);
+
+        $identity = app(SsoTicketService::class)->exchange(
+            'knowledge-graph',
+            str_repeat('f', 64),
+            null,
+            $verifier,
+        );
+
+        $this->assertSame(42, $identity['id']);
     }
 }
