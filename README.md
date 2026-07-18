@@ -5,18 +5,17 @@
 - Laravel 13
   - 官方库
     - Laravel Octane (性能优化)
-    - Laravel Horizon (队列监控)
-    - Laravel Telescope (调试工具)
     - Laravel Pint (代码格式化)
     - Reverb
     - Sanctum
-  - Spatie 库
-    - laravel-query-builder
-    - laravel-permission
-    - laravel-activitylog
-    - laravel-medialibrary
-    - Scout
+    - Scout（默认 database driver）
+    - Socialite
+  - 其他
+    - spatie/laravel-query-builder
     - intervention/image
+    - laravel-notification-channels/webpush
+    - sentry/sentry-laravel
+    - predis/predis
 - 服务器
   - PHP 8.4
   - PostgreSQL 18
@@ -31,7 +30,7 @@
 
 - 生产环境部署使用 Deployer，完整步骤见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 - 当前仓库的部署入口是 [deploy.php](deploy.php)，支持 GitHub Actions self-hosted runner 和手动执行 `scripts/ensure-deployer.sh deploy production`
-- 首次部署前请先准备好服务器上的 `shared/.env`、`shared/storage`、Nginx `root`、Supervisor/Horizon 配置，细节按 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) 执行
+- 首次部署前请先准备好服务器上的 `shared/.env`、`shared/storage`、Nginx `root`、Supervisor（queue/reverb）配置，细节按 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) 执行
 
 ## 数据初始化
 

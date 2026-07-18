@@ -10,7 +10,7 @@
  * - Laravel recipe 已覆盖 shared/writable/symlink/migrate/optimize，本文件只补 Supervisor 重启。
  *
  * 本地使用：
- *   DEPLOY_PATH=/example/dogeow-api SUPERVISOR_GROUP=laravel-horizon \
+ *   DEPLOY_PATH=/example/dogeow-api SUPERVISOR_GROUP=dogeow-api \
  *     scripts/ensure-deployer.sh deploy production
  *
  * 回滚：
@@ -49,14 +49,14 @@ set('writable_dirs', [
 // =====================
 localhost('production')
     ->set('deploy_path', getenv('DEPLOY_PATH') ?: '/example/dogeow-api')
-    ->set('supervisor_group', getenv('SUPERVISOR_GROUP') ?: 'laravel-horizon')
+    ->set('supervisor_group', getenv('SUPERVISOR_GROUP') ?: 'dogeow-api')
     ->set('supervisorctl_bin', getenv('SUPERVISORCTL_BIN') ?: 'supervisorctl')
     ->set('remote_user', getenv('DEPLOY_REMOTE_USER') ?: (getenv('USER') ?: (getenv('LOGNAME') ?: 'localhost')));
 
 // =====================
 // 自定义任务
 // =====================
-desc('重启 Supervisor 下的 queue worker / Horizon');
+desc('重启 Supervisor 下的 queue worker / Reverb（非 Laravel Horizon）');
 task('supervisor:restart', function () {
     $supervisorctlBin = escapeshellarg((string) get('supervisorctl_bin'));
 

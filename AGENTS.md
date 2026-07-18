@@ -12,18 +12,16 @@
 
 | 分类 | 技术 |
 | ------ | ------ |
-| 核心 | Laravel 13、PHP 8.2+、MySQL 8、Redis 7 |
+| 核心 | Laravel 13、PHP 8.4+、MySQL 8、Redis 7 |
 | 认证 | Laravel Sanctum |
-| 搜索 | Laravel Scout |
+| 搜索 | Laravel Scout（默认 database driver） |
 | 图片 | intervention/image |
 | 实时 | Laravel Reverb |
-| 权限 | spatie/laravel-permission |
 | 查询 | spatie/laravel-query-builder |
-| 日志 | spatie/laravel-activitylog |
-| 备份 | spatie/laravel-backup |
-| 媒体 | spatie/laravel-medialibrary |
 | 推送 | laravel-notification-channels/webpush |
-| 工具 | Laravel Octane、Horizon、Telescope、Pint |
+| 社交登录 | Laravel Socialite |
+| Redis 客户端 | predis（见 REDIS_CLIENT） |
+| 工具 | Laravel Octane、Pint、Sentry |
 
 ## 项目结构
 

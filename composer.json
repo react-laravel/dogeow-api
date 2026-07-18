@@ -9,7 +9,7 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
+        "php": "^8.4",
         "dogeow/php-helpers": "dev-main",
         "intervention/image": "^3.11",
         "laravel-notification-channels/webpush": "^10.4",
@@ -22,10 +22,7 @@
         "laravel/tinker": "^3.0",
         "predis/predis": "^3.1",
         "sentry/sentry-laravel": "^4.26",
-        "spatie/laravel-activitylog": "^4.10",
         "spatie/laravel-json-api-paginate": "^2.0",
-        "spatie/laravel-medialibrary": "^11.13",
-        "spatie/laravel-permission": "^6.18",
         "spatie/laravel-query-builder": "^6.3",
         "symfony/dom-crawler": "^8.0"
     },
