@@ -18,6 +18,8 @@ class SsoControllerTest extends TestCase
     {
         parent::setUp();
 
+        // SSO 测试会 mock Redis，限流中间件改走 array cache，避免误打到 Redis mock。
+        Config::set('cache.default', 'array');
         Config::set('sso.ticket_lifetime_seconds', 60);
         Config::set('sso.clients.rpg', [
             'secret' => 'rpg-secret',
