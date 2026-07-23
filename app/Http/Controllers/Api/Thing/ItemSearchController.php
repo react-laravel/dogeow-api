@@ -46,8 +46,15 @@ class ItemSearchController extends Controller
 
         $searchQuery = $this->itemSearchService->buildSearchQuery($query, self::ITEM_RELATIONS);
 
-        // Apply visibility filter
-        $searchQuery->where('is_public', true);
+        // Match the item-management visibility rules: authenticated users can
+        // search public items and their own private items; guests see public only.
+        $searchQuery->where(function ($visibilityQuery) use ($userId): void {
+            $visibilityQuery->where('is_public', true);
+
+            if ($userId !== null) {
+                $visibilityQuery->orWhere('user_id', $userId);
+            }
+        });
 
         if ($request->filled('category_id')) {
             $searchQuery->where('category_id', $request->integer('category_id'));

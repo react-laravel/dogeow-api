@@ -41,9 +41,10 @@ class ItemSearchControllerTest extends TestCase
         $this->assertDatabaseCount('thing_search_history', 0);
     }
 
-    public function test_search_returns_only_public_matches(): void
+    public function test_search_returns_public_matches_and_the_authenticated_users_private_matches(): void
     {
         $user = User::factory()->create();
+        $otherUser = User::factory()->create();
         Sanctum::actingAs($user);
 
         $public = Item::factory()->create([
@@ -51,9 +52,14 @@ class ItemSearchControllerTest extends TestCase
             'name' => 'Public Widget',
             'is_public' => true,
         ]);
-        Item::factory()->create([
+        $ownPrivate = Item::factory()->create([
             'user_id' => $user->id,
             'name' => 'Private Widget',
+            'is_public' => false,
+        ]);
+        Item::factory()->create([
+            'user_id' => $otherUser->id,
+            'name' => 'Other Private Widget',
             'is_public' => false,
         ]);
 
@@ -61,10 +67,13 @@ class ItemSearchControllerTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('search_term', 'Widget')
-            ->assertJsonPath('count', 1);
+            ->assertJsonPath('count', 2);
 
         $ids = array_column($response->json('results'), 'id');
-        $this->assertSame([$public->id], $ids);
+        sort($ids);
+        $expectedIds = [$public->id, $ownPrivate->id];
+        sort($expectedIds);
+        $this->assertSame($expectedIds, $ids);
     }
 
     public function test_search_applies_category_and_tag_filters(): void
