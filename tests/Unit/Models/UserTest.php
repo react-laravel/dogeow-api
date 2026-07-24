@@ -26,14 +26,15 @@ class UserTest extends TestCase
             'name' => 'Test User',
             'email' => 'test@example.com',
             'password' => 'password',
-            'is_admin' => false,
+            'is_admin' => true,
         ];
 
         $user = User::create($userData);
 
         $this->assertEquals('Test User', $user->name);
         $this->assertEquals('test@example.com', $user->email);
-        $this->assertFalse($user->is_admin);
+        // is_admin 不在 fillable，防止批量赋值提权
+        $this->assertFalse((bool) $user->is_admin);
     }
 
     public function test_user_hidden_attributes()
@@ -73,10 +74,6 @@ class UserTest extends TestCase
         // Test admin role
         $this->assertTrue($adminUser->hasRole('admin'));
         $this->assertFalse($regularUser->hasRole('admin'));
-
-        // Test moderator role (not implemented yet, returns false for all users)
-        $this->assertFalse($adminUser->hasRole('moderator'));
-        $this->assertFalse($regularUser->hasRole('moderator'));
 
         // Test unknown role
         $this->assertFalse($adminUser->hasRole('unknown'));

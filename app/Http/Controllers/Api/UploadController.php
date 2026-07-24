@@ -4,9 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UploadBatchImagesRequest;
-use App\Jobs\RemoveBackgroundJob;
+use App\Jobs\ProcessUploadedImageJob;
 use App\Services\File\FileStorageService;
-use App\Services\File\ImageProcessingService;
 use App\Services\File\RmbgStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,14 +15,10 @@ class UploadController extends Controller
 {
     private FileStorageService $fileStorageService;
 
-    private ImageProcessingService $imageProcessingService;
-
     public function __construct(
         FileStorageService $fileStorageService,
-        ImageProcessingService $imageProcessingService
     ) {
         $this->fileStorageService = $fileStorageService;
-        $this->imageProcessingService = $imageProcessingService;
     }
 
     /**
@@ -64,42 +59,46 @@ class UploadController extends Controller
                         continue;
                     }
 
-                    // 存储文件
+                    // 存储原图
                     $fileInfo = $this->fileStorageService->storeFile($image, $dirPath);
                     if (empty($fileInfo['success'])) {
                         throw new \Exception($fileInfo['message'] ?? '文件存储失败');
                     }
 
-                    // 处理图片
-                    $processResult = $this->imageProcessingService->processImage(
-                        $fileInfo['origin_path'],
-                        $fileInfo['compressed_path']
-                    );
-
-                    // 获取公共 URL
+                    // 获取公共 URL（原图立即可用；压缩/缩略图由队列生成）
                     $urls = $this->fileStorageService->getPublicUrls($userId, $fileInfo);
 
-                    if (! $processResult['success']) {
-                        // service returns 'message' on failure
-                        throw new \Exception($processResult['message'] ?? 'Image processing failed');
+                    $compressedRelative = 'uploads/' . $userId . '/' . $fileInfo['compressed_filename'];
+                    $originRelative = 'uploads/' . $userId . '/' . $fileInfo['origin_filename'];
+
+                    $rmbgContext = null;
+                    if ($removeBg) {
+                        $rmbgStatusService->setPending($compressedRelative);
+                        $rmbgContext = [
+                            'remove_bg' => true,
+                            'user_id' => $userId,
+                            'compressed_relative_path' => $compressedRelative,
+                            'origin_relative_path' => $originRelative,
+                            'origin_url' => $urls['origin_url'],
+                        ];
                     }
 
+                    ProcessUploadedImageJob::dispatch(
+                        $fileInfo['origin_path'],
+                        $fileInfo['compressed_path'],
+                        $rmbgContext,
+                    );
+
                     $imageEntry = [
-                        'path' => 'uploads/' . $userId . '/' . $fileInfo['compressed_filename'],
-                        'origin_path' => 'uploads/' . $userId . '/' . $fileInfo['origin_filename'],
-                        'url' => $urls['compressed_url'],
+                        'path' => $compressedRelative,
+                        'origin_path' => $originRelative,
+                        'url' => $urls['origin_url'],
                         'origin_url' => $urls['origin_url'],
-                        'thumbnail_url' => $urls['thumbnail_url'],
+                        'thumbnail_url' => $urls['origin_url'],
+                        'processing' => true,
                     ];
 
                     if ($removeBg) {
-                        $rmbgStatusService->setPending($imageEntry['path']);
-                        RemoveBackgroundJob::dispatch(
-                            $userId,
-                            $imageEntry['path'],
-                            $imageEntry['origin_path'],
-                            $imageEntry['origin_url'],
-                        );
                         $imageEntry['rmbg_status'] = 'pending';
                     }
 
@@ -132,7 +131,7 @@ class UploadController extends Controller
             ]);
 
             return response()->json([
-                'message' => '图片上传失败: ' . $e->getMessage(),
+                'message' => '图片上传失败',
             ], 500);
         }
     }

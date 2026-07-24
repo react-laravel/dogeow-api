@@ -21,11 +21,26 @@ class ItemControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->user = User::factory()->create();
+        $this->user = User::factory()->create(['is_admin' => true]);
         $this->category = Category::factory()->create();
         $this->item = Item::factory()->visible()->create([
             'nav_category_id' => $this->category->id,
         ]);
+    }
+
+    public function test_store_requires_admin(): void
+    {
+        $regularUser = User::factory()->create(['is_admin' => false]);
+
+        $response = $this->actingAs($regularUser, 'sanctum')->postJson('/api/nav/items', [
+            'name' => 'Test',
+            'url' => 'https://example.com',
+            'nav_category_id' => $this->category->id,
+            'sort_order' => 1,
+            'is_visible' => true,
+        ]);
+
+        $response->assertStatus(403);
     }
 
     public function test_index_returns_all_visible_items(): void
@@ -88,10 +103,22 @@ class ItemControllerTest extends TestCase
             'nav_category_id' => $this->category->id,
         ]);
 
-        $response = $this->getJson('/api/nav/items?show_all=1');
+        $response = $this->actingAs($this->user, 'sanctum')->getJson('/api/nav/items?show_all=1');
 
         $response->assertStatus(200)
             ->assertJsonCount(5); // 2 visible + 2 hidden + 1 from setUp
+    }
+
+    public function test_index_show_all_ignored_for_guests(): void
+    {
+        Item::factory()->hidden()->create([
+            'nav_category_id' => $this->category->id,
+        ]);
+
+        $response = $this->getJson('/api/nav/items?show_all=1');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1); // only visible from setUp
     }
 
     public function test_index_filters_by_category_id(): void

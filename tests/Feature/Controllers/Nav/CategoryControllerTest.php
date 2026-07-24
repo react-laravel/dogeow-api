@@ -17,7 +17,7 @@ class CategoryControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->user = User::factory()->create();
+        $this->user = User::factory()->create(['is_admin' => true]);
     }
 
     /**
@@ -50,7 +50,7 @@ class CategoryControllerTest extends TestCase
         $visibleCategory = Category::factory()->visible()->create();
         $hiddenCategory = Category::factory()->hidden()->create();
 
-        $response = $this->getJson('/api/nav/categories?show_all=1');
+        $response = $this->actingAs($this->user)->getJson('/api/nav/categories?show_all=1');
 
         $response->assertStatus(200)
             ->assertJsonCount(2)
@@ -121,7 +121,7 @@ class CategoryControllerTest extends TestCase
         Item::factory()->count(3)->create(['nav_category_id' => $category1->id]);
         Item::factory()->count(1)->create(['nav_category_id' => $category2->id]);
 
-        $response = $this->getJson('/api/nav/categories/all');
+        $response = $this->actingAs($this->user)->getJson('/api/nav/categories/all');
 
         $response->assertStatus(200)
             ->assertJsonCount(2)
@@ -381,7 +381,7 @@ class CategoryControllerTest extends TestCase
         $category1 = Category::factory()->create(['sort_order' => 1]);
         $category2 = Category::factory()->create(['sort_order' => 2]);
 
-        $response = $this->getJson('/api/nav/categories?show_all=1');
+        $response = $this->actingAs($this->user)->getJson('/api/nav/categories?show_all=1');
 
         $response->assertStatus(200);
 
@@ -690,7 +690,7 @@ class CategoryControllerTest extends TestCase
      */
     public function test_all_returns_empty_when_no_categories()
     {
-        $response = $this->getJson('/api/nav/categories/all');
+        $response = $this->actingAs($this->user)->getJson('/api/nav/categories/all');
 
         $response->assertStatus(200)
             ->assertJsonCount(0);

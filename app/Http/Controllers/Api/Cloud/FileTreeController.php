@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\GetCurrentUserId;
 use App\Http\Controllers\Controller;
 use App\Models\Cloud\File;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Collection;
 
 class FileTreeController extends Controller
 {
@@ -68,45 +69,47 @@ class FileTreeController extends Controller
     {
         $userId = $this->getCurrentUserId();
 
-        // 使用递归 CTE 或预加载方式优化
-        $rootFolders = File::where('user_id', $userId)
+        $folders = File::query()
+            ->where('user_id', $userId)
             ->where('is_folder', true)
-            ->whereNull('parent_id')
-            ->get();
+            ->orderBy('name')
+            ->get(['id', 'name', 'parent_id']);
 
-        $tree = [];
-
-        foreach ($rootFolders as $folder) {
-            $tree[] = $this->buildFolderTree($folder);
-        }
-
-        return response()->json($tree);
+        return response()->json($this->buildFolderTreeFromCollection($folders));
     }
 
     /**
-     * 递归构建文件夹树(已优化，使用预加载减少查询)
+     * 一次加载全部文件夹后在内存中建树，避免递归 N+1。
+     *
+     * @param  Collection<int, File>  $folders
+     * @return list<array{id:int,name:string,children:list<array{id:int,name:string,children:list}>}>
      */
-    private function buildFolderTree($folder): array
+    private function buildFolderTreeFromCollection(Collection $folders): array
     {
-        $userId = $this->getCurrentUserId();
+        /** @var array<int|string, list<File>> $byParent */
+        $byParent = [];
 
-        // 使用 with 查询预加载子文件夹，减少 N+1 问题
-        $children = File::where('user_id', $userId)
-            ->where('is_folder', true)
-            ->where('parent_id', $folder->id)
-            ->get();
-
-        $node = [
-            'id' => $folder->id,
-            'name' => $folder->name,
-            'children' => [],
-        ];
-
-        foreach ($children as $child) {
-            $node['children'][] = $this->buildFolderTree($child);
+        foreach ($folders as $folder) {
+            $parentKey = $folder->parent_id === null ? 'root' : (int) $folder->parent_id;
+            $byParent[$parentKey][] = $folder;
         }
 
-        return $node;
+        $build = function (int|string $parentKey) use (&$build, $byParent): array {
+            $children = $byParent[$parentKey] ?? [];
+            $nodes = [];
+
+            foreach ($children as $folder) {
+                $nodes[] = [
+                    'id' => (int) $folder->id,
+                    'name' => (string) $folder->name,
+                    'children' => $build((int) $folder->id),
+                ];
+            }
+
+            return $nodes;
+        };
+
+        return $build('root');
     }
 
     /**

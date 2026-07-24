@@ -1,8 +1,6 @@
 <?php
 
-use App\Http\Middleware\CombatRateLimit;
 use App\Http\Middleware\EnsureUserIsAdmin;
-use App\Http\Middleware\FormatApiResponse;
 use App\Http\Middleware\IdempotencyMiddleware;
 use App\Http\Middleware\WebSocketAuthMiddleware;
 use Illuminate\Foundation\Application;
@@ -27,9 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'websocket.auth' => WebSocketAuthMiddleware::class,
-            'combat.rate' => CombatRateLimit::class,
             'admin' => EnsureUserIsAdmin::class,
-            'format.api' => FormatApiResponse::class,
             'idempotency' => IdempotencyMiddleware::class,
         ]);
 

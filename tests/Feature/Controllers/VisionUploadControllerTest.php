@@ -52,7 +52,9 @@ class VisionUploadControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJson([
             'success' => true,
-            'url' => 'https://example.com/vision/test.jpg',
+            'data' => [
+                'url' => 'https://example.com/vision/test.jpg',
+            ],
         ]);
     }
 
@@ -167,28 +169,21 @@ class VisionUploadControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJson([
             'success' => true,
-            'url' => 'https://example.com/vision/test.heic',
+            'data' => [
+                'url' => 'https://example.com/vision/test.heic',
+            ],
         ]);
     }
 
-    public function test_upload_vision_image_is_public(): void
+    public function test_upload_vision_image_requires_authentication(): void
     {
-        // Vision upload is a public endpoint (no auth required)
         $image = UploadedFile::fake()->image('test.jpg', 800, 600);
-
-        $this->mock(UpyunService::class, function ($mock) {
-            $mock->shouldReceive('upload')->andReturn([
-                'success' => true,
-                'url' => 'https://example.com/vision/test.jpg',
-            ]);
-        });
 
         $response = $this->postJson('/api/vision/upload', [
             'image' => $image,
         ]);
 
-        // Should succeed without authentication
-        $response->assertStatus(200);
+        $response->assertStatus(401);
     }
 
     public function test_upload_vision_image_requires_image_field(): void

@@ -36,6 +36,20 @@ class NoteController extends Controller
 
         $notes = Note::with(['category', 'tags'])
             ->where('user_id', $this->getCurrentUserId())
+            ->select([
+                'id',
+                'user_id',
+                'title',
+                'note_category_id',
+                'is_draft',
+                'is_wiki',
+                'slug',
+                'summary',
+                'created_at',
+                'updated_at',
+            ])
+            // 列表仅返回正文预览，完整内容走 show
+            ->selectRaw("LEFT(COALESCE(content_markdown, ''), 240) as content_markdown")
             ->orderBy('updated_at', 'desc')
             ->get();
 
@@ -108,7 +122,7 @@ class NoteController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return $this->error('Failed to retrieve articles: ' . $e->getMessage(), [], 500);
+            return $this->error('Failed to retrieve articles', [], 500);
         }
     }
 
@@ -129,6 +143,7 @@ class NoteController extends Controller
 
         $note->load('tags');
 
+        Cache::forget('wiki:articles:all');
         TriggerKnowledgeIndexBuildJob::dispatch();
 
         return $this->success($note, 'Note created successfully', 201);
@@ -169,6 +184,7 @@ class NoteController extends Controller
 
         $note->load('tags');
 
+        Cache::forget('wiki:articles:all');
         TriggerKnowledgeIndexBuildJob::dispatch();
 
         return $this->success($note, 'Note updated successfully');
@@ -186,6 +202,7 @@ class NoteController extends Controller
 
         $note->delete();
 
+        Cache::forget('wiki:articles:all');
         TriggerKnowledgeIndexBuildJob::dispatch();
 
         // return no content for successful deletion
@@ -229,15 +246,19 @@ class NoteController extends Controller
      */
     private function authorizeNoteWrite(Note $note): void
     {
+        $isOwner = $note->user_id === $this->getCurrentUserId();
+
+        if (! $isOwner && ! $this->currentUserIsAdmin()) {
+            throw new AccessDeniedHttpException('You do not have permission to modify this note');
+        }
+    }
+
+    private function currentUserIsAdmin(): bool
+    {
         /** @var User|null $user */
         $user = request()->user();
 
-        $isOwner = $note->user_id === $this->getCurrentUserId();
-        $isAdmin = $user !== null && $user->isAdmin();
-
-        if (! $isOwner && ! $isAdmin) {
-            throw new AccessDeniedHttpException('You do not have permission to modify this note');
-        }
+        return $user !== null && $user->isAdmin();
     }
 
     /**
@@ -352,11 +373,20 @@ class NoteController extends Controller
             'is_draft' => $input['is_draft'] ?? false,
         ];
 
-        // 处理 wiki 相关字段
-        $wikiFields = ['slug', 'summary', 'is_wiki'];
+        // 处理 wiki 相关字段（is_wiki 仅管理员可设置）
+        $isAdmin = $this->currentUserIsAdmin();
+        $wikiFields = ['slug', 'summary'];
         foreach ($wikiFields as $field) {
             if (isset($input[$field])) {
                 $data[$field] = $input[$field];
+            }
+        }
+
+        if (array_key_exists('is_wiki', $input)) {
+            if ($isAdmin) {
+                $data['is_wiki'] = (bool) $input['is_wiki'];
+            } elseif ($input['is_wiki']) {
+                abort(403, '仅管理员可将笔记设为 Wiki');
             }
         }
 
@@ -382,6 +412,16 @@ class NoteController extends Controller
         // 如果更新了内容但没有提供 markdown，尝试自动生成
         if (isset($validatedData['content']) && ! isset($validatedData['content_markdown'])) {
             $validatedData['content_markdown'] = $this->noteContentService->deriveMarkdownFromContent($validatedData['content']);
+        }
+
+        if (array_key_exists('is_wiki', $validatedData)) {
+            if (! $this->currentUserIsAdmin()) {
+                if ($validatedData['is_wiki'] && ! $note->is_wiki) {
+                    abort(403, '仅管理员可将笔记设为 Wiki');
+                }
+                // 非管理员不可改 is_wiki
+                unset($validatedData['is_wiki']);
+            }
         }
 
         // 如果更新了 title 但没有提供 slug，且是 wiki 节点，重新生成 slug

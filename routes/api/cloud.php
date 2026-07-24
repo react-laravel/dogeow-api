@@ -15,7 +15,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/cloud/files', [FileController::class, 'index']);
     Route::get('/cloud/files/{id}', [FileController::class, 'show']);
     Route::post('/cloud/folders', [FileController::class, 'createFolder']);
-    Route::post('/cloud/files', [FileController::class, 'upload']);
+    Route::post('/cloud/files', [FileController::class, 'upload'])->middleware('throttle:20,1');
     Route::get('/cloud/files/{id}/download', [FileController::class, 'download'])->name('cloud.files.download');
     Route::get('/cloud/files/{id}/preview', [FileController::class, 'preview']);
     Route::delete('/cloud/files/{id}', [FileController::class, 'destroy']);

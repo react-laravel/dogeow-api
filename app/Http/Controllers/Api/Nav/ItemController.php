@@ -22,8 +22,11 @@ class ItemController extends Controller
             $query->where('nav_category_id', $request->category_id);
         }
 
-        // 默认只显示可见的
-        if (! $request->has('show_all')) {
+        // show_all 仅管理员可见隐藏项；公开请求一律只返回可见项
+        $canShowAll = $request->boolean('show_all')
+            && $request->user('sanctum')?->isAdmin();
+
+        if (! $canShowAll) {
             $query->where('is_visible', true);
         }
 

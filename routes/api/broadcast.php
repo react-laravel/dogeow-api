@@ -24,7 +24,7 @@ Route::post('/broadcasting/auth', function (Request $request) {
     if (! $user) {
         Log::warning('Broadcast auth failed: unauthenticated', [
             'channel' => $request->input('channel_name'),
-            'auth_header' => $request->header('Authorization'),
+            'has_auth' => $request->hasHeader('Authorization'),
         ]);
 
         return response()->json(['error' => 'Unauthenticated.'], 401);

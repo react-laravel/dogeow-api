@@ -112,15 +112,16 @@ class FileController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'parent_id' => 'nullable|exists:cloud_files,id',
+            'parent_id' => 'nullable|integer',
             'description' => 'nullable|string',
         ]);
 
         $userId = $this->getCurrentUserId();
+        $parentId = $this->resolveOwnedParentFolderId($request->input('parent_id'), $userId);
 
         $file = new File;
         $file->name = $request->name;
-        $file->parent_id = $request->parent_id;
+        $file->parent_id = $parentId;
         $file->user_id = $userId;
         $file->is_folder = true;
         $file->path = 'folders/' . Str::uuid();
@@ -137,7 +138,7 @@ class FileController extends Controller
     {
         $request->validate([
             'file' => 'required|file|max:102400', // 100MB
-            'parent_id' => 'nullable|exists:cloud_files,id',
+            'parent_id' => 'nullable|integer',
             'description' => 'nullable|string',
         ]);
 
@@ -150,6 +151,7 @@ class FileController extends Controller
         Log::info("上传文件: 原始名称={$originalName}, 扩展名={$extension}, MIME 类型={$mimeType}, 大小={$size}");
 
         $userId = $this->getCurrentUserId();
+        $parentId = $this->resolveOwnedParentFolderId($request->input('parent_id'), $userId);
 
         // 生成唯一文件路径
         $fileName = Str::uuid() . '.' . $extension;
@@ -177,7 +179,7 @@ class FileController extends Controller
         $file->mime_type = $mimeType;
         $file->path = $path;
         $file->size = $size;
-        $file->parent_id = $request->parent_id;
+        $file->parent_id = $parentId;
         $file->user_id = $userId;
         $file->description = $request->description;
 
@@ -562,5 +564,30 @@ class FileController extends Controller
         } finally {
             fclose($stream);
         }
+    }
+
+    /**
+     * 校验 parent_id 属于当前用户且为文件夹；无效时返回 422。
+     */
+    private function resolveOwnedParentFolderId(mixed $parentId, int $userId): ?int
+    {
+        if ($parentId === null || $parentId === '') {
+            return null;
+        }
+
+        $folder = File::query()
+            ->where('user_id', $userId)
+            ->where('id', (int) $parentId)
+            ->where('is_folder', true)
+            ->first();
+
+        if (! $folder) {
+            abort(response()->json([
+                'message' => '父文件夹不存在或无权访问',
+                'errors' => ['parent_id' => ['父文件夹不存在或无权访问']],
+            ], 422));
+        }
+
+        return (int) $folder->id;
     }
 }

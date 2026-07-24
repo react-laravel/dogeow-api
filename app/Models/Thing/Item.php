@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Laravel\Scout\Searchable;
 
 /**
  * @property mixed $id
@@ -22,7 +21,7 @@ use Laravel\Scout\Searchable;
  */
 class Item extends Model
 {
-    use HasFactory, Searchable;
+    use HasFactory;
 
     protected $table = 'thing_items';
 
@@ -81,24 +80,6 @@ class Item extends Model
         }
 
         return null;
-    }
-
-    /**
-     * 获取模型的可搜索数据
-     *
-     * @return array<string, mixed>
-     */
-    public function toSearchableArray(): array
-    {
-        return [
-            'id' => $this->id,
-            'name' => $this->name,
-            'description' => $this->description,
-            'status' => $this->status,
-            'category_id' => $this->category_id,
-            'is_public' => $this->is_public,
-            'user_id' => $this->user_id,
-        ];
     }
 
     /**

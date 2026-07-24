@@ -134,7 +134,9 @@ class VisionUploadControllerUnitTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame([
             'success' => true,
-            'url' => 'https://example.com/vision/test.png',
+            'data' => [
+                'url' => 'https://example.com/vision/test.png',
+            ],
         ], json_decode($response->getContent(), true));
     }
 
@@ -169,7 +171,9 @@ class VisionUploadControllerUnitTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame([
             'success' => true,
-            'url' => 'https://example.com/vision/test.heic',
+            'data' => [
+                'url' => 'https://example.com/vision/test.heic',
+            ],
         ], json_decode($response->getContent(), true));
     }
 
@@ -204,7 +208,9 @@ class VisionUploadControllerUnitTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame([
             'success' => true,
-            'url' => 'https://example.com/vision/test.webp',
+            'data' => [
+                'url' => 'https://example.com/vision/test.webp',
+            ],
         ], json_decode($response->getContent(), true));
     }
 
@@ -239,7 +245,9 @@ class VisionUploadControllerUnitTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame([
             'success' => true,
-            'url' => 'https://example.com/vision/test.gif',
+            'data' => [
+                'url' => 'https://example.com/vision/test.gif',
+            ],
         ], json_decode($response->getContent(), true));
     }
 

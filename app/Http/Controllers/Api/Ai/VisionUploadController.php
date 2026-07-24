@@ -86,7 +86,9 @@ class VisionUploadController extends Controller
 
         return response()->json([
             'success' => true,
-            'url' => $result['url'],
+            'data' => [
+                'url' => $result['url'],
+            ],
         ]);
     }
 

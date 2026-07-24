@@ -8,17 +8,17 @@
     - Laravel Pint (代码格式化)
     - Reverb
     - Sanctum
-    - Scout（默认 database driver）
     - Socialite
   - 其他
     - spatie/laravel-query-builder
+    - spatie/laravel-json-api-paginate
     - intervention/image
     - laravel-notification-channels/webpush
     - sentry/sentry-laravel
-    - predis/predis
+    - predis/predis（CI/测试；本地默认可用 phpredis）
 - 服务器
   - PHP 8.4
-  - PostgreSQL 18
+  - PostgreSQL 18（生产）；本地 `.env.example` 默认 SQLite
   - Redis 7
   - Nginx
 
@@ -37,14 +37,7 @@
 ### 固定基础数据
 
 - 首次初始化数据库：`php artisan migrate:fresh --seed`
-- 仅填充 RPG 基础定义数据：`php artisan db:seed --class=Database\\Seeders\\Game\\GameSeeder`
-- `DatabaseSeeder` 默认会写入管理员、测试用户、词库，以及 RPG 的技能、物品、怪物、地图基础定义
-
-### Factory 随机数据
-
-- 本地联调或测试环境可选执行：`php artisan db:seed --class=Database\\Seeders\\Game\\GameFactorySeeder`
-- 该 Seeder 会通过 Factory 生成随机 RPG 技能、物品、怪物、地图定义，不会默认加入 `DatabaseSeeder`
-- 测试里也可以直接使用地图工厂自动挂载怪物：`GameMapDefinition::factory()->withMonsters(3)->create()`
+- `DatabaseSeeder` 默认会写入管理员、测试用户与词库等基础数据
 
 ---
 

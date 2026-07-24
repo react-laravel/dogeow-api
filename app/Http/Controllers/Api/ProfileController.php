@@ -73,10 +73,12 @@ class ProfileController extends Controller
         $user = $request->user();
 
         DB::transaction(function () use ($user) {
-            // 删除相关的 Item 及其图片
-            $user->items()->each(function ($item): void {
-                $this->itemService->deleteItemImages($item);
-                $item->delete();
+            // 分块删除物品及图片，避免一次加载全部关系
+            $user->items()->with('images')->chunkById(50, function ($items): void {
+                foreach ($items as $item) {
+                    $this->itemService->deleteItemImages($item);
+                    $item->delete();
+                }
             });
 
             $user->delete();

@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 
 class ItemSearchController extends Controller
 {
-    private const ITEM_RELATIONS = ['category', 'tags', 'spot', 'spot.room', 'spot.room.area'];
+    private const ITEM_RELATIONS = ['category', 'tags', 'spot', 'spot.room', 'spot.room.area', 'primaryImage', 'images'];
 
     private const SEARCH_HISTORY_LIMIT = 10;
 

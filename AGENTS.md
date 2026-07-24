@@ -12,15 +12,15 @@
 
 | 分类 | 技术 |
 | ------ | ------ |
-| 核心 | Laravel 13、PHP 8.4+、MySQL 8、Redis 7 |
+| 核心 | Laravel 13、PHP 8.4+、PostgreSQL 18（生产）/ SQLite（本地示例）、Redis 7 |
 | 认证 | Laravel Sanctum |
-| 搜索 | Laravel Scout（默认 database driver） |
+| 搜索 | Eloquent LIKE / 自定义 scope（物品等） |
 | 图片 | intervention/image |
 | 实时 | Laravel Reverb |
-| 查询 | spatie/laravel-query-builder |
+| 查询 | spatie/laravel-query-builder、spatie/laravel-json-api-paginate |
 | 推送 | laravel-notification-channels/webpush |
 | 社交登录 | Laravel Socialite |
-| Redis 客户端 | predis（见 REDIS_CLIENT） |
+| Redis 客户端 | 默认 phpredis；CI/测试可用 predis（`REDIS_CLIENT`） |
 | 工具 | Laravel Octane、Pint、Sentry |
 
 ## 项目结构
@@ -28,7 +28,7 @@
 ```plain
 app/
 ├── Http/
-│   ├── Controllers/Api/     # 按业务拆分：Game、Note、Word、Thing 等
+│   ├── Controllers/Api/     # 按业务拆分：Note、Word、Thing、Cloud、Nav、Book 等
 │   ├── Requests/            # Form Request 按功能分类
 │   ├── Middleware/
 │   └── Resources/           # API Resource
@@ -40,9 +40,10 @@ app/
 routes/api/
 ├── public.php               # 公开 API
 ├── broadcast.php            # 广播认证
-├── game.php, item.php, location.php
-├── note.php, profile.php, todo.php, word.php
-└── logs.php
+├── book.php, cloud.php, dashboard.php, item.php, knowledge.php
+├── location.php, nav.php, note.php, notification.php, profile.php
+├── todo.php, tools.php, websocket.php, word.php
+├── cache.php, logs.php
 ```
 
 ## 开发规范
@@ -89,12 +90,14 @@ routes/api/
 
 ## 主要业务模块
 
-- **系统本身（App）**：Web Push
-- **游戏 (Game)**：角色、战斗、背包、商店、技能
-- **笔记 (Note)**：分类、标签
+- **系统本身（App）**：Web Push、通知、Dashboard
+- **笔记 (Note)**：分类、标签、Wiki
 - **地点/物品 (Thing)**：Location、Item、Category、Tag
+- **云盘 (Cloud)**：文件与目录树
+- **导航 (Nav)**：全站导航（写操作需管理员）
 - **单词 (Word)**：书本、学习、艾宾浩斯复习、打卡
 - **待办 (Todo)**：任务管理
+- **书籍书签 (Book)**、知识图谱 (Knowledge)
 
 ## 注意事项
 

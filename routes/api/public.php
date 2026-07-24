@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Api\Ai\VisionUploadController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Dashboard\ClientInfoController;
 use App\Http\Controllers\Api\Dashboard\MusicController;
@@ -11,8 +10,8 @@ use App\Http\Controllers\Api\SsoController;
 use Illuminate\Support\Facades\Route;
 
 // Auth
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
 Route::post('/auth/sso/exchange', [SsoController::class, 'exchange'])->middleware('throttle:60,1');
 
 // GitHub OAuth
@@ -41,9 +40,6 @@ Route::prefix('musics')->group(function () {
 // Public notes
 Route::get('notes/article/{slug}', [NoteController::class, 'getArticleBySlug']);
 Route::get('notes/wiki/articles', [NoteController::class, 'getAllWikiArticles']);
-
-// Vision AI 图片上传
-Route::post('/vision/upload', [VisionUploadController::class, 'upload'])->middleware('throttle:5,1');
 
 // Public nav/tools
 require base_path('routes/api/nav.php');

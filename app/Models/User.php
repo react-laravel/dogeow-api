@@ -36,7 +36,6 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'is_admin',
         'github_id',
         'github_avatar',
     ];
@@ -80,7 +79,6 @@ class User extends Authenticatable
     {
         return match ($role) {
             'admin' => $this->isAdmin(),
-            'moderator' => false, // TODO: implement proper moderator role
             default => false,
         };
     }

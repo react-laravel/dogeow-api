@@ -173,7 +173,7 @@ class UploadControllerTest extends TestCase
 
         $response->assertStatus(500);
         $response->assertJson([
-            'message' => '图片上传失败: Storage service error',
+            'message' => '图片上传失败',
         ]);
     }
 

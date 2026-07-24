@@ -108,9 +108,28 @@ class MusicController extends Controller
      */
     public function download(string $filename): Response|JsonResponse
     {
-        $filePath = public_path('musics/' . $filename);
+        $safeName = basename($filename);
 
-        if (! File::exists($filePath)) {
+        if ($safeName === '' || $safeName === '.' || $safeName === '..') {
+            return response()->json(['error' => '文件不存在'], 404);
+        }
+
+        if (! $this->isSupportedAudioExtension($safeName)) {
+            return response()->json(['error' => '文件不存在'], 404);
+        }
+
+        $musicsDir = realpath(public_path('musics'));
+        if ($musicsDir === false) {
+            return response()->json(['error' => '文件不存在'], 404);
+        }
+
+        $filePath = realpath($musicsDir . DIRECTORY_SEPARATOR . $safeName);
+
+        if ($filePath === false || ! str_starts_with($filePath, $musicsDir . DIRECTORY_SEPARATOR)) {
+            return response()->json(['error' => '文件不存在'], 404);
+        }
+
+        if (! File::exists($filePath) || ! File::isFile($filePath)) {
             return response()->json(['error' => '文件不存在'], 404);
         }
 
@@ -123,7 +142,7 @@ class MusicController extends Controller
             'Content-Length' => $fileSize,
             'Accept-Ranges' => 'bytes',
             'Cache-Control' => 'public, max-age=3600',
-            'Content-Disposition' => 'inline; filename="' . addslashes($filename) . '"',
+            'Content-Disposition' => 'inline; filename="' . addslashes($safeName) . '"',
         ];
 
         // 支持范围请求(用于音频流式播放)

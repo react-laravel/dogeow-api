@@ -107,6 +107,25 @@ class MusicControllerUnitTest extends TestCase
         );
     }
 
+    public function test_download_rejects_path_traversal(): void
+    {
+        $response = $this->controller->download('../.env');
+
+        $this->assertEquals(404, $response->getStatusCode());
+        $this->assertSame(['error' => '文件不存在'], json_decode($response->getContent(), true));
+    }
+
+    public function test_download_rejects_non_audio_extension(): void
+    {
+        $musicDir = public_path('musics');
+        File::ensureDirectoryExists($musicDir);
+        file_put_contents($musicDir . '/notes.txt', 'secret');
+
+        $response = $this->controller->download('notes.txt');
+
+        $this->assertEquals(404, $response->getStatusCode());
+    }
+
     public function test_download_returns_404_for_missing_file(): void
     {
         $response = $this->controller->download('missing.mp3');

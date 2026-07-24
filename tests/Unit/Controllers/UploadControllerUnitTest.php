@@ -4,22 +4,21 @@ namespace Tests\Unit\Controllers;
 
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Requests\UploadBatchImagesRequest;
+use App\Jobs\ProcessUploadedImageJob;
 use App\Services\File\FileStorageService;
-use App\Services\File\ImageProcessingService;
 use App\Services\File\RmbgStatusService;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Bus;
 use Mockery;
 use ReflectionClass;
 use Tests\TestCase;
 
 class UploadControllerUnitTest extends TestCase
 {
-    private function createImageProcessingServiceMock(): ImageProcessingService
+    protected function setUp(): void
     {
-        $imageService = $this->createMock(ImageProcessingService::class);
-        $imageService->method('processImage')->willReturn(['success' => true]);
-
-        return $imageService;
+        parent::setUp();
+        Bus::fake();
     }
 
     private function createRmbgStatusService(): RmbgStatusService
@@ -38,9 +37,7 @@ class UploadControllerUnitTest extends TestCase
     public function test_constructor_initializes_dependencies_and_error_messages(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createImageProcessingServiceMock();
-
-        $controller = new UploadController($storageService, $imageService);
+        $controller = new UploadController($storageService);
         $reflection = new ReflectionClass($controller);
         $method = $reflection->getMethod('getUploadErrorMessage');
         $method->setAccessible(true);
@@ -64,8 +61,6 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_500_when_directory_creation_fails(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createImageProcessingServiceMock();
-
         $storageService->method('createUserDirectory')->willReturn([
             'success' => false,
             'message' => '创建目录失败',
@@ -74,7 +69,7 @@ class UploadControllerUnitTest extends TestCase
         $request = $this->createUploadRequestMock();
         $request->shouldNotReceive('hasFile');
 
-        $controller = new UploadController($storageService, $imageService);
+        $controller = new UploadController($storageService);
         $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(500, $response->getStatusCode());
@@ -87,8 +82,6 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_default_message_when_directory_creation_fails_without_message(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createImageProcessingServiceMock();
-
         $storageService->method('createUserDirectory')->willReturn([
             'success' => false,
         ]);
@@ -96,7 +89,7 @@ class UploadControllerUnitTest extends TestCase
         $request = $this->createUploadRequestMock();
         $request->shouldNotReceive('hasFile');
 
-        $controller = new UploadController($storageService, $imageService);
+        $controller = new UploadController($storageService);
         $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(500, $response->getStatusCode());
@@ -109,8 +102,6 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_400_when_no_images_found(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createImageProcessingServiceMock();
-
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
             'directory_path' => 'uploads/0',
@@ -119,7 +110,7 @@ class UploadControllerUnitTest extends TestCase
         $request = $this->createUploadRequestMock();
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(false);
 
-        $controller = new UploadController($storageService, $imageService);
+        $controller = new UploadController($storageService);
         $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(400, $response->getStatusCode());
@@ -132,8 +123,6 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_500_when_all_images_fail(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createImageProcessingServiceMock();
-
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
             'directory_path' => 'uploads/0',
@@ -147,7 +136,7 @@ class UploadControllerUnitTest extends TestCase
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([$invalidImage]);
 
-        $controller = new UploadController($storageService, $imageService);
+        $controller = new UploadController($storageService);
         $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(500, $response->getStatusCode());
@@ -160,8 +149,6 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_uploaded_items_when_some_images_succeed(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createImageProcessingServiceMock();
-
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
             'directory_path' => 'uploads/0',
@@ -194,7 +181,7 @@ class UploadControllerUnitTest extends TestCase
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([$invalidImage, $validImage]);
 
-        $controller = new UploadController($storageService, $imageService);
+        $controller = new UploadController($storageService);
         $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(200, $response->getStatusCode());
@@ -207,18 +194,16 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_500_when_outer_exception_is_thrown(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createImageProcessingServiceMock();
-
         $storageService->method('createUserDirectory')->willThrowException(new \Exception('outer boom'));
 
         $request = $this->createUploadRequestMock();
 
-        $controller = new UploadController($storageService, $imageService);
+        $controller = new UploadController($storageService);
         $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(500, $response->getStatusCode());
         $this->assertSame(
-            ['message' => '图片上传失败: outer boom'],
+            ['message' => '图片上传失败'],
             json_decode($response->getContent(), true)
         );
     }
@@ -226,8 +211,6 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_500_when_store_file_fails_for_all_images(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createImageProcessingServiceMock();
-
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
             'directory_path' => 'uploads/0',
@@ -246,7 +229,7 @@ class UploadControllerUnitTest extends TestCase
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([$validImage]);
 
-        $controller = new UploadController($storageService, $imageService);
+        $controller = new UploadController($storageService);
         $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(500, $response->getStatusCode());
@@ -259,8 +242,6 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_success_items_when_store_file_partially_fails(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createImageProcessingServiceMock();
-
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
             'directory_path' => 'uploads/0',
@@ -302,7 +283,7 @@ class UploadControllerUnitTest extends TestCase
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([$firstImage, $secondImage]);
 
-        $controller = new UploadController($storageService, $imageService);
+        $controller = new UploadController($storageService);
         $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(200, $response->getStatusCode());
@@ -315,8 +296,6 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_empty_array_when_images_list_is_empty(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createImageProcessingServiceMock();
-
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
             'directory_path' => 'uploads/0',
@@ -326,7 +305,7 @@ class UploadControllerUnitTest extends TestCase
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([]);
 
-        $controller = new UploadController($storageService, $imageService);
+        $controller = new UploadController($storageService);
         $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(200, $response->getStatusCode());
@@ -336,8 +315,6 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_continues_when_store_file_throws_for_one_image(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createImageProcessingServiceMock();
-
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
             'directory_path' => 'uploads/0',
@@ -376,7 +353,7 @@ class UploadControllerUnitTest extends TestCase
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([$firstImage, $secondImage]);
 
-        $controller = new UploadController($storageService, $imageService);
+        $controller = new UploadController($storageService);
         $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(200, $response->getStatusCode());
@@ -389,8 +366,6 @@ class UploadControllerUnitTest extends TestCase
     public function test_upload_batch_images_returns_500_when_store_file_throws_for_all_images(): void
     {
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createImageProcessingServiceMock();
-
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
             'directory_path' => 'uploads/0',
@@ -411,7 +386,7 @@ class UploadControllerUnitTest extends TestCase
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([$firstImage, $secondImage]);
 
-        $controller = new UploadController($storageService, $imageService);
+        $controller = new UploadController($storageService);
         $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(500, $response->getStatusCode());
@@ -421,10 +396,11 @@ class UploadControllerUnitTest extends TestCase
         );
     }
 
-    public function test_upload_batch_images_uses_image_processing_branch_and_returns_500_when_processing_fails(): void
+    public function test_upload_batch_images_dispatches_processing_job_and_returns_origin_urls(): void
     {
+        Bus::fake();
+
         $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createMock(ImageProcessingService::class);
 
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
@@ -439,37 +415,34 @@ class UploadControllerUnitTest extends TestCase
             'compressed_filename' => 'compressed-fail.jpg',
         ]);
 
-        $imageService->expects($this->once())->method('processImage')->with(
-            'uploads/0/origin-fail.jpg',
-            'uploads/0/compressed-fail.jpg'
-        )->willReturn([
-            'success' => false,
-            'message' => 'process failed',
+        $storageService->expects($this->once())->method('getPublicUrls')->willReturn([
+            'origin_url' => 'https://example.com/origin-fail.jpg',
+            'compressed_url' => 'https://example.com/compressed-fail.jpg',
+            'thumbnail_url' => 'https://example.com/thumb-fail.jpg',
         ]);
 
         $validImage = Mockery::mock(UploadedFile::class);
         $validImage->shouldReceive('isValid')->once()->andReturn(true);
-        $validImage->shouldReceive('getClientOriginalName')->once()->andReturn('fail.jpg');
 
         $request = $this->createUploadRequestMock();
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([$validImage]);
 
-        $controller = new UploadController($storageService, $imageService);
+        $controller = new UploadController($storageService);
         $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
-        $this->assertSame(500, $response->getStatusCode());
-        $this->assertSame(
-            ['message' => '所有图片上传失败'],
-            json_decode($response->getContent(), true)
-        );
+        $this->assertSame(200, $response->getStatusCode());
+        $payload = json_decode($response->getContent(), true);
+        $this->assertTrue($payload[0]['processing']);
+        $this->assertSame('https://example.com/origin-fail.jpg', $payload[0]['url']);
+        Bus::assertDispatched(ProcessUploadedImageJob::class);
     }
 
     public function test_upload_batch_images_uses_image_processing_branch_and_returns_processed_item(): void
     {
-        $storageService = $this->createMock(FileStorageService::class);
-        $imageService = $this->createMock(ImageProcessingService::class);
+        Bus::fake();
 
+        $storageService = $this->createMock(FileStorageService::class);
         $storageService->method('createUserDirectory')->willReturn([
             'success' => true,
             'directory_path' => 'uploads/0',
@@ -481,13 +454,6 @@ class UploadControllerUnitTest extends TestCase
             'compressed_path' => 'uploads/0/compressed-ok.jpg',
             'origin_filename' => 'origin-ok.jpg',
             'compressed_filename' => 'compressed-ok.jpg',
-        ]);
-
-        $imageService->expects($this->once())->method('processImage')->with(
-            'uploads/0/origin-ok.jpg',
-            'uploads/0/compressed-ok.jpg'
-        )->willReturn([
-            'success' => true,
         ]);
 
         $storageService->expects($this->once())->method('getPublicUrls')->willReturn([
@@ -503,7 +469,7 @@ class UploadControllerUnitTest extends TestCase
         $request->shouldReceive('hasFile')->once()->with('images')->andReturn(true);
         $request->shouldReceive('file')->once()->with('images')->andReturn([$validImage]);
 
-        $controller = new UploadController($storageService, $imageService);
+        $controller = new UploadController($storageService);
         $response = $controller->uploadBatchImages($request, $this->createRmbgStatusService());
 
         $this->assertSame(200, $response->getStatusCode());
@@ -511,5 +477,8 @@ class UploadControllerUnitTest extends TestCase
         $this->assertCount(1, $payload);
         $this->assertSame('uploads/0/compressed-ok.jpg', $payload[0]['path']);
         $this->assertSame('uploads/0/origin-ok.jpg', $payload[0]['origin_path']);
+        $this->assertSame('https://example.com/origin-ok.jpg', $payload[0]['url']);
+        $this->assertTrue($payload[0]['processing']);
+        Bus::assertDispatched(ProcessUploadedImageJob::class);
     }
 }

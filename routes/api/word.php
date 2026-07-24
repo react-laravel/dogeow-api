@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Word\BookController;
 use App\Http\Controllers\Api\Word\CheckInController;
 use App\Http\Controllers\Api\Word\LearningController;
 use App\Http\Controllers\Api\Word\SettingController;
+use App\Http\Controllers\Api\Word\TranslateController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('word')->name('word.')->group(function () {
@@ -24,6 +25,9 @@ Route::prefix('word')->name('word.')->group(function () {
     // 搜索和创建单词
     Route::get('search/{keyword}', [LearningController::class, 'searchWord']);
     Route::post('create', [LearningController::class, 'createWord']);
+
+    // 扫词翻译代理
+    Route::post('translate', [TranslateController::class, 'translate'])->middleware('throttle:30,1');
 
     // 单词管理
     Route::patch('{id}', [LearningController::class, 'updateWord']);

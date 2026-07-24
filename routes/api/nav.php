@@ -11,12 +11,14 @@ Route::prefix('nav')->group(function () {
     Route::post('items/{item}/click', [ItemController::class, 'recordClick'])->name('nav.items.click');
 
     Route::get('/categories', [CategoryController::class, 'index']);
-    Route::get('/categories/all', [CategoryController::class, 'all']);
+    // 必须在 {category} 之前注册，避免 "all" 被当成 ID
+    Route::get('/categories/all', [CategoryController::class, 'all'])
+        ->middleware(['auth:sanctum', 'admin']);
     Route::get('/categories/{category}', [CategoryController::class, 'show']);
 });
 
-// 需要认证的路由
-Route::middleware('auth:sanctum')->group(function () {
+// 需要认证 + 管理员的写操作
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::prefix('nav')->group(function () {
         // 导航项管理
         Route::post('items', [ItemController::class, 'store'])->name('nav.items.store');

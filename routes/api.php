@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Ai\VisionUploadController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\SsoController;
 use App\Http\Controllers\Api\UploadController;
@@ -19,7 +20,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // 批量上传图片
     Route::get('/upload/images/rmbg-status', [UploadController::class, 'rmbgStatus']);
-    Route::post('/upload/images', [UploadController::class, 'uploadBatchImages']);
+    Route::post('/upload/images', [UploadController::class, 'uploadBatchImages'])->middleware('throttle:20,1');
+
+    // Vision AI 图片上传（需登录）
+    Route::post('/vision/upload', [VisionUploadController::class, 'upload'])
+        ->middleware('throttle:5,1');
 
     // 引入各个项目的路由文件
     require base_path('routes/api/notification.php'); // Web Push + 通知

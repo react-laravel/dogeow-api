@@ -87,18 +87,21 @@ class LearningController extends Controller
             ->take($reviewCount)
             ->values();
 
-        // 3. 获取用户已学习的单词 ID(该单词书下的)
-        $learnedWordIds = UserWord::where('user_id', $user->id)
-            ->where('word_book_id', $book->id)
-            ->pluck('word_id')
-            ->unique();
-
-        // 4. 获取未学习的新单词(排除已学习的，包括复习词)
+        // 3. 获取未学习的新单词（anti-join，避免全量 pluck + whereNotIn）
         /** @var Collection<int, Word> $newWords */
         $newWords = $book->words()
             ->with('educationLevels')
-            ->whereNotIn('words.id', $learnedWordIds)
-            ->whereNotIn('words.id', $reviewWordIds)
+            ->whereNotExists(function ($query) use ($user, $book): void {
+                $query->selectRaw('1')
+                    ->from('user_words')
+                    ->whereColumn('user_words.word_id', 'words.id')
+                    ->where('user_words.user_id', $user->id)
+                    ->where('user_words.word_book_id', $book->id);
+            })
+            ->when(
+                $reviewWordIds->isNotEmpty(),
+                fn ($query) => $query->whereNotIn('words.id', $reviewWordIds->all())
+            )
             ->orderBy('word_book_word.sort_order')
             ->limit($dailyCount)
             ->get();

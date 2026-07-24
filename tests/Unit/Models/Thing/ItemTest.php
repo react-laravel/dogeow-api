@@ -7,6 +7,7 @@ use App\Models\Thing\ItemCategory;
 use App\Models\Thing\ItemImage;
 use App\Models\Thing\Spot;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -213,36 +214,6 @@ class ItemTest extends TestCase
         $this->assertCount(2, $results);
     }
 
-    public function test_to_searchable_array()
-    {
-        $item = Item::create([
-            'name' => 'Test Item',
-            'description' => 'Test Description',
-            'status' => 'active',
-            'category_id' => $this->category->id,
-            'is_public' => true,
-            'user_id' => $this->user->id,
-        ]);
-
-        $searchableArray = $item->toSearchableArray();
-
-        $this->assertArrayHasKey('id', $searchableArray);
-        $this->assertArrayHasKey('name', $searchableArray);
-        $this->assertArrayHasKey('description', $searchableArray);
-        $this->assertArrayHasKey('status', $searchableArray);
-        $this->assertArrayHasKey('category_id', $searchableArray);
-        $this->assertArrayHasKey('is_public', $searchableArray);
-        $this->assertArrayHasKey('user_id', $searchableArray);
-
-        $this->assertEquals($item->id, $searchableArray['id']);
-        $this->assertEquals('Test Item', $searchableArray['name']);
-        $this->assertEquals('Test Description', $searchableArray['description']);
-        $this->assertEquals('active', $searchableArray['status']);
-        $this->assertEquals($this->category->id, $searchableArray['category_id']);
-        $this->assertTrue($searchableArray['is_public']);
-        $this->assertEquals($this->user->id, $searchableArray['user_id']);
-    }
-
     public function test_item_with_dates()
     {
         $item = Item::create([
@@ -253,8 +224,8 @@ class ItemTest extends TestCase
             'purchase_price' => 99.99,
         ]);
 
-        $this->assertInstanceOf(\Carbon\Carbon::class, $item->purchase_date);
-        $this->assertInstanceOf(\Carbon\Carbon::class, $item->expiry_date);
+        $this->assertInstanceOf(Carbon::class, $item->purchase_date);
+        $this->assertInstanceOf(Carbon::class, $item->expiry_date);
         $this->assertEquals('99.99', $item->purchase_price);
     }
 

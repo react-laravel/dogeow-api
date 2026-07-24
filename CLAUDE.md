@@ -14,17 +14,18 @@ Laravel Boost 指导原则由 Laravel 维护者根据本应用专门定制，应
 - laravel/prompts (PROMPTS) - v0
 - laravel/reverb (REVERB) - v1
 - laravel/sanctum (SANCTUM) - v4
-- laravel/scout (SCOUT) - v10
 - laravel/socialite (SOCIALITE) - v5
 - larastan/larastan (LARASTAN) - v3
 - laravel/boost (BOOST) - v2
 - laravel/mcp (MCP) - v0
 - laravel/pail (PAIL) - v1
 - laravel/pint (PINT) - v1
-- laravel/sail (SAIL) - v1
-- phpunit/phpunit (PHPUNIT) - v11
-- laravel-echo (ECHO) - v2
-- tailwindcss (TAILWINDCSS) - v4
+- phpunit/phpunit (PHPUNIT) - v13
+- laravel/octane (OCTANE) - v2
+- sentry/sentry-laravel - v4
+- intervention/image - v3
+- spatie/laravel-query-builder - v6
+- laravel-notification-channels/webpush - v10
 
 ## 技能激活
 

@@ -11,7 +11,6 @@ use App\Models\Thing\Spot;
 use App\Models\Thing\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Scout\Searchable;
 use Tests\TestCase;
 
 class ItemTest extends TestCase
@@ -126,33 +125,6 @@ class ItemTest extends TestCase
         $thumbnailUrl = $this->item->thumbnail_url;
 
         $this->assertNull($thumbnailUrl);
-    }
-
-    public function test_to_searchable_array_returns_correct_data(): void
-    {
-        $searchableArray = $this->item->toSearchableArray();
-
-        $expectedKeys = [
-            'id',
-            'name',
-            'description',
-            'status',
-            'category_id',
-            'is_public',
-            'user_id',
-        ];
-
-        foreach ($expectedKeys as $key) {
-            $this->assertArrayHasKey($key, $searchableArray);
-        }
-
-        $this->assertEquals($this->item->id, $searchableArray['id']);
-        $this->assertEquals($this->item->name, $searchableArray['name']);
-        $this->assertEquals($this->item->description, $searchableArray['description']);
-        $this->assertEquals($this->item->status, $searchableArray['status']);
-        $this->assertEquals($this->item->category_id, $searchableArray['category_id']);
-        $this->assertEquals($this->item->is_public, $searchableArray['is_public']);
-        $this->assertEquals($this->item->user_id, $searchableArray['user_id']);
     }
 
     public function test_search_scope_finds_items_by_name(): void
@@ -334,11 +306,5 @@ class ItemTest extends TestCase
     public function test_item_has_correct_table_name(): void
     {
         $this->assertEquals('thing_items', $this->item->getTable());
-    }
-
-    public function test_item_uses_searchable_trait(): void
-    {
-        $traits = class_uses($this->item);
-        $this->assertContains(Searchable::class, $traits);
     }
 }

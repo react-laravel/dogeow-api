@@ -17,7 +17,7 @@ class ItemControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->user = User::factory()->create();
+        $this->user = User::factory()->create(['is_admin' => true]);
     }
 
     /**
@@ -46,7 +46,7 @@ class ItemControllerTest extends TestCase
         $visibleItem = Item::factory()->visible()->create(['nav_category_id' => $category->id]);
         $hiddenItem = Item::factory()->hidden()->create(['nav_category_id' => $category->id]);
 
-        $response = $this->getJson('/api/nav/items?show_all=1');
+        $response = $this->actingAs($this->user)->getJson('/api/nav/items?show_all=1');
 
         $response->assertStatus(200)
             ->assertJsonCount(2)
@@ -84,7 +84,7 @@ class ItemControllerTest extends TestCase
         $item1 = Item::factory()->create(['nav_category_id' => $category->id, 'sort_order' => 1]);
         $item2 = Item::factory()->create(['nav_category_id' => $category->id, 'sort_order' => 2]);
 
-        $response = $this->getJson('/api/nav/items?show_all=1');
+        $response = $this->actingAs($this->user)->getJson('/api/nav/items?show_all=1');
 
         $response->assertStatus(200);
 
@@ -451,7 +451,7 @@ class ItemControllerTest extends TestCase
         $category = Category::factory()->create();
         $item = Item::factory()->create(['nav_category_id' => $category->id]);
 
-        $response = $this->getJson('/api/nav/items?show_all=1');
+        $response = $this->actingAs($this->user)->getJson('/api/nav/items?show_all=1');
 
         $response->assertStatus(200);
 

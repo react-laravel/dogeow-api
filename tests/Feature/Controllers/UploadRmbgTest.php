@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Controllers;
 
+use App\Jobs\ProcessUploadedImageJob;
 use App\Jobs\RemoveBackgroundJob;
 use App\Models\User;
 use App\Services\File\ImageProcessingService;
@@ -46,11 +47,11 @@ class UploadRmbgTest extends TestCase
             0 => ['path', 'origin_path', 'url', 'origin_url', 'thumbnail_url', 'rmbg_status'],
         ]);
 
-        Queue::assertPushed(RemoveBackgroundJob::class, function (RemoveBackgroundJob $job) use ($user): bool {
-            return $job->userId === $user->id
-                && str_starts_with($job->compressedPath, "uploads/{$user->id}/")
-                && str_contains($job->originPath, '-origin.');
+        Queue::assertPushed(ProcessUploadedImageJob::class, function (ProcessUploadedImageJob $job) use ($user): bool {
+            return ($job->rmbgContext['remove_bg'] ?? false) === true
+                && (int) ($job->rmbgContext['user_id'] ?? 0) === $user->id;
         });
+        Queue::assertNotPushed(RemoveBackgroundJob::class);
     }
 
     public function test_rmbg_status_endpoint_returns_cached_status_for_owner(): void
@@ -82,7 +83,7 @@ class UploadRmbgTest extends TestCase
         $response->assertStatus(403);
     }
 
-    public function test_upload_without_remove_bg_does_not_dispatch_job(): void
+    public function test_upload_without_remove_bg_does_not_dispatch_rmbg_job(): void
     {
         Queue::fake();
 
@@ -95,7 +96,10 @@ class UploadRmbgTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonMissing(['rmbg_status' => 'pending']);
-        Queue::assertNothingPushed();
+        Queue::assertPushed(ProcessUploadedImageJob::class, function (ProcessUploadedImageJob $job): bool {
+            return $job->rmbgContext === null;
+        });
+        Queue::assertNotPushed(RemoveBackgroundJob::class);
     }
 
     public function test_rmbg_status_returns_unknown_when_not_cached(): void

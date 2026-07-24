@@ -20,7 +20,7 @@ class NoteControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->user = User::factory()->create();
+        $this->user = User::factory()->create(['is_admin' => false]);
         Sanctum::actingAs($this->user);
     }
 
@@ -46,7 +46,6 @@ class NoteControllerTest extends TestCase
                     '*' => [
                         'id',
                         'title',
-                        'content',
                         'content_markdown',
                         'is_draft',
                         'user_id',
@@ -730,15 +729,18 @@ class NoteControllerTest extends TestCase
 
     public function test_update_generates_unique_slug_for_wiki_note(): void
     {
+        $admin = User::factory()->create(['is_admin' => true]);
+        Sanctum::actingAs($admin);
+
         Note::factory()->create([
-            'user_id' => $this->user->id,
+            'user_id' => $admin->id,
             'title' => 'Knowledge Base',
             'slug' => 'knowledge-base',
             'is_wiki' => true,
         ]);
 
         $note = Note::factory()->create([
-            'user_id' => $this->user->id,
+            'user_id' => $admin->id,
             'title' => 'Draft Note',
             'slug' => null,
             'is_wiki' => false,
@@ -953,6 +955,8 @@ class NoteControllerTest extends TestCase
 
     public function test_store_creates_wiki_note_with_explicit_slug(): void
     {
+        Sanctum::actingAs(User::factory()->create(['is_admin' => true]));
+
         $response = $this->postJson('/api/notes', [
             'title' => 'My Wiki Page',
             'content' => 'Wiki content here',
@@ -970,6 +974,8 @@ class NoteControllerTest extends TestCase
 
     public function test_store_generates_slug_when_is_wiki_but_no_slug_provided(): void
     {
+        Sanctum::actingAs(User::factory()->create(['is_admin' => true]));
+
         $response = $this->postJson('/api/notes', [
             'title' => 'Auto Generated Slug Wiki',
             'content' => 'Content',
@@ -980,5 +986,16 @@ class NoteControllerTest extends TestCase
         $response->assertStatus(201)
             ->assertJsonPath('data.is_wiki', true)
             ->assertJsonPath('data.slug', 'auto-generated-slug-wiki');
+    }
+
+    public function test_non_admin_cannot_create_wiki_note(): void
+    {
+        $response = $this->postJson('/api/notes', [
+            'title' => 'Not Allowed Wiki',
+            'content' => 'Content',
+            'is_wiki' => true,
+        ]);
+
+        $response->assertStatus(403);
     }
 }
