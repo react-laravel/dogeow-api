@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Controllers;
 
+use App\Jobs\ProcessUploadedImageJob;
 use App\Jobs\RemoveBackgroundJob;
 use App\Models\Thing\Item;
 use App\Models\User;
@@ -62,7 +63,7 @@ class UploadRmbgItemSyncTest extends TestCase
         file_put_contents($compressedAbsPath, 'fake compressed image');
         file_put_contents($originAbsPath, 'fake origin image');
 
-        Queue::assertPushed(RemoveBackgroundJob::class);
+        Queue::assertPushed(ProcessUploadedImageJob::class);
 
         $itemResponse = $this->postJson('/api/things/items', [
             'name' => '测试物品',

@@ -4,13 +4,22 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Hash;
+use Laravel\Sanctum\PersonalAccessToken;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class AuthControllerTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // 登录/注册限流在单测中会串扰，关闭 throttle 中间件
+        $this->withoutMiddleware(ThrottleRequests::class);
+    }
 
     public function test_user_can_register_with_valid_data()
     {
@@ -455,7 +464,7 @@ class AuthControllerTest extends TestCase
         $response->assertStatus(200);
 
         // Verify that one token was deleted (the current one)
-        $tokenCount = \Laravel\Sanctum\PersonalAccessToken::where('tokenable_id', $user->id)->count();
+        $tokenCount = PersonalAccessToken::where('tokenable_id', $user->id)->count();
         $this->assertEquals(1, $tokenCount, 'One token should have been deleted');
 
         // Verify that the second token still exists

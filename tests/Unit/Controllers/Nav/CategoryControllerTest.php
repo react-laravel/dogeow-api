@@ -50,10 +50,12 @@ class CategoryControllerTest extends TestCase
      */
     public function test_index_method_with_show_all_parameter()
     {
+        $admin = User::factory()->create(['is_admin' => true]);
         $visibleCategory = Category::factory()->visible()->create();
         $hiddenCategory = Category::factory()->hidden()->create();
 
-        $request = new Request(['show_all' => '1']);
+        $request = Request::create('/api/nav/categories', 'GET', ['show_all' => '1']);
+        $request->setUserResolver(fn () => $admin);
         $response = $this->controller->index($request);
 
         $this->assertEquals(200, $response->getStatusCode());
@@ -292,10 +294,12 @@ class CategoryControllerTest extends TestCase
      */
     public function test_index_method_with_show_all_and_items_count()
     {
+        $admin = User::factory()->create(['is_admin' => true]);
         $category = Category::factory()->create();
         Item::factory()->count(3)->create(['nav_category_id' => $category->id]);
 
-        $request = new Request(['show_all' => '1']);
+        $request = Request::create('/api/nav/categories', 'GET', ['show_all' => '1']);
+        $request->setUserResolver(fn () => $admin);
         $response = $this->controller->index($request);
 
         $this->assertEquals(200, $response->getStatusCode());
@@ -345,11 +349,13 @@ class CategoryControllerTest extends TestCase
      */
     public function test_index_method_with_sorting()
     {
+        $admin = User::factory()->create(['is_admin' => true]);
         $category3 = Category::factory()->create(['sort_order' => 3]);
         $category1 = Category::factory()->create(['sort_order' => 1]);
         $category2 = Category::factory()->create(['sort_order' => 2]);
 
-        $request = new Request(['show_all' => '1']);
+        $request = Request::create('/api/nav/categories', 'GET', ['show_all' => '1']);
+        $request->setUserResolver(fn () => $admin);
         $response = $this->controller->index($request);
 
         $this->assertEquals(200, $response->getStatusCode());

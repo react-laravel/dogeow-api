@@ -18,7 +18,7 @@ class CategoryController extends Controller
         $query = Category::query();
 
         // show_all 仅管理员可用（管理界面选分类）
-        if ($request->boolean('show_all') && $request->user('sanctum')?->isAdmin()) {
+        if ($request->boolean('show_all') && $request->user()?->isAdmin()) {
             $categories = $query->withCount('items')
                 ->orderBy('sort_order')
                 ->get();
