@@ -31,3 +31,4 @@ yarn-error.log
 /coverage
 .playwright-cli
 /.codex-security
+public/musics/*.txt
