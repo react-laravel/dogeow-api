@@ -45,7 +45,9 @@ class SsoTicketService
 
         Redis::setex($this->ticketKey($ticket), $lifetime, $payload);
 
-        $callbackUrl = (string) ($configuration['callback_url'] ?? '');
+        $callbackUrl = (bool) ($configuration['use_return_to_as_callback'] ?? false)
+            ? $returnTo
+            : (string) ($configuration['callback_url'] ?? '');
         if ($callbackUrl === '') {
             throw new RuntimeException('SSO callback is not configured.');
         }
@@ -129,15 +131,42 @@ class SsoTicketService
             throw new InvalidArgumentException('Invalid SSO return URL.');
         }
 
-        $origin = strtolower($parts['scheme']) . '://' . strtolower($parts['host']);
+        $scheme = strtolower((string) $parts['scheme']);
+        $host = strtolower((string) $parts['host']);
+        $origin = $scheme . '://' . $host;
         if (isset($parts['port'])) {
             $origin .= ':' . (int) $parts['port'];
         }
 
-        $normalizedOrigins = array_map(static fn (string $value): string => strtolower(rtrim($value, '/')), $allowedOrigins);
-        if (! in_array($origin, $normalizedOrigins, true)) {
-            throw new InvalidArgumentException('SSO return URL is not allowed.');
+        foreach ($allowedOrigins as $allowed) {
+            $pattern = strtolower(rtrim(trim((string) $allowed), '/'));
+            if ($pattern === '') {
+                continue;
+            }
+
+            // 精确 origin 匹配
+            if ($pattern === $origin) {
+                return;
+            }
+
+            // 通配：https://*.chromiumapp.org
+            if (str_contains($pattern, '*')) {
+                $regex = '/^' . str_replace('\*', '.*', preg_quote($pattern, '/')) . '$/i';
+                if (preg_match($regex, $origin) === 1) {
+                    return;
+                }
+            }
+
+            // chrome-extension://* / moz-extension://*
+            if (
+                ($pattern === 'chrome-extension://*' && $scheme === 'chrome-extension') ||
+                ($pattern === 'moz-extension://*' && $scheme === 'moz-extension')
+            ) {
+                return;
+            }
         }
+
+        throw new InvalidArgumentException('SSO return URL is not allowed.');
     }
 
     private function ticketKey(string $ticket): string

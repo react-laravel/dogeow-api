@@ -30,6 +30,15 @@ $knowledgeGraphReturnOrigins = array_values(array_filter(array_map(
     explode(',', (string) env('KNOWLEDGE_GRAPH_SSO_RETURN_ORIGINS', 'https://mind.dogeow.com,http://localhost:5173,http://127.0.0.1:5173'))
 )));
 
+$aiTranslateReturnOrigins = array_values(array_filter(array_map(
+    static fn (string $origin): string => rtrim(trim($origin), '/'),
+    explode(',', (string) env(
+        'AI_TRANSLATE_SSO_RETURN_ORIGINS',
+        // Chrome extension 使用 https://<id>.chromiumapp.org；开发时还可回落到扩展页。
+        'https://*.chromiumapp.org,chrome-extension://*,moz-extension://*'
+    ))
+)));
+
 return [
     'ticket_lifetime_seconds' => (int) env('SSO_TICKET_LIFETIME_SECONDS', 60),
 
@@ -65,6 +74,14 @@ return [
             'return_origins' => $knowledgeGraphReturnOrigins,
             'public_client' => true,
             'issue_api_token' => true,
+        ],
+        // 浏览器扩展：public PKCE + 直接把 ticket 回跳到 return_to（chromiumapp.org）
+        'ai-translate' => [
+            'callback_url' => env('AI_TRANSLATE_SSO_CALLBACK_URL', 'https://next.dogeow.com/'),
+            'return_origins' => $aiTranslateReturnOrigins,
+            'public_client' => true,
+            'issue_api_token' => true,
+            'use_return_to_as_callback' => true,
         ],
     ],
 ];
