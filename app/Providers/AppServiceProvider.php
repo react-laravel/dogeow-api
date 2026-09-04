@@ -8,6 +8,7 @@ use App\Models\Notification;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Notifications\Events\NotificationSent as LaravelNotificationSent;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Boost\BoostServiceProvider;
 use NotificationChannels\WebPush\Events\NotificationFailed as WebPushNotificationFailed;
@@ -31,6 +32,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $appUrl = (string) config('app.url', '');
+        if (str_starts_with($appUrl, 'https://')) {
+            URL::forceScheme('https');
+            URL::forceRootUrl(rtrim($appUrl, '/'));
+        }
+
         // Web Push 发送结果日志(诊断用)
         Event::listen(WebPushNotificationSent::class, LogWebPushResult::class);
         Event::listen(WebPushNotificationFailed::class, LogWebPushResult::class);

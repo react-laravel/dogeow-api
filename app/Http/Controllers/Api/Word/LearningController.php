@@ -390,13 +390,12 @@ class LearningController extends Controller
         $count = $setting->daily_new_words;
 
         // 获取已学习的单词(排除未学习和简单词，且必须有例句)
-        // 使用 whereHas 在数据库层面过滤，避免全量加载
+        // 使用 whereHas + whereJsonLength，避免在 PostgreSQL 上对 json 列做字符串比较导致 500
         $userWords = UserWord::where('user_id', $user->id)
             ->whereNotIn('status', [0, 4]) // 排除未学习和简单词
             ->whereHas('word', function ($query) {
                 $query->whereNotNull('example_sentences')
-                    ->where('example_sentences', '!=', '[]')
-                    ->where('example_sentences', '!=', '');
+                    ->whereJsonLength('example_sentences', '>', 0);
             })
             ->with(['word.educationLevels'])
             ->limit($count * 3)

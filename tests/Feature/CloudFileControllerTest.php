@@ -724,6 +724,57 @@ class CloudFileControllerTest extends TestCase
             ->all();
     }
 
+    public function test_preview_and_index_signed_urls_use_https_when_app_url_is_https(): void
+    {
+        config(['app.url' => 'https://next-api.example.test']);
+        URL::forceScheme('https');
+        URL::forceRootUrl('https://next-api.example.test');
+
+        $file = File::factory()->image()->create([
+            'user_id' => $this->user->id,
+            'extension' => 'jpg',
+            'path' => 'cloud/previews/https-photo.jpg',
+            'mime_type' => 'image/jpeg',
+        ]);
+        Storage::disk('cloud')->put($file->path, 'image-bytes');
+
+        $preview = $this->getJson("/api/cloud/files/{$file->id}/preview");
+        $preview->assertStatus(200)->assertJsonPath('type', 'image');
+        $previewUrl = (string) $preview->json('url');
+        $this->assertStringStartsWith('https://next-api.example.test/api/cloud/files/', $previewUrl);
+        $this->assertStringContainsString('signature=', $previewUrl);
+
+        $index = $this->getJson('/api/cloud/files');
+        $index->assertStatus(200);
+        $path = (string) $index->json('0.path');
+        $this->assertStringStartsWith('https://next-api.example.test/api/cloud/files/', $path);
+        $this->assertStringContainsString('signature=', $path);
+    }
+
+    public function test_preview_signed_url_respects_forwarded_proto_https(): void
+    {
+        $file = File::factory()->image()->create([
+            'user_id' => $this->user->id,
+            'extension' => 'png',
+            'path' => 'cloud/previews/forwarded.png',
+            'mime_type' => 'image/png',
+        ]);
+        Storage::disk('cloud')->put($file->path, 'png-bytes');
+
+        $response = $this->withServerVariables([
+            'HTTPS' => 'off',
+            'HTTP_X_FORWARDED_PROTO' => 'https',
+            'HTTP_X_FORWARDED_PORT' => '443',
+            'SERVER_PORT' => '80',
+        ])->getJson("/api/cloud/files/{$file->id}/preview");
+
+        $response->assertStatus(200)->assertJsonPath('type', 'image');
+        $url = (string) $response->json('url');
+        $this->assertStringStartsWith('https://', $url);
+        $this->assertStringContainsString("/cloud/files/{$file->id}/raw", $url);
+        $this->assertStringContainsString('signature=', $url);
+    }
+
     public function test_unauthenticated_user_cannot_access_cloud_routes(): void
     {
         // Explicitly log out the user set up in setUp()
