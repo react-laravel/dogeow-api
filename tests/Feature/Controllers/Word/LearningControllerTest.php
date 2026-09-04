@@ -541,6 +541,74 @@ class LearningControllerTest extends TestCase
         $this->assertArrayHasKey('example_sentences', $data[0]);
     }
 
+    public function test_fill_blank_returns_empty_collection_when_no_example_sentences(): void
+    {
+        $user = User::factory()->create();
+        $book = $this->createBook();
+        $wordWithoutExamples = $this->createWord([
+            'content' => 'empty-examples',
+            'example_sentences' => [],
+        ]);
+        $book->words()->attach($wordWithoutExamples->id, ['sort_order' => 1]);
+        $this->createUserSetting($user, ['current_book_id' => $book->id]);
+
+        UserWord::create([
+            'user_id' => $user->id,
+            'word_id' => $wordWithoutExamples->id,
+            'word_book_id' => $book->id,
+            'status' => 1,
+            'stage' => 0,
+            'ease_factor' => 2.50,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->getJson('/api/word/fill-blank');
+
+        $response->assertStatus(200);
+        $this->assertSame([], $response->json('data'));
+    }
+
+    public function test_fill_blank_ignores_words_with_empty_example_arrays(): void
+    {
+        $user = User::factory()->create();
+        $book = $this->createBook();
+        $withExamples = $this->createWord([
+            'content' => 'has-examples',
+            'example_sentences' => [
+                ['en' => 'I have an example.', 'zh' => '我有例句。'],
+            ],
+        ]);
+        $withoutExamples = $this->createWord([
+            'content' => 'no-examples',
+            'example_sentences' => [],
+        ]);
+        $book->words()->attach($withExamples->id, ['sort_order' => 1]);
+        $book->words()->attach($withoutExamples->id, ['sort_order' => 2]);
+        $this->createUserSetting($user, [
+            'current_book_id' => $book->id,
+            'daily_new_words' => 10,
+        ]);
+
+        foreach ([$withExamples, $withoutExamples] as $word) {
+            UserWord::create([
+                'user_id' => $user->id,
+                'word_id' => $word->id,
+                'word_book_id' => $book->id,
+                'status' => 1,
+                'stage' => 0,
+                'ease_factor' => 2.50,
+            ]);
+        }
+
+        $response = $this->actingAs($user)
+            ->getJson('/api/word/fill-blank');
+
+        $response->assertStatus(200);
+        $data = $response->json('data');
+        $this->assertCount(1, $data);
+        $this->assertSame('has-examples', $data[0]['content']);
+    }
+
     public function test_can_estimate_vocabulary_size(): void
     {
         $user = User::factory()->create();

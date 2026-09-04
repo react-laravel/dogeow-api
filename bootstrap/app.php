@@ -6,6 +6,7 @@ use App\Http\Middleware\WebSocketAuthMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 use Laravel\Sanctum\SanctumServiceProvider;
 use Sentry\Laravel\Integration;
 
@@ -22,6 +23,16 @@ return Application::configure(basePath: dirname(__DIR__))
     ])
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->statefulApi();
+
+        // CDN / 反向代理终止 TLS 后，需信任 X-Forwarded-* 才能正确生成 https 签名 URL
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT
+                | Request::HEADER_X_FORWARDED_PROTO
+                | Request::HEADER_X_FORWARDED_AWS_ELB
+        );
 
         $middleware->alias([
             'websocket.auth' => WebSocketAuthMiddleware::class,
