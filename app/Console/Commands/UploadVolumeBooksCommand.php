@@ -14,7 +14,8 @@ class UploadVolumeBooksCommand extends Command
                             {id : 书籍 id，对应 dogeow/public/books/{id}}
                             {--source= : 本地书籍目录}
                             {--prefix= : 又拍云上的路径前缀}
-                            {--audio : 只上传 audio 目录下的 MP3 与 manifest}';
+                            {--audio : 只上传 audio 目录下的 MP3 与 manifest}
+                            {--chapter= : 只上传指定章节音频，例如 0-0}';
 
     protected $description = '将分卷 TXT、索引或 AI 朗读音频上传到又拍云';
 
@@ -34,6 +35,17 @@ class UploadVolumeBooksCommand extends Command
         }
 
         $audioOnly = (bool) $this->option('audio');
+        $chapter = trim((string) $this->option('chapter'));
+        if ($chapter !== '' && ! preg_match('/^[0-9]+-[0-9]+$/', $chapter) && ! preg_match('/^[a-zA-Z0-9._-]+$/', $chapter)) {
+            $this->error("无效的章节编号: {$chapter}");
+
+            return self::FAILURE;
+        }
+        if ($chapter !== '' && ! $audioOnly) {
+            $this->error('--chapter 只能与 --audio 一起使用');
+
+            return self::FAILURE;
+        }
         $source = (string) ($this->option('source') ?: base_path(
             $audioOnly ? "../dogeow/public/books/{$id}/audio" : "../dogeow/public/books/{$id}"
         ));
@@ -51,7 +63,7 @@ class UploadVolumeBooksCommand extends Command
             return self::FAILURE;
         }
 
-        $files = $this->collectFiles($source, $audioOnly);
+        $files = $this->collectFiles($source, $audioOnly, $chapter !== '' ? $chapter : null);
         if ($files === []) {
             $this->error(
                 $audioOnly
@@ -97,7 +109,7 @@ class UploadVolumeBooksCommand extends Command
     /**
      * @return array<string, string> absolute path => relative path
      */
-    private function collectFiles(string $source, bool $audioOnly = false): array
+    private function collectFiles(string $source, bool $audioOnly = false, ?string $chapter = null): array
     {
         $source = rtrim($source, DIRECTORY_SEPARATOR);
         $files = [];
@@ -113,7 +125,7 @@ class UploadVolumeBooksCommand extends Command
             }
 
             $relativePath = ltrim(str_replace($source, '', $file->getRealPath() ?: $file->getPathname()), DIRECTORY_SEPARATOR);
-            if (! $this->shouldCollect($relativePath, $audioOnly)) {
+            if (! $this->shouldCollect($relativePath, $audioOnly, $chapter)) {
                 continue;
             }
 
@@ -126,12 +138,19 @@ class UploadVolumeBooksCommand extends Command
         return $files;
     }
 
-    private function shouldCollect(string $relativePath, bool $audioOnly): bool
+    private function shouldCollect(string $relativePath, bool $audioOnly, ?string $chapter = null): bool
     {
         $basename = strtolower(basename($relativePath));
         $extension = strtolower(pathinfo($relativePath, PATHINFO_EXTENSION));
         if (str_contains($basename, '.generating.')) {
             return false;
+        }
+
+        if ($chapter !== null && $chapter !== '') {
+            $parts = explode('/', str_replace('\\', '/', $relativePath));
+            if (! isset($parts[1]) || $parts[1] !== $chapter) {
+                return false;
+            }
         }
 
         if ($audioOnly) {

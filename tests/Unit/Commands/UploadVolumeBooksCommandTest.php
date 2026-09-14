@@ -144,6 +144,45 @@ class UploadVolumeBooksCommandTest extends TestCase
         $this->assertSame(UploadVolumeBooksCommand::SUCCESS, $exitCode);
     }
 
+    public function test_uploads_only_the_requested_audio_chapter(): void
+    {
+        $first = $this->sourceDir . '/audio/serena/0-0';
+        $second = $this->sourceDir . '/audio/serena/0-1';
+        mkdir($first, 0777, true);
+        mkdir($second, 0777, true);
+        file_put_contents($first . '/000.mp3', 'one');
+        file_put_contents($first . '/manifest.json', '{"pairs":[0]}');
+        file_put_contents($second . '/000.mp3', 'two');
+        file_put_contents($second . '/manifest.json', '{"pairs":[0]}');
+
+        $upyun = $this->mock(UpyunService::class);
+        $upyun->shouldReceive('isConfigured')->once()->andReturn(true);
+        $sourceDir = realpath($this->sourceDir . '/audio') ?: $this->sourceDir . '/audio';
+        $upyun->shouldReceive('upload')
+            ->once()
+            ->with($sourceDir . '/serena/0-0/000.mp3', 'books/biancheng/audio/serena/0-0/000.mp3', 'audio/mpeg')
+            ->andReturn(['success' => true, 'path' => 'books/biancheng/audio/serena/0-0/000.mp3']);
+        $upyun->shouldReceive('upload')
+            ->once()
+            ->with($sourceDir . '/serena/0-0/manifest.json', 'books/biancheng/audio/serena/0-0/manifest.json', 'application/json')
+            ->andReturn(['success' => true, 'path' => 'books/biancheng/audio/serena/0-0/manifest.json']);
+        $upyun->shouldReceive('buildPublicUrl')
+            ->once()
+            ->with('/books/biancheng/audio/serena/0-0/manifest.json')
+            ->andReturn('https://upyun.dogeow.com/books/biancheng/audio/serena/0-0/manifest.json');
+        $this->app->instance(UpyunService::class, $upyun);
+
+        $command = $this->app->make(UploadVolumeBooksCommand::class);
+        $exitCode = $this->runCommand($command, [
+            'id' => 'biancheng',
+            '--source' => $this->sourceDir . '/audio',
+            '--audio' => true,
+            '--chapter' => '0-0',
+        ]);
+
+        $this->assertSame(UploadVolumeBooksCommand::SUCCESS, $exitCode);
+    }
+
     public function test_returns_failure_when_any_upload_fails(): void
     {
         $upyun = $this->mock(UpyunService::class);
