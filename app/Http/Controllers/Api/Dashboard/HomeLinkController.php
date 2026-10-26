@@ -9,7 +9,7 @@ class HomeLinkController extends Controller
 {
     public function index(): JsonResponse
     {
-        return response()->json([
+        $links = [
             [
                 'id' => 'vnstat',
                 'label' => 'vnStat',
@@ -122,6 +122,12 @@ class HomeLinkController extends Controller
                 'icon' => 'pen-tool',
                 'gradientClassName' => 'bg-gradient-to-br from-purple-400 via-indigo-500 to-blue-700',
             ],
-        ]);
+        ];
+
+        if (blank(config('services.rmbg.url'))) {
+            $links = array_values(array_filter($links, fn (array $link): bool => $link['id'] !== 'rmbg'));
+        }
+
+        return response()->json($links);
     }
 }

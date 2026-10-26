@@ -56,4 +56,17 @@ class HomeLinkControllerTest extends TestCase
         $this->assertContains('news', $ids);
         $this->assertSame(count($ids), count(array_unique($ids)));
     }
+
+    public function test_disabled_background_service_is_not_advertised_in_home_links(): void
+    {
+        config(['services.rmbg.url' => '']);
+        Sanctum::actingAs(User::factory()->create(['is_admin' => true]));
+
+        $response = $this->getJson('/api/dashboard/home-links');
+        $response->assertOk();
+        $ids = array_column($response->json(), 'id');
+        $this->assertNotContains('rmbg', $ids);
+        $this->assertContains('upyun-web', $ids);
+        $this->assertContains('mind', $ids);
+    }
 }

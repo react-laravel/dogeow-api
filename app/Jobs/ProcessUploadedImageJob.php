@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Services\File\ImageProcessingService;
+use App\Services\File\RmbgStatusService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -44,6 +45,16 @@ class ProcessUploadedImageJob implements ShouldQueue
         }
 
         if (($this->rmbgContext['remove_bg'] ?? false) === true) {
+            if (blank(config('services.rmbg.url'))) {
+                // 兼容停用前已入队的旧上传任务，不再创建抠图任务。
+                app(RmbgStatusService::class)->setFailed(
+                    (string) ($this->rmbgContext['compressed_relative_path'] ?? ''),
+                    '自动去背景已停用，已保留原图',
+                );
+
+                return;
+            }
+
             RemoveBackgroundJob::dispatch(
                 (int) ($this->rmbgContext['user_id'] ?? 0),
                 (string) ($this->rmbgContext['compressed_relative_path'] ?? ''),

@@ -36,14 +36,14 @@ class RemoveBackgroundJob implements ShouldQueue
         ImageProcessingService $imageProcessingService,
         RmbgItemImageLinkerService $rmbgItemImageLinker,
     ): void {
-        $rmbgStatusService->setProcessing($this->compressedPath);
-
         $apiUrl = config('services.rmbg.url');
-        if (empty($apiUrl)) {
-            $rmbgStatusService->setFailed($this->compressedPath, '去背景服务未配置');
+        if (blank($apiUrl)) {
+            $rmbgStatusService->setFailed($this->compressedPath, '自动去背景已停用，已保留原图');
 
             return;
         }
+
+        $rmbgStatusService->setProcessing($this->compressedPath);
 
         try {
             $linkedItemImageId = $rmbgItemImageLinker->getItemImageIdForUploadPath($this->compressedPath);

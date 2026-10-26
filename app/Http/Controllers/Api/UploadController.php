@@ -28,7 +28,8 @@ class UploadController extends Controller
     {
         try {
             $userId = Auth::id() ?? 0;
-            $removeBg = filter_var($request->input('remove_bg', false), FILTER_VALIDATE_BOOL);
+            $removeBg = filled(config('services.rmbg.url'))
+                && filter_var($request->input('remove_bg', false), FILTER_VALIDATE_BOOL);
             $directoryResult = $this->fileStorageService->createUserDirectory($userId);
             if (empty($directoryResult['success'])) {
                 return response()->json([

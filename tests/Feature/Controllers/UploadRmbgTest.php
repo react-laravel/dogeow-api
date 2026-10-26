@@ -9,6 +9,7 @@ use App\Services\File\ImageProcessingService;
 use App\Services\File\RmbgStatusService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
@@ -22,6 +23,7 @@ class UploadRmbgTest extends TestCase
     {
         parent::setUp();
         Storage::fake('public');
+        config(['services.rmbg.url' => 'https://rmbg.example.com/api/remove-bg']);
         $this->mock(ImageProcessingService::class, function ($mock): void {
             $mock->shouldReceive('processImage')->andReturn(['success' => true]);
         });
@@ -112,5 +114,24 @@ class UploadRmbgTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJson(['status' => 'unknown']);
+    }
+
+    public function test_disabled_service_ignores_legacy_remove_bg_flag_and_preserves_normal_upload(): void
+    {
+        config(['services.rmbg.url' => '']);
+        Queue::fake();
+        Http::preventStrayRequests();
+        Sanctum::actingAs(User::factory()->create());
+
+        $response = $this->post('/api/upload/images', [
+            'images' => [UploadedFile::fake()->image('ordinary.jpg')],
+            'remove_bg' => '1',
+        ]);
+
+        $response->assertOk()->assertJsonMissing(['rmbg_status' => 'pending']);
+        Queue::assertPushed(ProcessUploadedImageJob::class, fn (ProcessUploadedImageJob $job): bool => $job->rmbgContext === null);
+        Queue::assertNotPushed(RemoveBackgroundJob::class);
+        Http::assertNothingSent();
+        Storage::disk('public')->assertExists($response->json('0.origin_path'));
     }
 }

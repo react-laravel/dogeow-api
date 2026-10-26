@@ -76,9 +76,39 @@ class RemoveBackgroundJobTest extends TestCase
         $this->assertSame($newPath, $status['path']);
     }
 
+    public function test_disabled_service_finishes_legacy_job_without_requests_or_image_changes(): void
+    {
+        config(['services.rmbg.url' => '']);
+        Http::preventStrayRequests();
+        $originPath = 'uploads/7/old-origin.jpg';
+        $compressedPath = 'uploads/7/old.jpg';
+        $thumbnailPath = 'uploads/7/old-thumb.jpg';
+        foreach ([$originPath, $compressedPath, $thumbnailPath] as $path) {
+            Storage::disk('public')->put($path, 'existing-image-bytes');
+        }
+        $this->mock(ImageProcessingService::class, function ($mock): void {
+            $mock->shouldNotReceive('createThumbnailFromCompressed');
+        });
+
+        $job = new RemoveBackgroundJob(7, $compressedPath, $originPath, 'https://example.com/original.jpg');
+        $job->handle(app(RmbgStatusService::class), app(ImageProcessingService::class), app(RmbgItemImageLinkerService::class));
+
+        Http::assertNothingSent();
+        foreach ([$originPath, $compressedPath, $thumbnailPath] as $path) {
+            $this->assertSame('existing-image-bytes', Storage::disk('public')->get($path));
+        }
+        $status = app(RmbgStatusService::class)->get($compressedPath);
+        $this->assertSame('failed', $status['status']);
+        $this->assertSame('自动去背景已停用，已保留原图', $status['message']);
+    }
+
     public function test_job_marks_failed_when_service_returns_error(): void
     {
         $compressedPath = 'uploads/1/abc.jpg';
+
+        $this->mock(ImageProcessingService::class, function ($mock): void {
+            $mock->shouldNotReceive('createThumbnailFromCompressed');
+        });
 
         Http::fake([
             'https://rmbg.example.com/api/remove-bg' => Http::response(['error' => 'boom'], 500),
