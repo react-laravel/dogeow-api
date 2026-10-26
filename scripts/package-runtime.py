@@ -17,6 +17,28 @@ REQUIRED = {"artisan", "bootstrap/app.php", "composer.lock", "public/index.php",
 MAX_FILE = 64 * 1024 * 1024
 MAX_TOTAL = 600 * 1024 * 1024
 PRIVATE_MARKER = re.compile(rb"-----BEGIN (?:[A-Z0-9]+ )?PRIVATE KEY-----")
+# Cryptographic libraries contain PEM header/footer constants for parsing and
+# serializing keys. A header plus an encoded body is key material; a formatting
+# constant alone is not a credential. Application files remain conservative.
+PRIVATE_MATERIAL = re.compile(
+    rb"-----BEGIN (?:[A-Z0-9]+ )?PRIVATE KEY-----[ \t\r\n]*"
+    rb"(?:(?:Proc-Type|DEK-Info):[^\r\n]*[\r\n]+[ \t\r\n]*)*"
+    rb"[A-Za-z0-9+/]{32,}={0,2}"
+)
+VENDOR_READMES = {"readme", "readme.md", "readme.markdown", "readme.rst", "readme.txt"}
+
+
+def contains_private_key(data, name):
+    if not PRIVATE_MARKER.search(data):
+        return False
+    if not name.startswith("vendor/"):
+        return True
+    # Also reject actual PEM bodies embedded in JSON/PHP escaped strings.
+    normalized = data
+    for escaped in (b"\\\\r\\\\n", b"\\\\n", b"\\r\\n", b"\\n"):
+        normalized = normalized.replace(escaped, b"\n")
+    return PRIVATE_MATERIAL.search(normalized) is not None
+
 
 
 def skip_path(relative):
@@ -26,6 +48,7 @@ def skip_path(relative):
         or parts[:2] == ("bootstrap", "cache")
         or parts[:3] == ("public", "vendor", "telescope")
         or parts[:2] == ("public", "storage")
+        or (parts[0] == "vendor" and parts[-1].lower() in VENDOR_READMES)
     )
 
 
@@ -66,7 +89,7 @@ def package(root, destination, revision):
         with tarfile.open(destination, "w:gz", compresslevel=6) as archive:
             for name, source in runtime_files(root):
                 data = source.read_bytes()
-                if PRIVATE_MARKER.search(data):
+                if contains_private_key(data, name):
                     raise ValueError("A private key was found in a runtime file.")
                 total += len(data)
                 if total > MAX_TOTAL:
