@@ -1,6 +1,6 @@
 # DogeOW 主API发布到新服务器C
 
-当前发布目标为C（120.26.21.64），仅新增主API所需运行依赖，不安装Codex或模型；Octane按1个worker、1个task worker减少内存。使用现有A自托管GitHub runner构建，再通过专用受限SSH账号上传运行包。旧Deployer localhost入口已退出；不要再从A执行旧的deploy或rollback命令。
+当前发布目标为C（120.26.21.64），仅新增主API所需运行依赖，不安装Codex或模型；Octane按1个worker、1个task worker减少内存。使用GitHub托管的ubuntu-24.04临时构建节点，再通过专用受限SSH账号上传运行包，构建与发布均不依赖A。旧Deployer localhost入口已退出；不要再从A执行旧的deploy或rollback命令。
 
 首次启用由管理员完成以下受限权限配置与验收；源码发布只使用本仓库专用密钥及明确列出的三项服务重启权限。
 
@@ -8,7 +8,7 @@
 
 push main自动发布；workflow_dispatch默认validate_only=true，只验证C当前运行的API，不上传或启用工作区的新源码。需要发布新版本时显式选false。
 
-构建固定使用PHP8.5、现有composer.lock与composer install --no-dev --no-scripts --prefer-dist。不会composer update、编译前端、运行schema migration、清空Redis/session或调用notify:deploy。运行包只含app/bootstrap/config/database/lang/public/resources/routes/vendor与必要根文件，排除.env、storage、bootstrap/cache、调试资产和认证文件。C不构建、不下载依赖。
+checkout及PHP安装Action固定为其官方主仓完整commit SHA；在临时Ubuntu24.04节点设置PHP8.5、所需extensions和Composer2。构建固定使用PHP8.5、现有composer.lock与composer install --no-dev --no-scripts --prefer-dist。不会composer update、编译前端、运行schema migration、清空Redis/session或调用notify:deploy。运行包只含app/bootstrap/config/database/lang/public/resources/routes/vendor与必要根文件，排除.env、storage、bootstrap/cache、调试资产和认证文件。C不构建、不下载依赖。
 
 GitHub加密Secrets：
 - C_API_DEPLOY_SSH_KEY：本API专用SSH私钥，不复用其他站点密钥。
@@ -18,7 +18,7 @@ GitHub加密Secrets：
 
 ## C权限与目录边界
 
-SSH账号dogeow-api-deploy的公钥限定来源A的公网115.29.235.44及私网172.16.65.147，并强制执行root拥有的固定网关。仅接受三个形式：
+SSH账号dogeow-api-deploy的公钥保留restrict并强制执行root拥有的固定网关。GitHub托管节点使用动态出口，因此此专用key不再限定A的来源地址。账号及精确三项sudo权限保持原边界。仅接受三个形式：
 - receive加40位SHA：stdin接收压缩包。
 - publish加40位SHA：校验和发布该包。
 - validate加40位SHA：验证当前或初始155版本。
@@ -90,4 +90,4 @@ publisher只从root拥有的/etc/dogeow-api/publish-health.json读取公开前�
 
 首次启用前需验证网关拒绝通用命令、主机公钥和来源白名单正确、上传包不含秘密、健康失败能够回退，以及三个精确重启命令的sudoers语法。当前本地测试是文件/网关边界与受控失败模拟；真实C集成和CI仍需在授权后验收。
 
-A runner是当前过渡构建点。迁走runner时必须同时调整专用公钥来源限制，并验证B/C管理和构建不再依赖A。
+构建使用GitHub托管临时节点，不依赖A或B的runner。安装依赖仅使用本仓库内建、只读contents权限的短期GitHub token处理公开依赖下载，不借用其他PAT，不在程序包中写入认证文件。不会安装或运行Swoole、不启用数据库服务、不执行任何业务PHP脚本。专用发布私钥仍只存放GitHub加密Secrets及该次任务的临时文件。
