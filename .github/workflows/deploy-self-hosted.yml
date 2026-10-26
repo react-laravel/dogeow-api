@@ -1,28 +1,59 @@
-# 推送 main 后在国内自托管 Runner 上通过 Deployer 执行零停机部署。
-# 前提：目标服务器配好 PHP/Composer/Supervisor/Nginx，runner 用户有 sudo supervisorctl 免密。
-# 详情见 docs/DEPLOYMENT.md。
-name: Deploy (Self-hosted)
+name: Deploy API to C
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      validate_only:
+        description: Verify C's existing API without uploading or activating this checkout
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
 
 concurrency:
-  group: deploy-production
+  group: deploy-dogeow-api-c
   cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: self-hosted
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          clean: true
 
-      - name: Deploy production
+      - name: Check trusted runner runtime
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          php8.5 -r 'exit(PHP_MAJOR_VERSION === 8 && PHP_MINOR_VERSION === 5 ? 0 : 1);'
+          php -r 'exit(PHP_MAJOR_VERSION === 8 && PHP_MINOR_VERSION === 5 ? 0 : 1);'
+          command -v composer
+          command -v python3
+
+      - name: Install locked production dependencies
+        if: github.event_name == 'push' || inputs.validate_only != true
+        run: |
+          composer install --no-dev --prefer-dist --no-interaction --no-progress --no-scripts --optimize-autoloader
+          composer check-platform-reqs --no-dev
+
+      - name: Build credential-free runtime
+        if: github.event_name == 'push' || inputs.validate_only != true
+        run: |
+          python3 scripts/package-runtime.py "$RUNNER_TEMP/dogeow-api-$GITHUB_SHA.tar.gz" "$GITHUB_SHA"
+
+      - name: Publish or verify C
         env:
-          # self-hosted runner and target app are on the same server; keep the
-          # concrete path here so a stale/missing secret cannot point Deployer at
-          # a non-existent tree and break deploy:lock.
-          DEPLOY_PATH: /var/www/dogeow-api
-          SUPERVISOR_GROUP: dogeow-api
-        run: scripts/ensure-deployer.sh deploy production -v
+          C_API_DEPLOY_SSH_KEY: ${{ secrets.C_API_DEPLOY_SSH_KEY }}
+          C_API_DEPLOY_KNOWN_HOSTS: ${{ secrets.C_API_DEPLOY_KNOWN_HOSTS }}
+          VALIDATE_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.validate_only == true }}
+        run: |
+          bash scripts/deploy-api-to-c.sh "$RUNNER_TEMP/dogeow-api-$GITHUB_SHA.tar.gz" "$GITHUB_SHA"
+
+      - name: Remove transient runtime archive
+        if: always()
+        run: rm -f "$RUNNER_TEMP/dogeow-api-$GITHUB_SHA.tar.gz"
