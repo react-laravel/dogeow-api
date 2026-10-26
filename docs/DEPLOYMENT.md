@@ -54,7 +54,7 @@ Nginx、systemd unit、sudoers及网关/publisher均由root安装，只读给部
 Laravel13会在读取storage_path时优先使用该环境值，避免新图片任务再次序列化临时release路径。服务同时把APP_CONFIG_CACHE、APP_ROUTES_CACHE、APP_EVENTS_CACHE、APP_PACKAGES_CACHE、APP_SERVICES_CACHE固定到app独占私有缓存目录，避免秘密写回程序目录。Redis队列retry_after要求至少900秒，高于worker的700秒超时；C需设置REDIS_QUEUE_RETRY_AFTER=900。服务停止超时必须足以让当前job正常退出。
 
 初迁保留releases/155，以兼容迁移窗口以前已保存的绝对图片任务。管理员在最终冻结阶段确认main ready/reserved/delayed队列均为空，才创建：
-    /var/lib/dogeow-api/legacy-release-retired
+    /etc/dogeow-api/legacy-release-retired
 
 该root拥有、不可被部署用户写的普通文件内容为155。首次SHA发布发现没有此标记会中止，不删除155。
 
